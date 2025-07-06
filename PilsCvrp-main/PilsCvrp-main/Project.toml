@@ -1,0 +1,12 @@
+name = "PilsCvrp"
+uuid = "6a7a6b8a-6d58-4f3f-89ce-865317a86804"
+authors = ["Artur Alves Pessoa <artur.a.pessoa@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Profile = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Unicode = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"

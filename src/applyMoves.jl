@@ -1,0 +1,85 @@
+function applyMoveInsertion(solver::Solver, newCost::Float64, r::Int, customer::Int, j::Int)
+    solver.currSol.cost = newCost
+    # solver.currSol.resViolation[r] = newResViol
+    # solver.currSol.totalViolation = newTotalViol
+    insert!(solver.currSol.routes[r], j, customer)
+end
+
+function applyMoveIntraShift10!(solver::Solver, newCost::Float64, r::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    customerI = solver.currSol.routes[r][i]
+    if i < j
+        deleteat!(solver.currSol.routes[r], i)
+        insert!(solver.currSol.routes[r], j-1, customerI)
+    else
+        deleteat!(solver.currSol.routes[r], i)
+        insert!(solver.currSol.routes[r], j, customerI)
+    end
+end
+
+function applyMoveIntraShift20!(solver::Solver, newCost::Float64, r::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    customerI1 = solver.currSol.routes[r][i]
+    customerI2 = solver.currSol.routes[r][i+1]
+    if i < j
+        deleteat!(solver.currSol.routes[r], [i, i+1])
+        insert!(solver.currSol.routes[r], j-2, customerI2)
+        insert!(solver.currSol.routes[r], j-2, customerI1)
+    else
+        deleteat!(solver.currSol.routes[r], [i, i+1])
+        insert!(solver.currSol.routes[r], j, customerI2)
+        insert!(solver.currSol.routes[r], j, customerI1)
+    end
+end
+
+function applyMoveIntraSwap11!(solver::Solver, newCost::Float64, newResViol::Int, r::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    solver.currSol.routes[r][i], solver.currSol.routes[r][j] = solver.currSol.routes[r][j], solver.currSol.routes[r][i]
+end
+
+function applyMove2opt!(solver::Solver, newCost::Float64, newResViol::Int, r::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    reverse!(solver.currSol.routes[r], i, j)
+end
+
+function applyMoveInterShift10!(solver::Solver, newCost::Float64, r1::Int, r2::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    customerI = solver.currSol.routes[r1][i]
+    deleteat!(solver.currSol.routes[r1], i)
+    insert!(solver.currSol.routes[r2], j, customerI)
+end
+
+function applyMoveInterShift20!(solver::Solver, newCost::Float64, newTotalViol::Int, newResViolR1::Int, newResViolR2::Int, r1::Int, r2::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    solver.currSol.totalViolation = newTotalViol
+    solver.currSol.resViolation[r1] = newResViolR1
+    solver.currSol.resViolation[r2] = newResViolR2
+
+    customerI1 = solver.currSol.routes[r1][i]
+    customerI2 = solver.currSol.routes[r1][i+1]
+    deleteat!(solver.currSol.routes[r1], [i, i+1])
+    insert!(solver.currSol.routes[r2], j, customerI2)
+    insert!(solver.currSol.routes[r2], j, customerI1)
+end
+
+function applyMoveInterSwap11!(solver::Solver, newCost::Float64, r1::Int, r2::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+
+    customerI = solver.currSol.routes[r1][i]
+    customerJ = solver.currSol.routes[r2][j]
+    solver.currSol.routes[r1][i] = customerJ
+    solver.currSol.routes[r2][j] = customerI
+end
+
+function applyMoveInterSwap22!(solver::Solver, newCost::Float64, newResViol::Int, r1::Int, r2::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    solver.currSol.resViolation = newResViol
+    customerI1 = solver.currSol.routes[r1][i]
+    customerI2 = solver.currSol.routes[r1][i]
+    customerJ1 = solver.currSol.routes[r2][j]
+    customerJ2 = solver.currSol.routes[r2][j]
+    solver.currSol.routes[r1][i] = customerJ1
+    solver.currSol.routes[r2][i+1] = customerJ2
+    solver.currSol.routes[r1][j] = customerI1
+    solver.currSol.routes[r2][j+1] = customerI2
+end
