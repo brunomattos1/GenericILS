@@ -72,46 +72,51 @@ function checkCVRP(solver::Solver, sol::Solution)
 end
 
 function checkInfeasibles(solver::Solver, route1::Vector{Int}, route2::Vector{Int})
-    infeas1 = 0
-    infeas2 = 0
+    feas1F = 0
+    feas2F = 0
+    feas1B = 0
+    feas2B = 0
+
     demand1F = 0
     accDemand1F = Vector{Int}()
+
     demand2F = 0
     accDemand2F = Vector{Int}()
 
     demand1B = 0
     accDemand1B = Vector{Int}()
+
     demand2B = 0
     accDemand2B = Vector{Int}()
     for i = 1:length(route1)-2
         demand1F += solver.res.d[route1[i]+1, route1[i+1]+1]
-        if demand1F > solver.res.Q
-            infeas1 += 1
+        if demand1F <= solver.res.Q
+            feas1F += 1
         end
         push!(accDemand1F, demand1F)
     end
     for i = 1:length(route2)-2
         demand2F += solver.res.d[route2[i]+1, route2[i+1]+1]
-        if demand2F > solver.res.Q
-            infeas2 += 1
+        if demand2F <= solver.res.Q
+            feas2F += 1
         end
         push!(accDemand2F, demand2F)
     end
     for i = length(route1):-1:3
         demand1B += solver.res.d[route1[i]+1, route1[i-1]+1]
-        if demand1B > solver.res.Q
-            # infeas1 += 1
+        if demand1B <= solver.res.Q
+            feas1B += 1
         end
         push!(accDemand1B, demand1B)
     end
     for i = length(route2):-1:3
         demand2B += solver.res.d[route2[i]+1, route2[i-1]+1]
-        if demand2B > solver.res.Q
-            # infeas2 += 1
+        if demand2B <= solver.res.Q
+            feas2B += 1
         end
         push!(accDemand2B, demand2B)
     end
-    return infeas1 + infeas2, accDemand1F, accDemand2F, accDemand1B, accDemand2B
+    return length(route1) + length(route2) - max(feas1F, feas1B) - max(feas2F, feas2B) - 4, accDemand1F, accDemand2F, accDemand1B, accDemand2B
 end
 
 function createArcDemands(demands)
@@ -132,9 +137,13 @@ function createArcDemands(demands)
     return d
 end
 
-instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n8-k4.vrp"
+# instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n8-k4.vrp"
+# instance = joinpath(@__DIR__, "..", "PilsCvrp-main","PilsCvrp-main","data")
+instance = "A-n37-k6.vrp"
+instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", string(instance[1]), instance)
+
 # instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\P\P-n20-k2.vrp"
-instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n37-k5.vrp"
+# instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n37-k5.vrp"
 
 # instance = "/home/logis/Documentos/GitHub/GMHVRP/PilsCvrp-main/PilsCvrp-main/data/A/A-n37-k6.vrp"
 cvrp = CVRPLIB.readCVRP(instance)
@@ -194,26 +203,39 @@ solver = Solver(
     initState = initState,
     extendAlongArc = extendAlongArc, 
     concatenationCost = concatenationCost, 
-    params = Parameters(10, 30, 10), 
+    params = Parameters(30, 10, 10), 
     diversification = Diversification(2, 0),
     data = data, 
     neighborhoods = Set([3])
 )
 # @time constructSol!(solver)
-# solver.currSol.routes[1] = [0, 15, 19, 30, 16, 21, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0]
-# solver.currSol.routes[2] = [0, 0]
+# solver.currSol.routes[1] = [0, 13, 12, 22, 23, 28, 2, 19, 14, 0]
+# solver.currSol.routes[2] = [0, 20, 33, 35, 1, 3, 5, 8, 6, 0]
 
 # computeLabels(solver)
-# @show computeViolRemove1(solver, 1, 6)
-# @show computeViolInsertion1(solver, 2, 21, 2)
+# @show length(solver.currSol.routes[1])
+# @show length(solver.currSol.routes[2])
+
+# @show computeViolRemove1(solver, 1, 2)
+# @show computeViolInsertion1(solver, 2, 13, 5)
 ILS(solver)
 printCVRP(solver, solver.currSol)
 # [0, 15, 19, 30, 16, 21, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0]
 # [0, 0]
-@show checkInfeasibles(solver, [0, 15, 19, 30, 16, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0], [0, 21, 0])
+# @show checkInfeasibles(solver, [0, 15, 19, 30, 16, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0], [0, 21, 0])
 
-# ap = AlgorithmParameters(timeLimit=0.01, seed=3) # `timeLimit` in seconds, `seed` is the seed for random values.
-# cvrp = CVRPLIB.readCVRP(instance)
-# result = solve_cvrp(cvrp, ap; verbose=false) # verbose=false to turn off all outputs
+ap = AlgorithmParameters(timeLimit=0.01, seed=3) # `timeLimit` in seconds, `seed` is the seed for random values.
+cvrp = CVRPLIB.readCVRP(instance)
+result = solve_cvrp(cvrp, ap; verbose=false) # verbose=false to turn off all outputs
 
 # @show sum(cvrp.demand[i+1] for i in [0, 21, 16, 22, 13, 6, 7, 0])
+
+# r1: [0, 20, 33, 35, 1, 3, 5, 8, 6, 0] r2: [0, 12, 22, 23, 28, 2, 9, 21, 19, 13, 34, 0]
+# acum D r1 F: [5, 13, 79, 80, 103, 110, 130, 148], acum D r2 F: [2, 14, 23, 26, 49, 68, 87, 97, 123, 142]
+# acum D r1 B: [18, 38, 45, 68, 69, 135, 143, 148], acum D r2 B: [19, 45, 55, 74, 93, 116, 119, 128, 140, 142]
+# Infeas: 6, Computed Infeas: 7
+10 -> 5
+12 -> 8
+
+22 - 4 - 5 - 8
+

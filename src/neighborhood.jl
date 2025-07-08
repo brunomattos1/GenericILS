@@ -350,8 +350,9 @@ function interShift10!(solver::Solver)
                     computedInfeas, accDemand1F, accDemand2F, accDemand1B, accDemand2B = checkInfeasibles(solver, auxSol.routes[r1], auxSol.routes[r2])
                     currComputedInfeas, currAccDemand1F, currAccDemand2F, currAccDemand1B, currAccDemand2B = checkInfeasibles(solver, solver.currSol.routes[r1], solver.currSol.routes[r2])
 
-                    if infeas < computedInfeas
+                    if infeas < computedInfeas && infeas > -5
                         # if j != 2 
+                            println("cust: $(solver.currSol.routes[r1][i]) pos: $j")
                             println("curr r1: $(solver.currSol.routes[r1]) curr r2: $(solver.currSol.routes[r2])")
                             println("acum D r1 F: $(currAccDemand1F), acum D r2 F: $(currAccDemand2F)")
                             println("acum D r1 B: $(currAccDemand1B), acum D r2 B: $(currAccDemand2B)")

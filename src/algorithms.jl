@@ -5,6 +5,7 @@ function ILS(solver::Solver)
     for r = 1:solver.params.restarts
         constructSol!(solver)
         checkCVRP(solver, solver.currSol)
+        # println("RVND")
         RVND!(solver)
         push!(solver)
         it = 0

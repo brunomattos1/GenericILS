@@ -49,6 +49,7 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
         end
         # TO DO
         if pos > solver.currSol.lastFeasibleF[r] + 1
+            # println("here")
             dFeasForward = -typemax(Int)
         end
         # @show insertionLabelForward2, dFeasForward
@@ -89,6 +90,7 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
             insertionLabelBackward2.cost < Inf ? dFeasBackward += 1 : 0
         end
         if pos < length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
+            # println("here B")
             dFeasBackward = -typemax(Int)
         end
         # @show insertionLabelBackward2, dFeasBackward
@@ -105,15 +107,15 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
 
     backw = dFeasBackward
     if pos >= length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r]
-        backw += length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r] - 1
+        # backw += length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r] - 1
+        backw += length(solver.currSol.routes[r]) - pos -1
     else
         backw += solver.currSol.lastFeasibleB[r] - 1
     end
-    # @show pos
-    # println(solver.currSol.lastFeasibleB[r])
-    # println(length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r])
-    # println("(forw, backw) insertion1: $(forw), $(backw)")
-
+    
+    # println("pos $pos, lastFeasibleB: $(length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r])")
+    # println("dfeasForw $(dFeasForward), dfeasBackw $(dFeasBackward)")
+    # println("backw $backw, forw $forw")
     return max(forw, backw)
 end
 
@@ -342,78 +344,79 @@ function computeViolInsertion2(solver::Solver, r::Int, i::Int, j::Int)
 end
 
 # TO DO
-# function computeViolRemove2(solver::Solver, r::Int, i::Int)
-#     # FORWARD
-#     if solver.currSol.feasiblesF[r] == length(solver.currSol.routes[r]) - 2
-#         removLabel = concatenationCost(solver.res, i, solver.forwardLabels[r][i-1], solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - i - 1])
-#         if removLabel.cost < Inf
-#             dFeasForward = -2
-#         else
-#             dFeasForward = -length(solver.currSol.routes[r])-1
-#         end
-#         # println("FEASIBLE ROUTE: $(removLabel)")
-#     else
-#         if i < solver.currSol.lastFeasibleF[r] + 1
-#             dFeasForward = - 2
-#             removLabel = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][i-1]), (solver.currSol.routes[r][i-1]+1, solver.currSol.routes[r][i+1]+1))
-#             if removLabel.cost < Inf
-#                 dFeasForward += 1
-#             else
-#                 dFeasForward += 0
-#             end
-#             # println("i < : $(removLabel)")
+#=
+function computeViolRemove2(solver::Solver, r::Int, i::Int)
+    # FORWARD
+    if solver.currSol.feasiblesF[r] == length(solver.currSol.routes[r]) - 2
+        removLabel = concatenationCost(solver.res, i, solver.forwardLabels[r][i-1], solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - i - 1])
+        if removLabel.cost < Inf
+            dFeasForward = -2
+        else
+            dFeasForward = -length(solver.currSol.routes[r])-1
+        end
+        # println("FEASIBLE ROUTE: $(removLabel)")
+    else
+        if i < solver.currSol.lastFeasibleF[r] + 1
+            dFeasForward = - 2
+            removLabel = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][i-1]), (solver.currSol.routes[r][i-1]+1, solver.currSol.routes[r][i+1]+1))
+            if removLabel.cost < Inf
+                dFeasForward += 1
+            else
+                dFeasForward += 0
+            end
+            # println("i < : $(removLabel)")
 
-#         elseif i == solver.currSol.lastFeasibleF[r] + 1
-#             removLabel = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][i-1]), (solver.currSol.routes[r][i-1]+1, solver.currSol.routes[r][i+1]+1))
-#             if removLabel.cost < Inf
-#                 dFeasForward = 1
-#             else
-#                 dFeasForward = 0
-#             end
-#             # println("i == : $(removLabel)")
+        elseif i == solver.currSol.lastFeasibleF[r] + 1
+            removLabel = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][i-1]), (solver.currSol.routes[r][i-1]+1, solver.currSol.routes[r][i+1]+1))
+            if removLabel.cost < Inf
+                dFeasForward = 1
+            else
+                dFeasForward = 0
+            end
+            # println("i == : $(removLabel)")
 
-#         elseif i > solver.currSol.lastFeasibleF[r] + 1
-#             # println("i > ")
-#             dFeasForward = -typemax(Int)
-#         end
-#     end
+        elseif i > solver.currSol.lastFeasibleF[r] + 1
+            # println("i > ")
+            dFeasForward = -typemax(Int)
+        end
+    end
     
-#     # BACKWARD
-#     if solver.currSol.feasiblesB[r] == length(solver.currSol.routes[r]) - 2
-#         removLabel = concatenationCost(solver.res, i, solver.forwardLabels[r][i-1], solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - i - 1])
-#         if removLabel.cost < Inf
-#             dFeasBackward = -2
-#         else
-#             dFeasBackward = -length(solver.currSol.routes[r])-1
-#         end
-#         # println("FEASIBLE ROUTE: $(removLabel)")
-#     else
-#         removLabel = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][i-1]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][i-1]+1))
-#         if i > length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
-#             dFeasBackward = - 2
-#             if removLabel.cost < Inf
-#                 dFeasBackward += 1
-#             else
-#                 dFeasBackward += 0
-#             end
-#             # println("i < : ")
+    # BACKWARD
+    if solver.currSol.feasiblesB[r] == length(solver.currSol.routes[r]) - 2
+        removLabel = concatenationCost(solver.res, i, solver.forwardLabels[r][i-1], solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - i - 1])
+        if removLabel.cost < Inf
+            dFeasBackward = -2
+        else
+            dFeasBackward = -length(solver.currSol.routes[r])-1
+        end
+        # println("FEASIBLE ROUTE: $(removLabel)")
+    else
+        removLabel = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][i-1]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][i-1]+1))
+        if i > length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
+            dFeasBackward = - 2
+            if removLabel.cost < Inf
+                dFeasBackward += 1
+            else
+                dFeasBackward += 0
+            end
+            # println("i < : ")
 
-#         elseif i == length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
-#             if removLabel.cost < Inf
-#                 dFeasBackward = 1
-#             else
-#                 dFeasBackward = 0
-#             end
-#             # println("i == : ")
+        elseif i == length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
+            if removLabel.cost < Inf
+                dFeasBackward = 1
+            else
+                dFeasBackward = 0
+            end
+            # println("i == : ")
 
-#         elseif i < length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
-#             # println("i > ")
-#             dFeasBackward = -typemax(Int)
-#         end
-#     end
-#     return max(solver.currSol.feasiblesF[r] + dFeasForward, solver.currSol.feasiblesB[r] + dFeasForward)
-# end
-
+        elseif i < length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
+            # println("i > ")
+            dFeasBackward = -typemax(Int)
+        end
+    end
+    return max(solver.currSol.feasiblesF[r] + dFeasForward, solver.currSol.feasiblesB[r] + dFeasForward)
+end
+=#
 
 function computeViolIntraShift10(solver::Solver, r::Int, i::Int, j::Int)
     # return solver.currSol.resViolation[r]
