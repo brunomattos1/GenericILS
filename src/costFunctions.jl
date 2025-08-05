@@ -86,3 +86,15 @@ function interSwap22Cost(currCost::Float64, costMatrix::Matrix{Float64}, route1:
     newCost += costMatrix[route1[i-1]+1, route2[j]+1] + costMatrix[route2[j+1]+1, route1[i+2]+1] + costMatrix[route2[j-1]+1, route1[i]+1]+ costMatrix[route1[i+1]+1, route2[j+2]+1]
     return newCost
 end
+
+function splitCost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector{Int}, i::Int)
+    newCost = currCost - costMatrix[route[i-1]+1, route[i]+1]
+    newCost += costMatrix[route[i-1]+1, 1] + costMatrix[1, route[i]+1]
+    return newCost
+end
+
+function twoOptStarCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int)
+    newCost = currCost - costMatrix[route1[i]+1, route1[i+1]+1] - costMatrix[route2[j]+1, route2[j+1]+1]
+    newCost += costMatrix[route1[i]+1, route2[j+1]+1] + costMatrix[route2[j]+1, route1[i+1]+1]
+    return newCost
+end

@@ -85,7 +85,7 @@ function computeLabels(solver::Solver, routes::Vector{Int})
             solver.forwardLabels[r][i] = label
         end
         if !last
-            sol.lastFeasibleF[r] = lenR - 1
+            sol.lastFeasibleF[r] = lenR
             sol.feasiblesF[r] = lenR - 2
         end
 
@@ -104,7 +104,7 @@ function computeLabels(solver::Solver, routes::Vector{Int})
         end
         reverse!(solver.backwardLabels[r])
         if !last
-            sol.lastFeasibleB[r] = lenR - 1
+            sol.lastFeasibleB[r] = lenR
             sol.feasiblesB[r] = lenR - 2
         end
         # solver.backwardLabels[r] = backwLabels

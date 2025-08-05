@@ -1,8 +1,16 @@
 function acceptSol(solver::Solver)
-    if sum(solver.currSol.feasiblesF) + sum(solver.currSol.feasiblesB) > sum(solver.bestSol.feasiblesF) + sum(solver.bestSol.feasiblesB)
+    currInfeas = 0
+    for r = 1:length(solver.currSol.routes)
+        currInfeas += length(solver.currSol.routes[r]) -2 - max(solver.currSol.feasiblesF[r], solver.currSol.feasiblesB[r])
+    end
+    bestInfeas = 0
+    for r = 1:length(solver.bestSol.routes)
+        bestInfeas += length(solver.bestSol.routes[r]) -2 - max(solver.bestSol.feasiblesF[r], solver.bestSol.feasiblesB[r])
+    end
+    if currInfeas < bestInfeas
         return true
     end
-    if sum(solver.currSol.feasiblesF) + sum(solver.currSol.feasiblesB) == sum(solver.bestSol.feasiblesF) + sum(solver.bestSol.feasiblesB) && solver.currSol.cost < solver.bestSol.cost - 1e-5
+    if currInfeas == bestInfeas && solver.currSol.cost < solver.bestSol.cost - 1e-5
         return true
     end
     return false

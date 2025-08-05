@@ -37,7 +37,7 @@ function bestParallelInsertion(solver::Solver)
                     #     println("$(solver.currSol.lastFeasibleF[r]) $(solver.currSol.lastFeasibleB[r])")
                     #     sleep(1000)
                     # end
-                    improvement = improvedInsertion(cost, bestCost, infeas, bestInfeas)
+                    improvement = improved(cost, bestCost, infeas, bestInfeas)
                     if improvement
                         bestCost = cost
                         bestI = i

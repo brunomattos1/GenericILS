@@ -33,19 +33,22 @@
 #     return false
 # end
 
-function improved(cost::Float64, bestCost::Float64, feas::Int, bestFeas::Int)
-    # comparar quantidade de inviaveis (length(route) - feas)
-    if feas > bestFeas
-        return true
-    end
-    if feas == bestFeas && cost < bestCost - 1e-5
-        return true
-    end
-    return false
-end
+# function improved(cost::Float64, bestCost::Float64, feas::Int, bestFeas::Int)
+#     # comparar quantidade de inviaveis (length(route) - feas)
+#     if feas > bestFeas
+#         return true
+#     end
+#     if feas == bestFeas && cost < bestCost - 1e-5
+#         return true
+#     end
+#     return false
+# end
 
-function improvedInsertion(cost::Float64, bestCost::Float64, infeas::Int, bestInfeas::Int)
+function improved(cost::Float64, bestCost::Float64, infeas::Int, bestInfeas::Int)
     # comparar quantidade de inviaveis (length(route) - feas)
+    if infeas < -100
+        return false
+    end
     if infeas < bestInfeas
         return true
     end
@@ -113,5 +116,16 @@ function evalInterSwap22!(currCost::Float64, currResViol::Int, routes::Vector{Ve
     cost = interSwap22Cost(currCost, solver.costMatrix, routes[r1], routes[r2], i, j)
     resViol = computeViolInterSwap22()
     return cost, resViol, improved(currCost, cost, currResViol, resViol)
+end
+
+function evalSplit!(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int)
+    cost = splitCost(currCost, solver.data.costMatrix, routes[r], i)
+    return cost
+end
+
+function evalTwoOptStar!(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r1::Int, r2::Int, i::Int, j::Int)
+    cost = twoOptStarCost(currCost, solver.data.costMatrix, routes[r1], routes[r2], i, j)
+    dFeas = computeViolTwoOptStar(solver, r1, r2, i, j)
+    return cost, dFeas
 end
 

@@ -19,6 +19,7 @@ function ILS(solver::Solver)
             checkCVRP(solver, solver.currSol)
             cost_perturb = solver.currSol.cost
             viol_perturb = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
+            # println("RVND")
             RVND!(solver)
             checkCVRP(solver, solver.currSol)
             cost_rvnd = solver.currSol.cost

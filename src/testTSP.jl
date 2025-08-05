@@ -119,6 +119,32 @@ function checkInfeasibles(solver::Solver, route1::Vector{Int}, route2::Vector{In
     return length(route1) + length(route2) - max(feas1F, feas1B) - max(feas2F, feas2B) - 4, accDemand1F, accDemand2F, accDemand1B, accDemand2B
 end
 
+function checkInfeasibles(solver::Solver, route1::Vector{Int})
+    feas1F = 0
+    feas1B = 0
+
+    demand1F = 0
+    accDemand1F = Vector{Int}()
+    demand1B = 0
+    accDemand1B = Vector{Int}()
+
+    for i = 1:length(route1)-2
+        demand1F += solver.res.d[route1[i]+1, route1[i+1]+1]
+        if demand1F <= solver.res.Q
+            feas1F += 1
+        end
+        push!(accDemand1F, demand1F)
+    end
+    for i = length(route1):-1:3
+        demand1B += solver.res.d[route1[i]+1, route1[i-1]+1]
+        if demand1B <= solver.res.Q
+            feas1B += 1
+        end
+        push!(accDemand1B, demand1B)
+    end
+    return length(route1) - max(feas1F, feas1B) - 2, accDemand1F,accDemand1B
+end
+
 function createArcDemands(demands)
     n = length(demands)
     d = zeros(Float64, n, n)
@@ -137,15 +163,9 @@ function createArcDemands(demands)
     return d
 end
 
-# instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n8-k4.vrp"
-# instance = joinpath(@__DIR__, "..", "PilsCvrp-main","PilsCvrp-main","data")
 instance = "A-n37-k6.vrp"
 instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", string(instance[1]), instance)
 
-# instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\P\P-n20-k2.vrp"
-# instance = raw"C:\Users\bruno.mattos\OneDrive - americanas s.a\Documentos\GitHub\GMHVRP\PilsCvrp-main\PilsCvrp-main\data\A\A-n37-k5.vrp"
-
-# instance = "/home/logis/Documentos/GitHub/GMHVRP/PilsCvrp-main/PilsCvrp-main/data/A/A-n37-k6.vrp"
 cvrp = CVRPLIB.readCVRP(instance)
 # cvrp.capacity = 20
 dist = Float64.(cvrp.weights)#criar_matriz_distancia(cvrp.coordinates)
@@ -163,79 +183,77 @@ d = createArcDemands(demands)
 res = CapacityResource(d, cvrp.capacity)
 
 function initState()
-    return CapacityState(0.0, 0.0, [0], 0)
-    # return CapacityState(0.0, 0.0)
+    if debug
+        return CapacityState(0.0, 0.0, [0], 0)
+    else
+        return CapacityState(0.0, 0.0, [0], 0)
+    end
 end
 
 function extendAlongArc(res::CapacityResource, state::CapacityState, a::Tuple{Int, Int})
-    state.q += res.d[a...]
-    append!(state.path, a[2] - 1)
-    state.last = a[2] - 1
-    if state.q > res.Q + 1e-5
-        state.cost = Inf
-        return state
+    if debug
+        state.q += res.d[a...]
+        append!(state.path, a[2] - 1)
+        state.last = a[2] - 1
+        if state.q > res.Q + 1e-5
+            state.cost = Inf
+            return state
+        else
+            state.cost = 0
+            return state
+        end
     else
-        state.cost = 0
-        return state
+        state.q += res.d[a...]
+        if state.q > res.Q + 1e-5
+            state.cost = Inf
+            return state
+        else
+            state.cost = 0
+            return state
+        end
     end
 end
 
 function concatenationCost(res::CapacityResource, v::Int, state1::CapacityState, state2::CapacityState)
-    if state1.q + state2.q > res.Q + 1e-5
-        newState = CapacityState(state1.q + state2.q, Inf, vcat(state1.path, reverse(state2.path)), state2.last)
-        return newState
+    if debug
+        if state1.q + state2.q > res.Q + 1e-5
+            newState = CapacityState(state1.q + state2.q, Inf, vcat(state1.path, reverse(state2.path)), state2.last)
+            return newState
+        else
+            newState = CapacityState(state1.q + state2.q, 0.0, vcat(state1.path, reverse(state2.path)), state2.last)
+            return newState
+        end
     else
-        newState = CapacityState(state1.q + state2.q, 0.0, vcat(state1.path, reverse(state2.path)), state2.last)
-        return newState
+        if state1.q + state2.q > res.Q + 1e-5
+            newState = CapacityState(state1.q + state2.q, Inf, Int[], state2.last)
+            return newState
+        else
+            newState = CapacityState(state1.q + state2.q, 0.0, Int[], state2.last)
+            return newState
+        end
     end
-    # if state1.q + state2.q > res.Q + 1e-5
-    #     # newState = CapacityState(state1.q + state2.q, Inf, Int[], state2.last)
-    #     return Inf
-    # else
-    #     # newState = CapacityState(state1.q + state2.q, 0.0, Int[], state2.last)
-    #     return 0
-    # end
 end
-
+const debug = false
 solver = Solver(
-    seed = 1,
+    seed = 3,
     res = res,
     initState = initState,
     extendAlongArc = extendAlongArc, 
     concatenationCost = concatenationCost, 
-    params = Parameters(30, 10, 10), 
+    params = Parameters(10, 30, 10), 
     diversification = Diversification(2, 0),
     data = data, 
-    neighborhoods = Set([3])
+    neighborhoods = Set([3, 5])
 )
-# @time constructSol!(solver)
-# solver.currSol.routes[1] = [0, 13, 12, 22, 23, 28, 2, 19, 14, 0]
-# solver.currSol.routes[2] = [0, 20, 33, 35, 1, 3, 5, 8, 6, 0]
 
-# computeLabels(solver)
-# @show length(solver.currSol.routes[1])
-# @show length(solver.currSol.routes[2])
-
-# @show computeViolRemove1(solver, 1, 2)
-# @show computeViolInsertion1(solver, 2, 13, 5)
 ILS(solver)
-printCVRP(solver, solver.currSol)
-# [0, 15, 19, 30, 16, 21, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0]
-# [0, 0]
-# @show checkInfeasibles(solver, [0, 15, 19, 30, 16, 25, 8, 27, 11, 9, 24, 23, 17, 3, 0], [0, 21, 0])
+# printCVRP(solver, solver.bestSol)
 
-ap = AlgorithmParameters(timeLimit=0.01, seed=3) # `timeLimit` in seconds, `seed` is the seed for random values.
-cvrp = CVRPLIB.readCVRP(instance)
-result = solve_cvrp(cvrp, ap; verbose=false) # verbose=false to turn off all outputs
 
-# @show sum(cvrp.demand[i+1] for i in [0, 21, 16, 22, 13, 6, 7, 0])
-
-# r1: [0, 20, 33, 35, 1, 3, 5, 8, 6, 0] r2: [0, 12, 22, 23, 28, 2, 9, 21, 19, 13, 34, 0]
-# acum D r1 F: [5, 13, 79, 80, 103, 110, 130, 148], acum D r2 F: [2, 14, 23, 26, 49, 68, 87, 97, 123, 142]
-# acum D r1 B: [18, 38, 45, 68, 69, 135, 143, 148], acum D r2 B: [19, 45, 55, 74, 93, 116, 119, 128, 140, 142]
-# Infeas: 6, Computed Infeas: 7
-10 -> 5
-12 -> 8
-
-22 - 4 - 5 - 8
-
+# ap = AlgorithmParameters(timeLimit=0.1, seed=3) # `timeLimit` in seconds, `seed` is the seed for random values.
+# cvrp = CVRPLIB.readCVRP(instance)
+# result = solve_cvrp(cvrp, ap; verbose=false) # verbose=false to turn off all outputs
+# println(result)
+# for r in result.routes
+#     println(r .- 1)
+# end
