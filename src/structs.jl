@@ -68,6 +68,7 @@ mutable struct Solver
     backwardLabels::Vector{Vector{CapacityState}}
     prevLabelF::CapacityState
     prevLabelB::CapacityState
+    buffer::CapacityState
     pool::Vector{Vector{Int}}
     hashes::Set{UInt64}
 
@@ -87,15 +88,24 @@ function Solver(;
     concatenationCost = x -> x,
     forwardLabels = Vector{Vector{CapacityState}}(),
     backwardLabels = Vector{Vector{CapacityState}}(),
-    prevLabelF = CapacityState(0., 0., [0], 0),
-    prevLabelB = CapacityState(0., 0., [0], 0),
+    # prevLabelF = CapacityState(0., 0., [0], 0),
+    # prevLabelB = CapacityState(0., 0., [0], 0),
     pool = Vector{Vector{Int}}(),
     hashes = Set{UInt64}()
 )
+    if DEBUG_MODE
+        prevLabelF = CapacityState(0., 0., [0], 0)
+        prevLabelB = CapacityState(0., 0., [0], 0)
+        buffer = CapacityState(0., 0., [0], 0)
+    else
+        prevLabelF = CapacityState(0., 0.)
+        prevLabelB = CapacityState(0., 0.)
+        buffer = CapacityState(0., 0.)
+    end
     Solver(
         Random.MersenneTwister(seed), params, data, currSol, bestSol,
         diversification, neighborhoods, res, initState, extendAlongArc, concatenationCost, forwardLabels, backwardLabels, prevLabelF, prevLabelB,
-        pool, hashes
+        buffer, pool, hashes
     )
 end
 

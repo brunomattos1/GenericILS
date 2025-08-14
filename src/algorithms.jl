@@ -4,7 +4,7 @@ function ILS(solver::Solver)
     # solver.bestSol.resViolation = [1e6 for _ = 1:solver.data.maxNbRoutes]
     for r = 1:solver.params.restarts
         constructSol!(solver)
-        checkCVRP(solver, solver.currSol)
+        # checkCVRP(solver, solver.currSol)
         # println("RVND")
         RVND!(solver)
         push!(solver)
@@ -16,12 +16,12 @@ function ILS(solver::Solver)
         while it < solver.params.iterMax
             it += 1
             perturb!(solver)
-            checkCVRP(solver, solver.currSol)
+            # checkCVRP(solver, solver.currSol)
             cost_perturb = solver.currSol.cost
             viol_perturb = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
             # println("RVND")
             RVND!(solver)
-            checkCVRP(solver, solver.currSol)
+            # checkCVRP(solver, solver.currSol)
             cost_rvnd = solver.currSol.cost
             viol_rvnd = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
             push!(solver)

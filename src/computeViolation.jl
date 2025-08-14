@@ -302,12 +302,149 @@ function computeViolSwap11(solver::Solver, r::Int, pos::Int, customer::Int)
     return max(forw, backw)
 end
 
+function computeViolTwoOptStar2(solver::Solver, r1::Int, r2::Int, i::Int, j::Int)
+    # FORWARD r1
+    labelForward1 = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r1][i]), (solver.currSol.routes[r1][i]+1, solver.currSol.routes[r2][j+1]+1))
+    # concatForward1 = solver.concatenationCost(solver.res, 1, labelForward1, solver.backwardLabels[r2][length(solver.currSol.routes[r2]) - j - 1])
+    if i < solver.currSol.lastFeasibleF[r1]
+        forw1 = -1
+        forw1 += labelForward1.cost < Inf ? 1 : 0
+    elseif i == solver.currSol.lastFeasibleF[r1]
+        forw1 = 0
+        forw1 += labelForward1.cost < Inf ? 1 : 0
+    else
+        forw1 = -typemax(Int)
+    end
+    # forw1 += labelForward1.cost < Inf ? 1 : 0
+
+    if i <= solver.currSol.lastFeasibleF[r1]
+        forw1 += i - 1
+    else
+        forw1 += solver.currSol.lastFeasibleF[r1] - 1
+    end
+    # BACKWARD r1
+    labelBackward1 = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r2][length(solver.currSol.routes[r2]) - j]), (solver.currSol.routes[r2][j+1]+1, solver.currSol.routes[r1][i]+1))
+    # concatBackward1 = solver.concatenationCost(solver.res, 1, labelBackward1, solver.forwardLabels[r1][i-1])
+    if j >= length(solver.currSol.routes[r2]) - solver.currSol.lastFeasibleB[r2] + 1
+        backw1 = -1
+        backw1 += labelBackward1.cost < Inf ? 1 : 0
+    elseif j == length(solver.currSol.routes[r2]) - solver.currSol.lastFeasibleB[r2] + 1
+        backw1 = 0
+        backw1 += labelBackward1.cost < Inf ? 1 : 0
+    else
+        backw1 = -typemax(Int)
+    end
+    # @show j, length(solver.currSol.routes[r2]) + 1 - solver.currSol.lastFeasibleB[r2]
+    if j >= length(solver.currSol.routes[r2]) + 1 - solver.currSol.lastFeasibleB[r2]
+        backw1 += length(solver.currSol.routes[r2]) - j - 1
+    else
+        backw1 += solver.currSol.lastFeasibleB[r2] - 1
+    end
+
+    # FORWARD r2
+    labelForward2 = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r2][j]), (solver.currSol.routes[r2][j]+1, solver.currSol.routes[r1][i+1]+1))
+    # concatForward2 = solver.concatenationCost(solver.res, 1, labelForward2, solver.backwardLabels[r1][length(solver.currSol.routes[r1]) - i - 1])
+    # forw2 = 0
+    if j < solver.currSol.lastFeasibleF[r2]
+        forw2 = -1
+        forw2 += labelForward2.cost < Inf ? 1 : 0
+    elseif j == solver.currSol.lastFeasibleF[r2]
+        forw2 = 0
+        forw2 += labelForward2.cost < Inf ? 1 : 0
+    else
+        forw2 = -typemax(Int)
+    end
+    # if j == solver.currSol.lastFeasibleF[r2]
+    #     forw2 += 1
+    # end
+    # forw2 += labelForward1.cost < Inf ? 1 : 0
+    if j <= solver.currSol.lastFeasibleF[r2]
+        forw2 += j - 1
+    else
+        forw2 += solver.currSol.lastFeasibleF[r2] - 1
+    end
+    labelBackward2 = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r1][length(solver.currSol.routes[r1]) - i]), (solver.currSol.routes[r1][i+1]+1, solver.currSol.routes[r2][j]+1))
+    # concatBackward2 = solver.concatenationCost(solver.res, 1, labelBackward2, solver.forwardLabels[r2][j-1])
+    backw2 = labelBackward2.cost < Inf ? 1 : 0
+    if i >= length(solver.currSol.routes[r1]) - solver.currSol.lastFeasibleB[r1] + 1
+        backw2 = -1
+        backw2 += labelBackward2.cost < Inf ? 1 : 0
+    elseif i == length(solver.currSol.routes[r1]) - solver.currSol.lastFeasibleB[r1] + 1
+        backw2 = 0
+        backw2 += labelBackward2.cost < Inf ? 1 : 0
+    else
+        backw2 = -typemax(Int)
+    end
+    # @show i, length(solver.currSol.routes[r1]) + 1 - solver.currSol.lastFeasibleB[r1]
+    if i >= length(solver.currSol.routes[r1]) + 1 - solver.currSol.lastFeasibleB[r1]
+        backw2 += length(solver.currSol.routes[r1]) - i - 1
+    else
+        backw2 += solver.currSol.lastFeasibleB[r1] - 1
+    end
+    @show labelForward1
+    @show labelBackward1
+    @show labelForward2
+    @show labelBackward2
+    @show forw1, backw1
+    @show forw2, backw2
+
+    return max(forw1, backw1) + max(forw2, backw2)
+end
+
 function computeViolTwoOptStar(solver::Solver, r1::Int, r2::Int, i::Int, j::Int)
-    # FORWARD
-    label1 = solver.concatenationCost(solver.res, 1, solver.forwardLabels[r1][i], solver.backwardLabels[r2][length(solver.currSol.routes[r2]) - j])
-    @show label1
-    label2 = solver.concatenationCost(solver.res, 1, solver.forwardLabels[r2][j], solver.backwardLabels[r1][length(solver.currSol.routes[r1]) - i])
-    @show label2
+    # FORWARD r1
+    # @show i, solver.currSol.routes[r1]
+    # @show j, solver.currSol.routes[r2]
+
+    labelForward1 = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r1][i]), (solver.currSol.routes[r1][i]+1, solver.currSol.routes[r2][j+1]+1))
+    # concatForward1 = solver.concatenationCost(solver.res, 1, labelForward1, solver.backwardLabels[r2][length(solver.currSol.routes[r2]) - j - 1])
+    forw1 = 0
+    forw1 += labelForward1.cost < Inf ? 1 : 0
+
+    if i <= solver.currSol.lastFeasibleF[r1]
+        forw1 += i - 1
+    else
+        forw1 += solver.currSol.lastFeasibleF[r1] - 1
+    end
+    # BACKWARD r1
+    labelBackward1 = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r2][length(solver.currSol.routes[r2]) - j]), (solver.currSol.routes[r2][j+1]+1, solver.currSol.routes[r1][i]+1))
+    # concatBackward1 = solver.concatenationCost(solver.res, 1, labelBackward1, solver.forwardLabels[r1][i-1])
+    backw1 = 0
+    # backw1 += labelBackward1.cost < Inf ? 1 : 0
+    # @show j, length(solver.currSol.routes[r2]) + 1 - solver.currSol.lastFeasibleB[r2]
+    if j >= length(solver.currSol.routes[r2]) + 1 - solver.currSol.lastFeasibleB[r2]
+        backw1 += length(solver.currSol.routes[r2]) - j - 1
+    else
+        backw1 += solver.currSol.lastFeasibleB[r2] - 1
+    end
+
+    # FORWARD r2
+    labelForward2 = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r2][j]), (solver.currSol.routes[r2][j]+1, solver.currSol.routes[r1][i+1]+1))
+    # concatForward2 = solver.concatenationCost(solver.res, 1, labelForward2, solver.backwardLabels[r1][length(solver.currSol.routes[r1]) - i - 1])
+    forw2 = 0
+    forw2 += labelForward2.cost < Inf ? 1 : 0
+    if j <= solver.currSol.lastFeasibleF[r2]
+        forw2 += j - 1
+    else
+        forw2 += solver.currSol.lastFeasibleF[r2] - 1
+    end
+    labelBackward2 = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r1][length(solver.currSol.routes[r1]) - i]), (solver.currSol.routes[r1][i+1]+1, solver.currSol.routes[r2][j]+1))
+    # concatBackward2 = solver.concatenationCost(solver.res, 1, labelBackward2, solver.forwardLabels[r2][j-1])
+    backw2 = 0
+    # backw2 = labelBackward2.cost < Inf ? 1 : 0
+    if i >= length(solver.currSol.routes[r1]) + 1 - solver.currSol.lastFeasibleB[r1]
+        backw2 += length(solver.currSol.routes[r1]) - i - 1
+    else
+        backw2 += solver.currSol.lastFeasibleB[r1] - 1
+    end
+    # @show labelForward1
+    # @show labelBackward1
+    # @show labelForward2
+    # @show labelBackward2
+    # @show forw1, backw1
+    # @show forw2, backw2
+
+    return max(forw1, backw1) + max(forw2, backw2)
 end
 
 function computeViolInsertion2(solver::Solver, r::Int, i::Int, j::Int)
@@ -463,6 +600,7 @@ function computeViolIntraShift10(solver::Solver, r::Int, i::Int, j::Int)
             solver.prevLabelB = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][length(solver.currSol.routes[r]) - i]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][j] + 1))
             auxLabel = solver.extendAlongArc(solver.res, copy(solver.prevLabelB), (solver.currSol.routes[r][j]+1, solver.currSol.routes[r][j+1] + 1))
             res = solver.concatenationCost(solver.res, j+1, auxLabel, solver.forwardLabels[r][j - 1])
+
         else
             solver.prevLabelB = solver.extendAlongArc(solver.res, copy(solver.prevLabelB), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][j] + 1))
             auxLabel = solver.extendAlongArc(solver.res, copy(solver.prevLabelB), (solver.currSol.routes[r][j]+1, solver.currSol.routes[r][i] + 1))

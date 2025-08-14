@@ -35,8 +35,13 @@ function intraShift10Cost2(currCost::Float64, costMatrix::Matrix{Float64}, route
 end
 
 function intraShift10Cost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector{Int}, i::Int, j::Int)
-    newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j-1]+1, route[j]+1]
-    newCost += costMatrix[route[i-1]+1, route[i+1]+1] + costMatrix[route[j-1]+1, route[i]+1] + costMatrix[route[i]+1, route[j]+1]
+    if j == i+1
+        newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j]+1, route[j+1]+1]
+        newCost += costMatrix[route[i-1]+1, route[j]+1] + costMatrix[route[j]+1, route[i]+1] + costMatrix[route[i]+1, route[j+1]+1]
+    else
+        newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j-1]+1, route[j]+1]
+        newCost += costMatrix[route[i-1]+1, route[i+1]+1] + costMatrix[route[j-1]+1, route[i]+1] + costMatrix[route[i]+1, route[j]+1]
+    end
     return newCost
 end
 
@@ -94,6 +99,10 @@ function splitCost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector
 end
 
 function twoOptStarCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int)
+    # @show route1[i], route1[i+1]
+    # @show route2[j], route2[j+1]
+    # @show i, j
+    # @show currCost
     newCost = currCost - costMatrix[route1[i]+1, route1[i+1]+1] - costMatrix[route2[j]+1, route2[j+1]+1]
     newCost += costMatrix[route1[i]+1, route2[j+1]+1] + costMatrix[route2[j]+1, route1[i+1]+1]
     return newCost

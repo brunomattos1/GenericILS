@@ -9,8 +9,15 @@ function applyMoveIntraShift10!(solver::Solver, newCost::Float64, r::Int, i::Int
     solver.currSol.cost = newCost
     customerI = solver.currSol.routes[r][i]
     if i < j
-        deleteat!(solver.currSol.routes[r], i)
-        insert!(solver.currSol.routes[r], j-1, customerI)
+        if j == i + 1
+            deleteat!(solver.currSol.routes[r], i)
+            insert!(solver.currSol.routes[r], j, customerI)
+        else
+            deleteat!(solver.currSol.routes[r], i)
+            insert!(solver.currSol.routes[r], j-1, customerI)
+        end
+        # deleteat!(solver.currSol.routes[r], i)
+        # insert!(solver.currSol.routes[r], j-1, customerI)
     else
         deleteat!(solver.currSol.routes[r], i)
         insert!(solver.currSol.routes[r], j, customerI)
@@ -32,12 +39,12 @@ function applyMoveIntraShift20!(solver::Solver, newCost::Float64, r::Int, i::Int
     end
 end
 
-function applyMoveIntraSwap11!(solver::Solver, newCost::Float64, newResViol::Int, r::Int, i::Int, j::Int)
+function applyMoveIntraSwap11!(solver::Solver, newCost::Float64, r::Int, i::Int, j::Int)
     solver.currSol.cost = newCost
     solver.currSol.routes[r][i], solver.currSol.routes[r][j] = solver.currSol.routes[r][j], solver.currSol.routes[r][i]
 end
 
-function applyMove2opt!(solver::Solver, newCost::Float64, newResViol::Int, r::Int, i::Int, j::Int)
+function applyMove2opt!(solver::Solver, newCost::Float64, r::Int, i::Int, j::Int)
     solver.currSol.cost = newCost
     reverse!(solver.currSol.routes[r], i, j)
 end
@@ -84,7 +91,15 @@ function applyMoveInterSwap22!(solver::Solver, newCost::Float64, newResViol::Int
     solver.currSol.routes[r2][j+1] = customerI2
 end
 
-function applyMoveSplit(solver::Solver, newCost::Float64, r::Int, i::Int)
+function applyMoveTwoOptStar!(solver::Solver, newCost::Float64, r1::Int, r2::Int, i::Int, j::Int)
+    solver.currSol.cost = newCost
+    seg1 = solver.currSol.routes[r1][i+1:end]
+    seg2 = solver.currSol.routes[r2][j+1:end]
+    solver.currSol.routes[r1] = vcat(solver.currSol.routes[r1][1:i], seg2)
+    solver.currSol.routes[r2] = vcat(solver.currSol.routes[r2][1:j], seg1)
+end
+
+function applyMoveSplit!(solver::Solver, newCost::Float64, r::Int, i::Int)
     solver.currSol.cost = newCost
     split1 = solver.currSol.routes[r][1:i-1]
     push!(split1, 0)

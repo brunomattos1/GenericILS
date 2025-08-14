@@ -82,16 +82,16 @@ function evalIntraShift20(currCost::Float64, routes::Vector{Vector{Int}}, solver
     return cost, resViol
 end
 
-function evalIntraSwap11(currCost::Float64, currResViol::Int, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
+function evalIntraSwap11(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
     cost = intraSwap11Cost(currCost, solver.data.costMatrix, routes[r], i, j)
-    resViol = computeViolIntraSwap11()
-    return cost, resViol
+    # resViol = computeViolIntraSwap11()
+    return cost
 end
 
-function eval2opt(currCost::Float64, currResViol::Int, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
+function eval2opt(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
     cost = twoOptCost(currCost, solver.data.costMatrix, routes[r], i, j)
-    resViol = computeViol2opt()
-    return cost, resViol
+    # resViol = computeViol2opt()
+    return cost
 end
 
 function evalInterShift10(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r1::Int, r2::Int, i::Int, j::Int)

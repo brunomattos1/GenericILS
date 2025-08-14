@@ -13,7 +13,7 @@ function bestParallelInsertion(solver::Solver)
         selectedIdx = rand(solver.seed, r:length(vertices))
         selected = vertices[selectedIdx]
         push!(solver.currSol.routes, Int[0, selected.id, 0])
-        computeLabels(solver)
+        # computeLabels(solver)
         solver.currSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
     end
@@ -51,7 +51,7 @@ function bestParallelInsertion(solver::Solver)
         if bestI > 0
             # println("$(vertices[bestI].id) $(bestR) $(solver.currSol.routes[bestR]) $(bestInfeas)")
             applyMoveInsertion(solver, bestCost, bestR, vertices[bestI].id, bestJ)
-            computeLabels(solver)
+            computeLabels(solver, [bestR])
             vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
         end
     end

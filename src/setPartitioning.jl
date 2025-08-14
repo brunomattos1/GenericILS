@@ -35,9 +35,9 @@ function setPartitioning(solver::Solver)
     sp = Model(HiGHS.Optimizer)
     # set_silent(sp)
     @variable(sp, λ[r = 1:length(solver.pool)], Bin)
-    @objective(sp, Min, sum(c(solver, r)λ[r] for r = 1:length(solver.pool)))
+    @objective(sp, Min, sum(c(solver, r)*λ[r] for r = 1:length(solver.pool)))
     @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, solver.pool[r])λ[r] for r = 1:length(solver.pool)) == 1)
-    @constraint(sp, sum(λ[r] for r = 1:length(solver.pool)) <= solver.data.maxNbRoutes)
+    @constraint(sp, sum(λ[r] for r = 1:length(solver.pool)) >= solver.data.maxNbRoutes)
     optimize!(sp)
     for r = 1:length(solver.pool)
         if value(λ[r]) > 0.5
@@ -49,6 +49,7 @@ function setPartitioning(solver::Solver)
         solver.currSol.routes = [solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9]
         solver.currSol.cost = objective_value(sp)
         computeLabels(solver)
+        RVND!(solver)
     else
         if objective_value(sp) < solver.bestSol.cost - 0.001
             solver.currSol.routes = [solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9]

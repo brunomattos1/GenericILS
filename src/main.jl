@@ -59,7 +59,7 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
             cliente = route[i]
             coord = coords[cliente]
             demanda = cvrp.demand[cliente+1]
-            texto = "Cliente $cliente (Demanda: $(demanda))"
+            texto = "Cliente $(cliente) (Demanda: $(demanda))"
             push!(traces, PlotlyJS.scatter(
                 x=[coord[1]], y=[coord[2]],
                 mode="markers",
@@ -249,15 +249,46 @@ function createArcDemands(demands)
 end
 
 function initState()
-    if debug
+    if DEBUG_MODE
         return CapacityState(0.0, 0.0, [0], 0)
     else
-        return CapacityState(0.0, 0.0, [0], 0)
+        return CapacityState(0.0, 0.0)
+    end
+end
+
+function extendAlongArc(res::CapacityResource, state::CapacityState, a::Tuple{Int, Int}, buffer::CapacityState)
+    if DEBUG_MODE
+        # @show state
+        buffer.q = state.q
+        buffer.last = state.last
+        empty!(buffer.path)
+        append!(buffer.path, state.path)
+        # @show buffer
+        buffer.q += res.d[a...]
+        append!(buffer.path, a[2] - 1)
+        buffer.last = a[2] - 1
+        if buffer.q > res.Q + 1e-5
+            buffer.cost = Inf
+            return buffer
+        else
+            buffer.cost = 0
+            return buffer
+        end
+    else
+        buffer.q = state.q
+        buffer.q += res.d[a...]
+        if buffer.q > res.Q + 1e-5
+            buffer.cost = Inf
+            return buffer
+        else
+            buffer.cost = 0
+            return buffer
+        end
     end
 end
 
 function extendAlongArc(res::CapacityResource, state::CapacityState, a::Tuple{Int, Int})
-    if debug
+    if DEBUG_MODE
         state.q += res.d[a...]
         append!(state.path, a[2] - 1)
         state.last = a[2] - 1
@@ -281,7 +312,7 @@ function extendAlongArc(res::CapacityResource, state::CapacityState, a::Tuple{In
 end
 
 function concatenationCost(res::CapacityResource, v::Int, state1::CapacityState, state2::CapacityState)
-    if debug
+    if DEBUG_MODE
         if state1.q + state2.q > res.Q + 1e-5
             newState = CapacityState(state1.q + state2.q, Inf, vcat(state1.path, reverse(state2.path)), state2.last)
             return newState
@@ -291,17 +322,17 @@ function concatenationCost(res::CapacityResource, v::Int, state1::CapacityState,
         end
     else
         if state1.q + state2.q > res.Q + 1e-5
-            newState = CapacityState(state1.q + state2.q, Inf, Int[], state2.last)
+            newState = CapacityState(state1.q + state2.q, Inf)
             return newState
         else
-            newState = CapacityState(state1.q + state2.q, 0.0, Int[], state2.last)
+            newState = CapacityState(state1.q + state2.q, 0.0)
             return newState
         end
     end
 end
 
 function main(instance::String, restarts::Int, iter::Int, seed::Int)
-    instName = instance[1:end-3]
+    instName = instance[1:end-4]
     instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", string(instance[1]), instance)
 
     cvrp = CVRPLIB.readCVRP(instance)
@@ -329,18 +360,22 @@ function main(instance::String, restarts::Int, iter::Int, seed::Int)
         params = Parameters(restarts, iter, 10), 
         diversification = Diversification(2, 2),
         data = data, 
-        neighborhoods = Set([1, 3, 5])
+        neighborhoods = Set([1,3,5,7])
     )
-    # constructSol!(solver)
-    # twoOptStar!(solver)
     ILS(solver)
-    printCVRP(solver, solver.bestSol)
-    plot_cvrp_interactive_html(cvrp, solver.bestSol, filename = instName)
+    printCVRP(solver, solver.currSol)
+    @show manualCost(solver.currSol, solver.data.costMatrix)
+    plot_cvrp_interactive_html(cvrp, solver.currSol, filename = instName)
 end
 
-const debug = false
-instance = "P-n16-k8.vrp"
+set = "M"
+n = 151
+k = 12
+instance = "$set-n$n-k$k.vrp"
 seed = 1
-restarts = 2
-iter = 40
+restarts = 3
+iter = 100
 main(instance, restarts, iter, seed)
+
+# cvrp = CVRPLIB.readCVRP("C:\\Users\\bruno.mattos\\OneDrive - americanas s.a\\Documentos\\GitHub\\GenericILS\\PilsCvrp-main\\PilsCvrp-main\\data\\M\\M-n101-k10.vrp")
+# result = solve_cvrp(cvrp)
