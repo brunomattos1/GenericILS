@@ -156,10 +156,6 @@ function intraShift10!(solver::Solver)
                 else
                     improvement = false
                 end
-                # improvement = improved(solver, bestCost, cost, bestViol, r, r, resViol, resViol)
-                # @show manualCost(auxSol, solver.data.costMatrix), cost, resViol
-                # @show bestCost, cost, bestResViolR, resViol
-                # println()
                 if improvement
                     bestI = i
                     bestJ = j
@@ -170,9 +166,6 @@ function intraShift10!(solver::Solver)
         end
         for i = length(sol.routes[r])-1:-1:2
             for j = i-1:-1:2
-                # if i == j
-                #     continue
-                # end
                 if j == i - 1
                     solver.prevLabelB = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][length(solver.currSol.routes[r]) - i]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][j] + 1))
                     # continue
@@ -192,26 +185,12 @@ function intraShift10!(solver::Solver)
                 # @show auxSol.routes[r]
 
                 cost, resViol = evalIntraShift10(sol.cost, routes, solver, r, i, j)
-                # if abs(cost - cost_) > 0.001
-                #     thow("cost")
-                # end
+
                 if resViol == 0 && (cost < bestCost - 1e-5)
                     improvement = true
                 else
                     improvement = false
                 end
-                # @show manualCost(auxSol, solver.data.costMatrix), cost, resViol
-                # @show bestCost, cost, bestResViolR, resViol
-                # println()
-                # if abs(manualCost(auxSol, solver.data.costMatrix) - cost) > 0.001
-                #     @show solver.currSol.routes[r]
-                #     @show auxSol.routes[r]
-                #     @show r, i, j
-                #     @show manualCost(auxSol, solver.data.costMatrix), cost
-                #     sleep(1000)
-                # end
-
-                # improvement = improved(solver, bestCost, cost, bestViol, r, r, resViol, resViol)
                 if improvement
                     bestI = i
                     bestJ = j
@@ -336,7 +315,8 @@ end
 
 function interShift10!(solver::Solver)
     flag = false
-    routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
+    # @time routesIdx = shuffle(solver.seed, 1:length(solver.currSol.routes))
+    routesIdx = randperm(solver.seed, length(solver.currSol.routes))
     for r1 in routesIdx#1:length(sol.routes)
         bestI = 0
         bestJ = 0
@@ -378,8 +358,6 @@ function interShift10!(solver::Solver)
                     #     # end
                     # end
                     improvement = improved(cost, bestCost, infeas, bestInfeas)
-                    # println("curr r1: $(solver.currSol.routes[r1]) curr r2: $(solver.currSol.routes[r2])")
-                    # println("r1: $(auxSol.routes[r1]) r2: $(auxSol.routes[r2])\nFeas: $feas Infeas: $(infeas)")
                     if improvement
                         bestI = i
                         bestJ = j
@@ -444,7 +422,8 @@ end
 
 function interSwap11!(solver::Solver)
     flag = false
-    routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
+    # routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
+    routesIdx = randperm(solver.seed, length(solver.currSol.routes))
     for r1 in routesIdx#1:length(sol.routes)
         bestI = 0
         bestJ = 0
@@ -563,7 +542,8 @@ function interSwap22!(solver::Solver)
 end
 
 function twoOptStar!(solver::Solver)
-    routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
+    # routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
+    routesIdx = randperm(solver.seed, length(solver.currSol.routes))
     flag = false
     for r1 in routesIdx#1:length(sol.routes)
         bestI = 0

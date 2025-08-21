@@ -362,9 +362,8 @@ function main(instance::String, restarts::Int, iter::Int, seed::Int)
         data = data, 
         neighborhoods = Set([1,3,5,7])
     )
-    ILS(solver)
+    @time ILS(solver)
     printCVRP(solver, solver.currSol)
-    @show manualCost(solver.currSol, solver.data.costMatrix)
     plot_cvrp_interactive_html(cvrp, solver.currSol, filename = instName)
 end
 
@@ -373,7 +372,7 @@ n = 151
 k = 12
 instance = "$set-n$n-k$k.vrp"
 seed = 1
-restarts = 3
+restarts = 50
 iter = 100
 main(instance, restarts, iter, seed)
 

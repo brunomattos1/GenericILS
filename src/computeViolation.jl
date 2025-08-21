@@ -1,11 +1,7 @@
 function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
     insertionLabelForward = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][pos-1]), (solver.currSol.routes[r][pos-1]+1, customer + 1))
     concatCost = solver.concatenationCost(solver.res, customer, insertionLabelForward, solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - pos])
-    # route = deepcopy(solver.currSol.routes[r])
-    # insert!(route, pos, customer)
-    # @show concatCost
     if concatCost.cost < Inf
-        # println("Concat Insertion1: $(concatCost)")
         return length(solver.currSol.routes[r]) - 2 + 1
     end
 
@@ -13,29 +9,15 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
     if solver.currSol.feasiblesF[r] == length(solver.currSol.routes[r]) - 2
         concatCost = solver.concatenationCost(solver.res, customer, insertionLabelForward, solver.backwardLabels[r][length(solver.currSol.routes[r]) + 1 - pos])
         if insertionLabelForward.cost == Inf
-            # dFeasForward = - length(solver.currSol.routes[r]) - 2
             dFeasForward = 0 - length(solver.currSol.routes[r]) + pos
             if pos == length(solver.currSol.routes[r])
                 dFeasForward = - 1
             end
-            # no caso que a rota eh viavel, dFeas é -length + pos
         elseif insertionLabelForward.cost < Inf && concatCost.cost < Inf
             dFeasForward = 1
         elseif insertionLabelForward.cost < Inf && concatCost.cost == Inf
-            # dFeasForward = - length(solver.currSol.routes[r]) - 1
             dFeasForward = 1 - length(solver.currSol.routes[r]) + pos
-            # println("< inf, == inf")
         end
-        # if route != concatCost.path
-        #     @show route
-        #     @show insertionLabelForward
-        #     @show concatCost
-        #     @show r, customer, pos
-        #     @show solver.currSol.routes[r]
-        #     @show solver.backwardLabels[r]
-        #     sleep(100)
-        # end
-        # @show concatCost, dFeasForward
     else
         insertionLabelForward2 = solver.extendAlongArc(solver.res, copy(insertionLabelForward), (customer + 1, solver.currSol.routes[r][pos]+1))
         if pos < solver.currSol.lastFeasibleF[r] + 1
@@ -50,10 +32,8 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
         end
         # TO DO
         if pos > solver.currSol.lastFeasibleF[r] + 1
-            # println("here")
             dFeasForward = -typemax(Int)
         end
-        # @show insertionLabelForward2, dFeasForward
     end
 
     # BACKWARD
@@ -67,16 +47,6 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
         elseif insertionLabelBackward.cost < Inf && concatCost.cost == Inf
             dFeasBackward = 1 - length(solver.currSol.routes[r]) - pos - 2
         end
-        # if reverse(route) != concatCost.path
-        #     @show reverse(route)
-        #     @show concatCost
-        #     @show r, customer, pos
-        #     @show insertionLabelBackward
-        #     @show solver.backwardLabels[r]
-        #     sleep(100)
-        # end
-        # @show insertionLabelBackward
-        # @show concatCost, dFeasBackward
     else
         insertionLabelBackward = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][length(solver.currSol.routes[r]) - pos + 1]), (solver.currSol.routes[r][pos]+1, customer+1))
         insertionLabelBackward2 = solver.extendAlongArc(solver.res, copy(insertionLabelBackward), (customer + 1, solver.currSol.routes[r][pos-1]+1))
@@ -91,14 +61,9 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
             insertionLabelBackward2.cost < Inf ? dFeasBackward += 1 : 0
         end
         if pos < length(solver.currSol.routes[r]) - solver.currSol.lastFeasibleB[r] + 1
-            # println("here B")
             dFeasBackward = -typemax(Int)
         end
-        # @show insertionLabelBackward2, dFeasBackward
     end
-    # usar quantidade de viaveis ate o ponto de inserção + dFeas, tanto forward quanto backward
-    # return max(solver.currSol.feasiblesF[r] + dFeasForward, solver.currSol.feasiblesB[r] + dFeasBackward)
-    # @show solver.currSol.lastFeasibleF[r]-1, dFeasForward, solver.currSol.lastFeasibleB[r]-1, dFeasBackward
     forw = dFeasForward
     if pos <= solver.currSol.lastFeasibleF[r]
         forw += pos - 1
@@ -108,15 +73,10 @@ function computeViolInsertion1(solver::Solver, r::Int, customer::Int, pos::Int)
 
     backw = dFeasBackward
     if pos >= length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r]
-        # backw += length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r] - 1
         backw += length(solver.currSol.routes[r]) - pos -1
     else
         backw += solver.currSol.lastFeasibleB[r] - 1
     end
-    
-    # println("pos $pos, lastFeasibleB: $(length(solver.currSol.routes[r]) + 1 - solver.currSol.lastFeasibleB[r])")
-    # println("dfeasForw $(dFeasForward), dfeasBackw $(dFeasBackward)")
-    # println("backw $backw, forw $forw")
     return max(forw, backw)
 end
 

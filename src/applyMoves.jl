@@ -101,9 +101,9 @@ end
 
 function applyMoveSplit!(solver::Solver, newCost::Float64, r::Int, i::Int)
     solver.currSol.cost = newCost
-    split1 = solver.currSol.routes[r][1:i-1]
+    split1 = copy(solver.currSol.routes[r][1:i-1])
     push!(split1, 0)
-    split2 = solver.currSol.routes[r][i:end]
+    split2 = copy(solver.currSol.routes[r][i:end])
     pushfirst!(split2, 0)
     solver.currSol.routes[r] = split1
     push!(solver.currSol.routes, split2)

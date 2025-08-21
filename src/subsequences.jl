@@ -21,8 +21,8 @@ function computeLabels(solver::Solver)
         lenR = length(sol.routes[r])
         last = false
         for i = 2:lenR
-            # label = solver.extendAlongArc(solver.res, copy(forwLabels[r][i-1]), (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
-            label = solver.extendAlongArc(solver.res, forwLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i]+1), solver.buffer)
+            label = solver.extendAlongArc(solver.res, copy(forwLabels[r][i-1]), (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
+            # label = solver.extendAlongArc(solver.res, forwLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i]+1), solver.buffer)
             if (!last && label.cost == Inf)# || (!last && length(sol.routes[r]) == 3)
                 last = true
                 push!(sol.lastFeasibleF, i - 1)
@@ -39,8 +39,8 @@ function computeLabels(solver::Solver)
         lenR = length(sol.routes[r])
         last = false
         for i = lenR:-1:2
-            label = extendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1), solver.buffer)
-            # label = extendAlongArc(solver.res, copy(backwLabels[r][i]), (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+            # label = extendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1), solver.buffer)
+            label = extendAlongArc(solver.res, copy(backwLabels[r][i]), (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
             if (!last && label.cost == Inf)# || length(sol.routes[r]) == 3
                 last = true
                 push!(sol.lastFeasibleB, lenR - i + 1)
@@ -61,8 +61,6 @@ end
 
 function computeLabels(solver::Solver, routes::Vector{Int})
     sol = solver.currSol
-    # nbRoutes = length(sol.routes)
-
     for r in routes
         sol.lastFeasibleF[r] = -1
         sol.lastFeasibleB[r] = -1
