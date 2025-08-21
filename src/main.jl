@@ -300,13 +300,21 @@ function extendAlongArc(res::CapacityResource, state::CapacityState, a::Tuple{In
             return state
         end
     else
-        state.q += res.d[a...]
-        if state.q > res.Q + 1e-5
-            state.cost = Inf
-            return state
+        # state.q += res.d[a...]
+        # if state.q > res.Q + 1e-5
+        #     state.cost = Inf
+        #     return state
+        # else
+        #     state.cost = 0
+        #     return state
+        # end
+        q = state.q + res.d[a...]
+        if q > res.Q + 1e-5
+            # state.cost = Inf
+            return CapacityState(q, Inf)
         else
-            state.cost = 0
-            return state
+            # state.cost = 0
+            return CapacityState(q, 0.0)
         end
     end
 end
@@ -362,19 +370,23 @@ function main(instance::String, restarts::Int, iter::Int, seed::Int)
         data = data, 
         neighborhoods = Set([1,3,5,7])
     )
-    @time ILS(solver)
+    ILS(solver)
     printCVRP(solver, solver.currSol)
-    plot_cvrp_interactive_html(cvrp, solver.currSol, filename = instName)
+    # plot_cvrp_interactive_html(cvrp, solver.currSol, filename = instName)
 end
 
 set = "M"
-n = 151
-k = 12
+n = 121
+k = 7
 instance = "$set-n$n-k$k.vrp"
 seed = 1
-restarts = 50
-iter = 100
+restarts = 10
+iter = 30
 main(instance, restarts, iter, seed)
 
 # cvrp = CVRPLIB.readCVRP("C:\\Users\\bruno.mattos\\OneDrive - americanas s.a\\Documentos\\GitHub\\GenericILS\\PilsCvrp-main\\PilsCvrp-main\\data\\M\\M-n101-k10.vrp")
 # result = solve_cvrp(cvrp)
+
+
+# substituir capacitystate por Label, cujo atributos são caapcitystate, time etc...
+# Label pode ser forward ou backward

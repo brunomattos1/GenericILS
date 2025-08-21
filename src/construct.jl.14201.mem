@@ -1,0 +1,109 @@
+        - function constructSol!(solver::Solver)
+        -     bestParallelInsertion(solver::Solver)
+        - end
+        - 
+        - 
+        - function bestParallelInsertion(solver::Solver)
+      736     vertices = copy(solver.data.vertices)
+        0     nbRoutes = min(length(vertices), solver.data.maxNbRoutes)
+        0     costMatrix = getCostMatrix(solver)
+      928     solver.currSol = Solution()
+        0     for r = 1:nbRoutes
+    16128         selectedIdx = rand(solver.seed, r:length(vertices))
+        0         selected = vertices[selectedIdx]
+     1600         push!(solver.currSol.routes, Int[0, selected.id, 0])
+        0         solver.currSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
+        0         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
+        -     end
+        0     computeLabels(solver)
+        0     for k = nbRoutes+1:length(vertices)
+        -         bestI = 0
+        -         bestJ = 0
+        -         bestR = 0
+        0         currCost = solver.currSol.cost
+        0         bestCost = Inf
+        -         bestInfeas = typemax(Int)
+        0         for i = k:length(vertices)
+        0             for r = 1:nbRoutes
+        0                 for j = 2:length(solver.currSol.routes[r])
+        0                     cost, feas = evalBestInsertion(currCost, solver.currSol.routes, solver, r, vertices[i].id, j)
+        0                     infeas = length(solver.currSol.routes[r]) - 2 - feas
+        -                     # println("Inserindo cliente $(vertices[i].id) na posição $j da rota $(solver.currSol.routes[r]) \nFeas: $(feas), Infeas: $(infeas)\n")
+        -                     # if infeas < 0
+        -                     #     println("$(solver.currSol.routes[r]), $(vertices[i].id), $j")
+        -                     #     println("$feas, $(length(solver.currSol.routes[r]))")
+        -                     #     println("$(solver.currSol.lastFeasibleF[r]) $(solver.currSol.lastFeasibleB[r])")
+        -                     #     sleep(1000)
+        -                     # end
+        0                     improvement = improved(cost, bestCost, infeas, bestInfeas)
+        0                     if improvement
+        -                         bestCost = cost
+        -                         bestI = i
+        -                         bestJ = j
+        -                         bestR = r
+        0                         bestInfeas = infeas
+        -                     end
+        -                 end
+        -             end
+        -         end
+        0         if bestI > 0
+     1888             applyMoveInsertion(solver, bestCost, bestR, vertices[bestI].id, bestJ)
+     5760             computeLabels(solver, [bestR])
+        0             vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
+        -         end
+        -     end
+        - end
+        - 
+        - function bestParallelInsertion2(solver::Solver)
+        -     vertices = copy(solver.data.vertices)
+        -     nbRoutes = min(length(vertices), solver.data.maxNbRoutes)
+        -     costMatrix = getCostMatrix(solver)
+        -     solver.currSol = Solution()
+        -     currSol = solver.currSol
+        -     for r = 1:nbRoutes
+        -         selectedIdx = rand(solver.seed, 1:length(vertices))
+        -         selected = vertices[selectedIdx]
+        -         push!(currSol.routes, Int[0, 0])
+        -         computeLabels(solver)
+        -         currSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
+        -         # currSol.resViolation += computeViolInsertion(solver, r, selected.id, 2)
+        -         push!(currSol.resViolation, computeViolInsertion(solver, r, selected.id, 2))
+        -         insert!(currSol.routes[r], 2, selected.id)
+        -         setdiff!(vertices, [vertices[selectedIdx]])
+        -         # vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
+        -     end
+        -     computeLabels(solver)
+        -     while length(vertices) > 0
+        -         bestI = 0
+        -         bestJ = 0
+        -         bestR = 0
+        -         currCost = currSol.cost
+        -         bestCost = Inf
+        -         bestResViol = 999
+        -         for i = 1:length(vertices)
+        -             for r = 1:nbRoutes
+        -                 for j = 2:length(currSol.routes[r])
+        -                     cost, resViol = evalBestInsertion(currCost, solver.currSol.routes, solver, r, vertices[i].id, j)
+        -                     # if resViol > 0
+        -                     #     continue
+        -                     # end
+        -                     improvement = improved(bestCost, cost, bestResViol, resViol)
+        -                     if improvement
+        -                         bestCost = cost
+        -                         bestI = i
+        -                         bestJ = j
+        -                         bestR = r
+        -                         bestResViol = resViol
+        -                         # initRouteI = initRoute[i.id]
+        -                     end
+        -                 end
+        -             end
+        -         end
+        -         if bestI > 0
+        -             applyMoveInsertion(solver, bestCost, bestResViol, bestR, vertices[bestI].id, bestJ)
+        -             computeLabels(solver)
+        -             # vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
+        -             setdiff!(vertices, [vertices[bestI]])
+        -         end
+        -     end
+        - end

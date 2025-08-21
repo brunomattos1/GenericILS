@@ -167,7 +167,7 @@ function intraShift10!(solver::Solver)
         for i = length(sol.routes[r])-1:-1:2
             for j = i-1:-1:2
                 if j == i - 1
-                    solver.prevLabelB = solver.extendAlongArc(solver.res, copy(solver.backwardLabels[r][length(solver.currSol.routes[r]) - i]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][j] + 1))
+                    solver.prevLabelB = extendAlongArc(solver.res, copy(solver.backwardLabels[r][length(solver.currSol.routes[r]) - i]), (solver.currSol.routes[r][i+1]+1, solver.currSol.routes[r][j] + 1))
                     # continue
                 end
                 # @show r, i, j

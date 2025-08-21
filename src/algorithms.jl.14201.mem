@@ -1,0 +1,53 @@
+        - 
+        - function ILS(solver::Solver)
+        0     solver.bestSol.cost = Inf
+        -     # solver.bestSol.resViolation = [1e6 for _ = 1:solver.data.maxNbRoutes]
+        0     for r = 1:solver.params.restarts
+        0         constructSol!(solver)
+        -         # checkCVRP(solver, solver.currSol)
+        -         # println("RVND")
+        0         RVND!(solver)
+        0         push!(solver)
+        -         it = 0
+        0         if acceptSol(solver)
+      368             solver.bestSol = deepcopy(solver.currSol)
+   132544             println("Best solution updated at restart $r iteration $it. Cost: $(solver.bestSol.cost).")
+        -         end
+        0         while it < solver.params.iterMax
+        0             it += 1
+        0             perturb!(solver)
+        -             # checkCVRP(solver, solver.currSol)
+        0             cost_perturb = solver.currSol.cost
+        0             viol_perturb = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
+        -             # println("RVND")
+        0             RVND!(solver)
+        -             # checkCVRP(solver, solver.currSol)
+        0             cost_rvnd = solver.currSol.cost
+        0             viol_rvnd = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
+        0             push!(solver)
+        - 
+        0             accepted = acceptSol(solver)
+     1280             r_star = @sprintf("%04d", r) * (accepted ? "*" : " ")
+     1280             it_star = @sprintf("%04d", it) * (accepted ? "*" : " ")
+     5120             @printf("%s| %s| %8.2f |%02s | %8.2f |%02s | %8.2f |%02s | %d\n",
+        -             r_star,
+        -             it_star,
+        -             solver.bestSol.cost,
+        -             length(solver.data.vertices) - max(sum(solver.bestSol.feasiblesF), sum(solver.bestSol.feasiblesB)),
+        -             cost_perturb,
+        -             viol_perturb,
+        -             cost_rvnd,
+        -             viol_rvnd,
+        -             length(solver.pool))
+        0             if accepted
+     2944                 solver.bestSol = deepcopy(solver.currSol)
+        0                 it = 0
+        -             end
+        - 
+        -         end
+        -     end
+        0     setPartitioning(solver)
+        0     if acceptSol(solver)
+      368         solver.bestSol = deepcopy(solver.currSol)
+        -     end
+        - end

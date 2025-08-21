@@ -7,7 +7,7 @@ struct CapacityResource
 end
 
 @static if DEBUG_MODE
-    mutable struct CapacityState
+    struct CapacityState
         q::Float64
         cost::Float64
         path::Vector{Int}
@@ -15,7 +15,7 @@ end
     end
     Base.copy(state::CapacityState) = CapacityState(copy(state.q), copy(state.cost), copy(state.path), copy(state.last))
 else
-    mutable struct CapacityState
+    struct CapacityState
         q::Float64
         cost::Float64
     end
