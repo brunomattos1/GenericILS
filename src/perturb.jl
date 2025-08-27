@@ -1,14 +1,14 @@
 
 function perturb!(solver::Solver)
     rnd = rand(solver.seed)
-    if rnd <= 0.4
+    if rnd <= 1.5
         for _ = 1:solver.diversification.shift
             perturbed = randomInterShit10!(solver)
         end
-    elseif rnd <= 0.8
-        for _ = 1:solver.diversification.swap
-            perturbed = randomInterSwap11!(solver)
-        end
+    # elseif rnd <= 0.8
+    #     for _ = 1:solver.diversification.swap
+    #         perturbed = randomInterSwap11!(solver)
+    #     end
     else
         for _ = 1:solver.diversification.swap
             perturbed = split(solver)

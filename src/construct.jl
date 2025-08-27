@@ -1,10 +1,10 @@
-function constructSol!(solver::Solver)
-    bestParallelInsertion(solver::Solver)
+function constructSol!(solver::Solver, r::Int)
+    bestParallelInsertion(solver::Solver, r::Int)
 end
 
 
-function bestParallelInsertion(solver::Solver)
-    vertices = copy(solver.data.vertices)
+function bestParallelInsertion(solver::Solver, r::Int)
+    vertices = deepcopy(solver.data.vertices)
     nbRoutes = min(length(vertices), solver.data.maxNbRoutes)
     costMatrix = getCostMatrix(solver)
     solver.currSol = Solution()
@@ -100,8 +100,8 @@ function bestParallelInsertion2(solver::Solver)
             end
         end
         if bestI > 0
-            applyMoveInsertion(solver, bestCost, bestResViol, bestR, vertices[bestI].id, bestJ)
-            computeLabels(solver)
+            applyMoveInsertion(solver, bestCost, bestR, vertices[bestI].id, bestJ)
+            computeLabels(solver, [bestR])
             # vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
             setdiff!(vertices, [vertices[bestI]])
         end

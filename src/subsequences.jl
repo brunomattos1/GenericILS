@@ -14,14 +14,14 @@ function computeLabels(solver::Solver)
         forwLabels[r] = Vector{CapacityState}(undef, length(sol.routes[r]))
         backwLabels[r] = Vector{CapacityState}(undef, length(sol.routes[r]))
         lenR = length(sol.routes[r])
-        forwLabels[r][1] = solver.initState()
-        backwLabels[r][lenR] = solver.initState()
+        forwLabels[r][1] = initState()
+        backwLabels[r][lenR] = initState()
     end
     for r = 1:nbRoutes
         lenR = length(sol.routes[r])
         last = false
         for i = 2:lenR
-            label = solver.extendAlongArc(solver.res, copy(forwLabels[r][i-1]), (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
+            label = extendAlongArc(solver.res, forwLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
             # label = solver.extendAlongArc(solver.res, forwLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i]+1), solver.buffer)
             if (!last && label.cost == Inf)# || (!last && length(sol.routes[r]) == 3)
                 last = true
@@ -40,7 +40,7 @@ function computeLabels(solver::Solver)
         last = false
         for i = lenR:-1:2
             # label = extendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1), solver.buffer)
-            label = extendAlongArc(solver.res, copy(backwLabels[r][i]), (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+            label = extendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
             if (!last && label.cost == Inf)# || length(sol.routes[r]) == 3
                 last = true
                 push!(sol.lastFeasibleB, lenR - i + 1)
@@ -69,14 +69,14 @@ function computeLabels(solver::Solver, routes::Vector{Int})
         lenR = length(sol.routes[r])
         solver.forwardLabels[r] = Vector{CapacityState}(undef, lenR)
         solver.backwardLabels[r] = Vector{CapacityState}(undef, lenR)
-        solver.forwardLabels[r][1] = solver.initState()
-        solver.backwardLabels[r][lenR] = solver.initState()
+        solver.forwardLabels[r][1] = initState()
+        solver.backwardLabels[r][lenR] = initState()
     end
     for r in routes
         lenR = length(sol.routes[r])
         last = false
         for i = 2:lenR
-            label = solver.extendAlongArc(solver.res, copy(solver.forwardLabels[r][i-1]), (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
+            label = extendAlongArc(solver.res, solver.forwardLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i]+1))
             if (!last && label.cost == Inf)# || (!last && length(sol.routes[r]) == 3)
                 last = true
                 sol.lastFeasibleF[r] = i - 1
@@ -94,7 +94,7 @@ function computeLabels(solver::Solver, routes::Vector{Int})
         lenR = length(sol.routes[r])
         last = false
         for i = lenR:-1:2
-            label = extendAlongArc(solver.res, copy(solver.backwardLabels[r][i]), (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+            label = extendAlongArc(solver.res, solver.backwardLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
             if (!last && label.cost == Inf)# || length(sol.routes[r]) == 3
                 last = true
                 sol.lastFeasibleB[r] = lenR - i + 1

@@ -32,18 +32,13 @@ function c(solver::Solver, r::Int)
 end
 
 function setPartitioning(solver::Solver)
-    sp = Model(HiGHS.Optimizer)
+    sp = Model(CPLEX.Optimizer)
     # set_silent(sp)
     @variable(sp, λ[r = 1:length(solver.pool)], Bin)
     @objective(sp, Min, sum(c(solver, r)*λ[r] for r = 1:length(solver.pool)))
     @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, solver.pool[r])λ[r] for r = 1:length(solver.pool)) == 1)
-    @constraint(sp, sum(λ[r] for r = 1:length(solver.pool)) >= solver.data.maxNbRoutes)
+    @constraint(sp, sum(λ[r] for r = 1:length(solver.pool)) <= solver.data.maxNbRoutes)
     optimize!(sp)
-    for r = 1:length(solver.pool)
-        if value(λ[r]) > 0.5
-            # println(solver.pool[r])
-        end
-    end
     if termination_status(sp) == OPTIMAL
         # return Solution([solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9], objective_value(sp), [0 for i = 1:solver.data.maxNbRoutes], 0)
         solver.currSol.routes = [solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9]

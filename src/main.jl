@@ -1,6 +1,6 @@
 include("include.jl")
-using CVRPLIB, Hygese, PlotlyJS
-
+using CVRPLIB#, Hygese, PlotlyJS
+using CPLEX
 function plot_cvrp_solution(cvrp, solution::Solution; filename::String="solution.pdf")
     # Coordenadas
     routes = solution.routes
@@ -368,20 +368,20 @@ function main(instance::String, restarts::Int, iter::Int, seed::Int)
         params = Parameters(restarts, iter, 10), 
         diversification = Diversification(2, 2),
         data = data, 
-        neighborhoods = Set([1,3,5,7])
+        neighborhoods = Set{Int}([1,2,3,4])
     )
-    ILS(solver)
-    printCVRP(solver, solver.currSol)
+    @time ILS(solver)
+    # printCVRP(solver, solver.bestSol)
     # plot_cvrp_interactive_html(cvrp, solver.currSol, filename = instName)
 end
 
-set = "M"
-n = 121
-k = 7
+set = "B"
+n = 63
+k = 10
 instance = "$set-n$n-k$k.vrp"
 seed = 1
-restarts = 10
-iter = 30
+restarts = 100
+iter = 100
 main(instance, restarts, iter, seed)
 
 # cvrp = CVRPLIB.readCVRP("C:\\Users\\bruno.mattos\\OneDrive - americanas s.a\\Documentos\\GitHub\\GenericILS\\PilsCvrp-main\\PilsCvrp-main\\data\\M\\M-n101-k10.vrp")
