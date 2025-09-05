@@ -5,9 +5,11 @@ mutable struct Solution
     feasiblesB::Vector{Int} # number of feasible customers per route backward sense
     lastFeasibleF::Vector{Int} # last feasible position for each route forward sense
     lastFeasibleB::Vector{Int} # last feasible position for each route backward sense
+    forwardLabels::Vector{Vector{ForwardLabel}}
+    backwardLabels::Vector{Vector{BackwardLabel}}
 end
 
-Solution() = Solution(Vector{Vector{Int}}(), 0.0, Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}())
+Solution() = Solution(Vector{Vector{Int}}(), 0.0, Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[])
 
 getCost(solution::Solution) = solution.cost
 getRoute(solution::Solution, r::Int) = solution.routes[r]
@@ -16,31 +18,27 @@ getResViolation(solution::Solution) = sum(solution.resViolation)
 #getResViolation(solution::Solution, r::Int) = solution.resViolation[r]
 
 
-struct Label
-    first::Int
-    last::Int
-    path::Vector{Int}
-    feasRes::Vector{Float64}
-    costRes::Vector{Float64}
-end
-
 struct Parameters
     restarts::Int
-    iterMax::Int
+    outerIterMax::Int
+    innerIterMax::Int
     nbGranular::Int
 end
-Parameters() = Parameters(1, 1, 50)
+Parameters() = Parameters(10, 100, 5, 20)
 
 struct Diversification
-    shift::Int
-    swap::Int
+    outerShift::Int
+    outerSwap::Int
+    innerShift::Int
+    innerSwap::Int
 end
-Diversification() = Diversification(3,3)
+Diversification() = Diversification(2, 0, 2, 0)
 
 mutable struct Vertex
     id::Int
     resInterval::Vector{Tuple{Float64, Float64}}
 end
+
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
 Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
 
@@ -56,20 +54,23 @@ mutable struct Solver
     seed::Random.MersenneTwister
     params::Parameters
     data::ProblemData
+    outerCurrSol::Solution
+    outerBestSol::Solution
     currSol::Solution
     bestSol::Solution
     diversification::Diversification
     neighborhoods::Set{Int}
-    res::CapacityResource
+    res::Resource
     initState::Function
     extendAlongArc::Function
     concatenationCost::Function
-    forwardLabels::Vector{Vector{CapacityState}}
-    backwardLabels::Vector{Vector{CapacityState}}
-    prevLabelF::CapacityState
-    prevLabelB::CapacityState
-    buffer::CapacityState
-    pool::Vector{Vector{Int}}
+    forwardLabels::Vector{Vector{ForwardLabel}}
+    backwardLabels::Vector{Vector{BackwardLabel}}
+    prevLabelF::ForwardLabel
+    prevLabelB::BackwardLabel
+    buffer::ForwardLabel
+    # pool::Vector{Vector{Int}}
+    pool::Dict{Vector{Int}, Float64}
     hashes::Set{UInt64}
 
 end
@@ -78,6 +79,8 @@ function Solver(;
     seed = 1,
     params = Parameters(),
     data = ProblemData(),
+    outerCurrSol = Solution(),
+    bestCurrSol = Solution(),
     currSol = Solution(),
     bestSol = Solution(),
     diversification = Diversification(),
@@ -86,11 +89,12 @@ function Solver(;
     initState = x -> x,
     extendAlongArc = x -> x,
     concatenationCost = x -> x,
-    forwardLabels = Vector{Vector{CapacityState}}(),
-    backwardLabels = Vector{Vector{CapacityState}}(),
-    # prevLabelF = CapacityState(0., 0., [0], 0),
-    # prevLabelB = CapacityState(0., 0., [0], 0),
-    pool = Vector{Vector{Int}}(),
+    forwardLabels = Vector{Vector{ForwardLabel}}(),
+    backwardLabels = Vector{Vector{BackwardLabel}}(),
+    # prevLabelF = Label(0., 0., [0], 0),
+    # prevLabelB = Label(0., 0., [0], 0),
+    # pool = Vector{Vector{Int}}(),
+    pool = Dict{Vector{Int}, Float64}(),
     hashes = Set{UInt64}()
 )
     if DEBUG_MODE
@@ -98,12 +102,12 @@ function Solver(;
         prevLabelB = CapacityState(0., 0., [0], 0)
         buffer = CapacityState(0., 0., [0], 0)
     else
-        prevLabelF = CapacityState(0., 0.)
-        prevLabelB = CapacityState(0., 0.)
-        buffer = CapacityState(0., 0.)
+        prevLabelF = initStateForward()
+        prevLabelB = initStateBackward()
+        buffer = initStateForward()
     end
     Solver(
-        Random.MersenneTwister(seed), params, data, currSol, bestSol,
+        Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
         diversification, neighborhoods, res, initState, extendAlongArc, concatenationCost, forwardLabels, backwardLabels, prevLabelF, prevLabelB,
         buffer, pool, hashes
     )

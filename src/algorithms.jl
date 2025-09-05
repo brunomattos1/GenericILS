@@ -1,53 +1,115 @@
 
-function ILS(solver::Solver)
-    solver.bestSol.cost = Inf
+function NILS(solver::Solver)
+    solver.outerBestSol.cost = Inf
     for r = 1:solver.params.restarts
-        constructSol!(solver, r)
-        # checkCVRP(solver, solver.currSol)
-        # println("RVND")
-        RVND!(solver)
-        push!(solver)
-        it = 0
-        if acceptSol(solver)
-            solver.bestSol = deepcopy(solver.currSol)
-            # println("Best solution updated at restart $r iteration $it. Cost: $(solver.bestSol.cost).")
+        constructSol!(solver)
+        ILS(solver, solver.outerCurrSol)
+        push!(solver, solver.outerCurrSol)
+        if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
+            solver.outerBestSol = deepcopy(solver.outerCurrSol)
         end
-        while it < solver.params.iterMax
-            it += 1
-            perturb!(solver)
-            # checkCVRP(solver, solver.currSol)
-            # cost_perturb = solver.currSol.cost
-            # viol_perturb = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
-            # println("RVND")
-            RVND!(solver)
-            # checkCVRP(solver, solver.currSol)
-            # cost_rvnd = solver.currSol.cost
-            # viol_rvnd = length(solver.data.vertices) - max(sum(solver.currSol.feasiblesF), sum(solver.currSol.feasiblesB))
-            push!(solver)
+        outerIter = 0
+        while outerIter < solver.params.outerIterMax
+            outerIter += 1
+            outerPerturb!(solver, solver.outerCurrSol)
+            ILS(solver, solver.outerCurrSol)
+            push!(solver, solver.outerCurrSol)
 
-            accepted = acceptSol(solver)
-            # r_star = @sprintf("%04d", r) * (accepted ? "*" : " ")
-            # it_star = @sprintf("%04d", it) * (accepted ? "*" : " ")
-            # @printf("%s| %s| %8.2f |%02s | %8.2f |%02s | %8.2f |%02s | %d\n",
-            # r_star,
-            # it_star,
-            # solver.bestSol.cost,
-            # length(solver.data.vertices) - max(sum(solver.bestSol.feasiblesF), sum(solver.bestSol.feasiblesB)),
-            # cost_perturb,
-            # viol_perturb,
-            # cost_rvnd,
-            # viol_rvnd,
-            # length(solver.pool))
-            if accepted
-                solver.bestSol = deepcopy(solver.currSol)
-                println("Best solution updated at restart $r iteration $it. Cost: $(solver.bestSol.cost).")
-                it = 0
+            @printf("%3s| %3s | %8.2f | %8.2f | %d\n",
+            r,
+            outerIter,
+            solver.outerBestSol.cost,
+            solver.outerCurrSol.cost,
+            length(solver.pool))
+
+            if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
+                solver.outerBestSol = deepcopy(solver.outerCurrSol)
+                outerIter = 0
             end
-
         end
     end
-    setPartitioning(solver)
-    if acceptSol(solver)
-        solver.bestSol = deepcopy(solver.currSol)
+
+    # for (route, cost) in solver.pool
+    #     if cost >= 1.1*solver.outerBestSol.cost
+    #         delete!(solver.pool, route)
+    #     end
+    # end
+    setPartitioning(solver, solver.outerBestSol.cost)
+    solver.outerBestSol = deepcopy(solver.currSol)
+    # if acceptSol(solver, solver.currSol, solver.outerBestSol)
+    #     solver.outerBestSol = deepcopy(solver.currSol)
+    # end
+end
+
+function ILS(solver::Solver, sol::Solution)
+    it = 0
+    solver.bestSol = deepcopy(sol)
+    while it < solver.params.innerIterMax
+        it += 1
+        RVND!(solver, sol)
+        push!(solver, sol)
+        accepted = acceptSol(solver, sol, solver.bestSol)
+        if accepted
+            solver.bestSol = deepcopy(sol)
+            it = 0
+        end
+        innerPerturb!(solver, sol)
+    end
+    solver.outerCurrSol = deepcopy(solver.bestSol)
+    # return solver.bestSol
+end
+
+function classicILS(solver::Solver)
+    solver.outerBestSol.cost = Inf
+    for r = 1:solver.params.restarts
+        constructSol!(solver)
+        RVND!(solver, solver.outerCurrSol)
+        push!(solver, solver.outerCurrSol)
+        if r == 1#acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
+            solver.outerBestSol = deepcopy(solver.outerCurrSol)
+        end
+        iter = 0
+        while iter < solver.params.outerIterMax
+            iter += 1
+            perturb!(solver, solver.outerCurrSol)
+            # checkCVRP(solver, solver.currSol)
+            cost_perturb = solver.outerCurrSol.cost
+            viol_perturb = length(solver.data.vertices) - max(sum(solver.outerCurrSol.feasiblesF), sum(solver.outerCurrSol.feasiblesB))
+            # println("RVND")
+            RVND!(solver, solver.outerCurrSol)
+            # checkCVRP(solver, solver.currSol)
+            cost_rvnd = solver.outerCurrSol.cost
+            viol_rvnd = length(solver.data.vertices) - max(sum(solver.outerCurrSol.feasiblesF), sum(solver.outerCurrSol.feasiblesB))
+            push!(solver, solver.outerCurrSol)
+
+            accepted = acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
+            r_star = @sprintf("%04d", r) * (accepted ? "*" : " ")
+            it_star = @sprintf("%04d", iter) * (accepted ? "*" : " ")
+            @printf("%s| %s| %8.2f |%02s | %8.2f |%02s | %8.2f |%02s | %d\n",
+            r_star,
+            it_star,
+            solver.outerBestSol.cost,
+            length(solver.data.vertices) - max(sum(solver.outerBestSol.feasiblesF), sum(solver.outerBestSol.feasiblesB)),
+            cost_perturb,
+            viol_perturb,
+            cost_rvnd,
+            viol_rvnd,
+            length(solver.pool))
+            if accepted
+                solver.outerBestSol = deepcopy(solver.outerCurrSol)
+                println("Best solution updated at restart $r iteration $iter. Cost: $(solver.outerBestSol.cost).")
+                iter = 0
+            end
+        end
+    end
+
+    # for (route, cost) in solver.pool
+    #     if cost >= 1.03*solver.outerBestSol.cost
+    #         delete!(solver.pool, route)
+    #     end
+    # end
+    setPartitioning(solver, solver.outerBestSol.cost)
+    if acceptSol(solver, solver.currSol, solver.outerBestSol)
+        solver.outerBestSol = deepcopy(solver.currSol)
     end
 end

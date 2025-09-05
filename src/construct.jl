@@ -1,33 +1,35 @@
-function constructSol!(solver::Solver, r::Int)
-    bestParallelInsertion(solver::Solver, r::Int)
+function constructSol!(solver::Solver; r::Int = 0)
+    bestParallelInsertion(solver)
 end
 
 
-function bestParallelInsertion(solver::Solver, r::Int)
+function bestParallelInsertion(solver::Solver; r::Int = 0)
     vertices = deepcopy(solver.data.vertices)
-    nbRoutes = min(length(vertices), solver.data.maxNbRoutes)
+    nbRoutes = min(length(vertices), solver.data.maxNbRoutes + r)
     costMatrix = getCostMatrix(solver)
-    solver.currSol = Solution()
+    # solver.currSol = Solution()
+    solver.outerCurrSol = Solution()
     for r = 1:nbRoutes
         selectedIdx = rand(solver.seed, r:length(vertices))
         selected = vertices[selectedIdx]
-        push!(solver.currSol.routes, Int[0, selected.id, 0])
-        solver.currSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
+        push!(solver.outerCurrSol.routes, Int[0, selected.id, 0])
+        solver.outerCurrSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
     end
-    computeLabels(solver)
+    computeLabels(solver, solver.outerCurrSol)
     for k = nbRoutes+1:length(vertices)
         bestI = 0
         bestJ = 0
         bestR = 0
-        currCost = solver.currSol.cost
+        sol = solver.outerCurrSol
+        currCost = solver.outerCurrSol.cost#solver.currSol.cost
         bestCost = Inf
         bestInfeas = typemax(Int)
         for i = k:length(vertices)
             for r = 1:nbRoutes
-                for j = 2:length(solver.currSol.routes[r])
-                    cost, feas = evalBestInsertion(currCost, solver.currSol.routes, solver, r, vertices[i].id, j)
-                    infeas = length(solver.currSol.routes[r]) - 2 - feas
+                for j = 2:length(solver.outerCurrSol.routes[r])
+                    cost, feas = evalBestInsertion(currCost, sol, solver.outerCurrSol.routes, solver, r, vertices[i].id, j)
+                    infeas = length(solver.outerCurrSol.routes[r]) - 2 - feas
                     # println("Inserindo cliente $(vertices[i].id) na posição $j da rota $(solver.currSol.routes[r]) \nFeas: $(feas), Infeas: $(infeas)\n")
                     # if infeas < 0
                     #     println("$(solver.currSol.routes[r]), $(vertices[i].id), $j")
@@ -47,8 +49,8 @@ function bestParallelInsertion(solver::Solver, r::Int)
             end
         end
         if bestI > 0
-            applyMoveInsertion(solver, bestCost, bestR, vertices[bestI].id, bestJ)
-            computeLabels(solver, [bestR])
+            applyMoveInsertion(solver, solver.outerCurrSol, bestCost, bestR, vertices[bestI].id, bestJ)
+            computeLabels(solver, solver.outerCurrSol, [bestR])
             vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
         end
     end

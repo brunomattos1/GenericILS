@@ -1,7 +1,7 @@
 using Random, JuMP, HiGHS, Printf
 import Base: push!
 import Base: hash
-
+import Base: split
 include("resources.jl")
 include("structs.jl")
 include("setPartitioning.jl")
