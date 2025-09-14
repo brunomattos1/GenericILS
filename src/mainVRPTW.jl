@@ -47,7 +47,7 @@ function read_solomon(filename::String)
                 # distância
                 xi, yi = x[i], y[i]
                 xj, yj = x[j], y[j]
-                d = sqrt((xi-xj)^2 + (yi-yj)^2)
+                d = floor(10*sqrt((xi-xj)^2 + (yi-yj)^2)) / 10
                 dist[i,j] = d
                 
                 # tempo = serviço no i + viagem até j
@@ -70,7 +70,7 @@ function read_solomon(filename::String)
         #         println("vertex $i to vertex $j ready = $(ready[i,j]) due = $(due[i,j])")
         #     end
         # end
-        return vehicles, capacity, customers, dist, time, dmat, ready, due
+        return vehicles, capacity, customers, dist, time, dmat, ready_time, due_date
     end
 end
 
@@ -129,146 +129,127 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
 end
 
 function printVRPTW(solver::Solver, sol::Solution)
-    
+    cont = 0
+    dist = 0.0
     for r = 1:length(sol.routes)
+        if length(sol.routes[r]) <= 2
+            continue
+        end
+        cont += 1
         time = 0.0
         demand = 0.
-        print("#$r: ")
+        print("#$cont: ")
         for i = 1:length(sol.routes[r])
             if i == 1
-                # time += round(solver.res.t[sol.routes[r][1]+1, sol.routes[r][2]+1],digits = 1)
-                # @show time
-                print("0 (0)", " -> ")
+                print("0 ", " -> ")
             else
-                time += round(solver.res.t[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
-                if time < solver.res.early[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                    time = solver.res.early[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
+                dist += solver.data.costMatrix[sol.routes[r][i-1]+1, sol.routes[r][i]+1]
+                time += round(solver.res.stdResource.d[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
+                if time < solver.res.stdResource.lb[sol.routes[r][i] + 1]
+                    time = solver.res.stdResource.lb[sol.routes[r][i] + 1]
                 end
-                demand += solver.res.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.early[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]), $(solver.res.late[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1])]")
+                demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
+                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource.lb[sol.routes[r][i] + 1]), $(solver.res.stdResource.ub[sol.routes[r][i] + 1])]")
                 if i < length(sol.routes[r]) print(" -> ") end
             end
         end
         println()
     end
-    println("\nCost: $(sol.cost)")
+    println("\nDist: $(sol.dist). Cost: $(sol.cost)")
     # println("Violation: $(sol.resViolation)")
 end
 
-function checkInfeasibles(solver::Solver, route1::Vector{Int}, route2::Vector{Int})
-    feas1F = 0
-    feas2F = 0
-    feas1B = 0
-    feas2B = 0
-
-    demand1F = 0
-    accDemand1F = Vector{Int}()
-
-    demand2F = 0
-    accDemand2F = Vector{Int}()
-
-    demand1B = 0
-    accDemand1B = Vector{Int}()
-
-    demand2B = 0
-    accDemand2B = Vector{Int}()
-    for i = 1:length(route1)-2
-        demand1F += solver.res.d[route1[i]+1, route1[i+1]+1]
-        if demand1F <= solver.res.Q
-            feas1F += 1
+function checkVRPTW(solver::Solver, sol::Solution)
+    for r = 1:length(sol.routes)
+        time = 0.0
+        demand = 0
+        for i = 1:length(sol.routes[r])-1
+            time += round(solver.res.stdResource.d[sol.routes[r][i]+1, sol.routes[r][i+1]+1], digits = 1)
+            demand += solver.res.customResource.d[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
+            if time < solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
+                time = solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
+            end
+            if time > solver.res.stdResource.ub[sol.routes[r][i+1] + 1] + 1e-6
+                throw("violou janela do cliente $(sol.routes[r][i+1]) na rota $r")
+            end
+            if demand > solver.res.customResource.Q + 1e-6
+                throw("rota $r viola capacidade do veiculo")
+            end
         end
-        push!(accDemand1F, demand1F)
     end
-    for i = 1:length(route2)-2
-        demand2F += solver.res.d[route2[i]+1, route2[i+1]+1]
-        if demand2F <= solver.res.Q
-            feas2F += 1
-        end
-        push!(accDemand2F, demand2F)
-    end
-    for i = length(route1):-1:3
-        demand1B += solver.res.d[route1[i]+1, route1[i-1]+1]
-        if demand1B <= solver.res.Q
-            feas1B += 1
-        end
-        push!(accDemand1B, demand1B)
-    end
-    for i = length(route2):-1:3
-        demand2B += solver.res.d[route2[i]+1, route2[i-1]+1]
-        if demand2B <= solver.res.Q
-            feas2B += 1
-        end
-        push!(accDemand2B, demand2B)
-    end
-    return length(route1) + length(route2) - max(feas1F, feas1B) - max(feas2F, feas2B) - 4, accDemand1F, accDemand2F, accDemand1B, accDemand2B
-end
-
-function checkInfeasibles(solver::Solver, route1::Vector{Int})
-    feas1F = 0
-    feas1B = 0
-
-    demand1F = 0
-    accDemand1F = Vector{Int}()
-    demand1B = 0
-    accDemand1B = Vector{Int}()
-
-    for i = 1:length(route1)-2
-        demand1F += solver.res.d[route1[i]+1, route1[i+1]+1]
-        if demand1F <= solver.res.Q
-            feas1F += 1
-        end
-        push!(accDemand1F, demand1F)
-    end
-    for i = length(route1):-1:3
-        demand1B += solver.res.d[route1[i]+1, route1[i-1]+1]
-        if demand1B <= solver.res.Q
-            feas1B += 1
-        end
-        push!(accDemand1B, demand1B)
-    end
-    return length(route1) - max(feas1F, feas1B) - 2, accDemand1F,accDemand1B
 end
 
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instName = split(instance, ".")[1]
-    instance = joinpath(normpath(joinpath(@__DIR__, "..")), "Vrp-Set-Solomon", instance)
+    instance = joinpath(normpath(joinpath(@__DIR__, "..")), instance)
     vehicles, capacity, customers, dist, time, dmat, ready, due = read_solomon(instance)
     deleteat!(customers, 1)
 
-    maxNbRoute = ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1) / capacity)
-    
+    maxNbRoute = vehicles
+
     data = ProblemData(customers, dist, maxNbRoute)
-    time = zeros(length(customers)+1, length(customers)+1)
-    ready = zeros(length(customers)+1, length(customers)+1)
-    due = 100000 * ones(length(customers)+1, length(customers)+1)
+    customRes = CustomResource(dmat, capacity)
+    stdRes = StandardResource(time, ready, due)
 
-    res = Resource(dmat, capacity, time, ready, due)
-
+    res = Resources(customRes, stdRes)
+    
+    @show capacity
     solver = Solver(
         seed = seed,
         res = res,
+        stdResource = stdRes,
         initState = initStateForward,
         extendAlongArc = extendAlongArc, 
         concatenationCost = concatenationCost, 
-        params = Parameters(restarts, outerIterMax, innerIterMax, 10), 
+        params = Parameters(restarts, outerIterMax, innerIterMax, 100, 100, 0.01, 0.01), 
         diversification = Diversification(2, 0, 2, 0),
         data = data, 
-        neighborhoods = Set{Int}([1, 2, 3, 4])
+        neighborhoods = Set{Int}([2, 3, 4])
     )
+    # constructSol!(solver)
+    # sol = deepcopy(solver.outerCurrSol)
+    # sol.routes = [[0, 2, 1, 0], [0, 5, 3, 0], [0, 4, 0]]
+    # computeLabels(solver, sol)
+    # r1 = 1
+    # r2 = 2
+    # i = 2
+    # j = 2
+    # @show computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
+    # sol.routes = [[0, 2, 3, 0], [0, 5, 1, 0]]
+    # printVRPTW(solver, sol)
+    # # @show computeStdViolInsertion1(solver, sol, 1, customer, pos)
+    # # @show computeStdViolRemove1(solver, sol, 1, 4)
+    # # @show computeStdViolSwap11(solver, sol, r, pos, customer)
+    # # @show concatenationCost(solver.res.stdResource, 2, sol.forwardLabels[1][2], sol.backwardLabels[2][2])
 
+    # return
     println("Solving...")
     @time NILS(solver)
-    # @time classicILS(solver)
+    # classicILS(solver)
+    sol = deepcopy(solver.outerBestSol)
     printVRPTW(solver, solver.outerBestSol)
+    # for r = 1:length(sol.routes)
+    #     println("Infeas r: $(sol.infeas[r]), warp r: $(sol.warps[r])")
+    # end
+    # println("Total infeas: $(sol.totalInfeas), total warp: $(sol.totalWarp)")
+    checkVRPTW(solver, sol)
+    # computeLabels(solver, sol)
+    # for r = 1:length(sol.routes)
+    #     for i = 1:length(sol.forwardLabels[r])
+    #         println(sol.forwardLabels[r][i]," ", solver.res.stdResource.lb[sol.routes[r][i]+1], " ",solver.res.stdResource.ub[sol.routes[r][i]+1])
+    #     end
+    # end
     # plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
 end
 
 seed = 1
-restarts = 10
-outerIterMax = 50
+restarts = 1
+outerIterMax = 400
 innerIterMax = 2
 
-instance = "C101.txt"
+instance = "Homberger/C2_4_3.txt"
+# instance = "RC103.txt"
+const U = 3693.0
 # instance = "toy.txt"
-
+# const U = 1236.0
 main(instance, restarts, outerIterMax, innerIterMax, seed)

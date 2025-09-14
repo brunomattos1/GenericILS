@@ -4,15 +4,19 @@ import Base: hash
 import Base: split
 include("resources.jl")
 include("structs.jl")
+include("construct.jl")
+include("evalMoves.jl")
+include("neighborhood.jl")
+include("applyMoves.jl")
+
 include("setPartitioning.jl")
 include("subsequences.jl")
 include("computeViolation.jl")
 include("acceptCriteria.jl")
 include("algorithms.jl")
-include("applyMoves.jl")
-include("construct.jl")
+
 include("costFunctions.jl")
-include("evalMoves.jl")
+
 include("localSearch.jl")
-include("neighborhood.jl")
+
 include("perturb.jl")

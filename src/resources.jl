@@ -1,123 +1,185 @@
 const DEBUG_MODE = false
 
 
-struct Resource
+struct CustomResource
     d::Matrix{Float64}
     Q::Float64
 end
 
+struct StandardResource
+    d::Matrix{Float64}
+    lb::Vector{Float64}
+    ub::Vector{Float64}
+end
+
+struct Resources
+    customResource::CustomResource
+    stdResource::StandardResource
+end
+
+function isSymmetric()
+    return false
+end
+
+
 @static if DEBUG_MODE
-    struct CapacityState
+    struct CustomState
         q::Float64
+    end
+
+    struct StandardState
+        q::Float64
+        stdWarp::Float64
+    end
+
+    struct ForwardLabel
+        custom_res::CustomState
         cost::Float64
+        std_res::StandardState
         path::Vector{Int}
         last::Int
     end
-    struct Label
+
+    struct BackwardLabel
+        custom_res::CustomState
         cost::Float64
-        cap_res::CapacityState
+        std_res::StandardState
+        path::Vector{Int}
+        last::Int
     end
-    Base.copy(state::CapacityState) = CapacityState(copy(state.q), copy(state.cost), copy(state.path), copy(state.last))
+    function myInitStateForward()
+        return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), [0], 0)
+    end
+
+    function myInitStateBackward()
+        return BackwardLabel(initStateBackward()..., StandardState(U, 0.0), [0], 0)
+    end
+
+    function myExtendAlongArc(res::Resources, label::ForwardLabel, a::Tuple{Int, Int})
+        return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), vcat(label.path, a[2]-1), a[2]-1)
+    end
+
+    function myExtendAlongArc(res::Resources, label::BackwardLabel, a::Tuple{Int, Int})
+        return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), vcat(a[2]-1, label.path), a[2]-1)
+    end
+
+    function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+        return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), vcat(forwardLabel.path, backwardLabel.path), backwardLabel.last)
+    end
 else
-    struct CapacityState
+    struct CustomState
         q::Float64
     end
+
+    struct StandardState
+        q::Float64
+        stdWarp::Float64
+    end
+
     struct ForwardLabel
-        cap_res::CapacityState
+        custom_res::CustomState
         cost::Float64
+        std_res::StandardState
+        last::Int
     end
+
     struct BackwardLabel
-        cap_res::CapacityState
+        custom_res::CustomState
         cost::Float64
+        std_res::StandardState
+        last::Int
     end
-    Base.copy(state::CapacityState) = CapacityState(state.q, state.cost)
+    function myInitStateForward()
+        return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
+    end
 
-end
-# Base.copy(state::CapacityState) = CapacityState(copy(state.q), copy(state.cost), copy(state.path), copy(state.last))
-# Base.copy(state::CapacityState) = CapacityState(state.q, state.cost)
+    function myInitStateBackward()
+        return BackwardLabel(initStateBackward()..., StandardState(U, 0.0), 0)
+    end
 
-function isSymmetric()
-    return true
+    function myExtendAlongArc(res::Resources, label::ForwardLabel, a::Tuple{Int, Int})
+        return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
+    end
+
+    function myExtendAlongArc(res::Resources, label::BackwardLabel, a::Tuple{Int, Int})
+        return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
+    end
+
+    function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+        return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
+    end
 end
+
+
+
+
+# CUSTOM, user-dependent
 
 function initStateForward()
-    if DEBUG_MODE
-        return CapacityState(0.0, 0.0, [0], 0)
-    else
-        return ForwardLabel(CapacityState(0.0), 0.0)
-    end
+    return (CustomState(0.0), 0.0)
 end
 
 function initStateBackward()
-    if DEBUG_MODE
-        return CapacityState(0.0, 0.0, [0], 0)
+    return (CustomState(0.0), 0.0)
+end
+
+function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
+    q_custom = label.custom_res.q + res.d[a...]
+    if q_custom > res.Q + 1e-5
+        return (CustomState(q_custom), Inf)
     else
-        return BackwardLabel(CapacityState(0.0), 0.0)
+        return (CustomState(q_custom), 0.0)
     end
 end
 
-function extendAlongArc(res::Resource, label::ForwardLabel, a::Tuple{Int, Int})
-    if DEBUG_MODE
-        state.q += res.d[a...]
-        append!(state.path, a[2] - 1)
-        state.last = a[2] - 1
-        if state.q > res.Q + 1e-5
-            state.cost = Inf
-            return state
-        else
-            state.cost = 0
-            return state
-        end
+function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
+    q_custom = label.custom_res.q + res.d[a...]
+    if q_custom > res.Q + 1e-5
+        return (CustomState(q_custom), Inf)
     else
-        # q = state.q + res.d[a...]
-        q = label.cap_res.q + res.d[a...]
-        if q > res.Q + 1e-5
-            return ForwardLabel(CapacityState(q), Inf)
-        else
-            return ForwardLabel(CapacityState(q), 0.0)
-        end
+        return (CustomState(q_custom), 0.0)
     end
 end
 
-function extendAlongArc(res::Resource, label::BackwardLabel, a::Tuple{Int, Int})
-    if DEBUG_MODE
-        state.q += res.d[a...]
-        append!(state.path, a[2] - 1)
-        state.last = a[2] - 1
-        if state.q > res.Q + 1e-5
-            state.cost = Inf
-            return state
-        else
-            state.cost = 0
-            return state
-        end
+function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+    if forwardLabel.custom_res.q + backwardLabel.custom_res.q > res.Q + 1e-5
+        newState = (CustomState(forwardLabel.custom_res.q + backwardLabel.custom_res.q), Inf)
+        return newState
     else
-        # q = state.q + res.d[a...]
-        q = label.cap_res.q + res.d[a...]
-        if q > res.Q + 1e-5
-            return BackwardLabel(CapacityState(q), Inf)
-        else
-            return BackwardLabel(CapacityState(q), 0.0)
-        end
+        newState = (CustomState(forwardLabel.custom_res.q + backwardLabel.custom_res.q), 0.0)
+        return newState
     end
 end
 
-function concatenationCost(res::Resource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    if DEBUG_MODE
-        if state1.q + state2.q > res.Q + 1e-5
-            newState = CapacityState(state1.q + state2.q, Inf, vcat(state1.path, reverse(state2.path)), state2.last)
-            return newState
-        else
-            newState = CapacityState(state1.q + state2.q, 0.0, vcat(state1.path, reverse(state2.path)), state2.last)
-            return newState
-        end
-    else
-        if forwardLabel.cap_res.q + backwardLabel.cap_res.q > res.Q + 1e-5
-            newState = ForwardLabel(CapacityState(forwardLabel.cap_res.q + backwardLabel.cap_res.q), Inf)
-            return newState
-        else
-            newState = ForwardLabel(CapacityState(forwardLabel.cap_res.q + backwardLabel.cap_res.q), 0.0)
-            return newState
-        end
+# STANDARD, user-independent
+
+
+function extendAlongArc(res::StandardResource, label::ForwardLabel, a::Tuple{Int, Int})
+    # @show a
+    q_std = max(min(label.std_res.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
+    q_warp = label.std_res.stdWarp + max(label.std_res.q + res.d[a...] - res.ub[a[2]], 0.0)
+    return (StandardState(q_std, q_warp))
+end
+
+function extendAlongArc(res::StandardResource, label::BackwardLabel, a::Tuple{Int, Int})
+    q_std = min(max(label.std_res.q - res.d[a...], res.lb[a[2]]), res.ub[a[2]])
+    q_warp = label.std_res.stdWarp# + max(label.std_res.q - res.d[a...] - res.lb[a[2]], 0.0)
+    if label.std_res.q - res.d[a...] < res.lb[a[2]]
+        q_warp += res.lb[a[2]] - (label.std_res.q - res.d[a...])
     end
+    return (StandardState(q_std, q_warp))
+end
+
+function extendToVertex(res::StandardResource, label::ForwardLabel, v::Int)
+    a = (label.last+1, v+1)
+    q_std = max(min(label.std_res.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
+    q_warp = label.std_res.stdWarp + max(label.std_res.q + res.d[a...] - res.ub[a[2]], 0.0)
+    return (StandardState(q_std, q_warp))
+end
+
+function concatenationCost(res::StandardResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+    st = extendToVertex(res, forwardLabel, v)
+    q_std = min(st.q, backwardLabel.std_res.q)
+    q_warp = max(st.q - backwardLabel.std_res.q, 0) + (st.stdWarp + backwardLabel.std_res.stdWarp)
+    return StandardState(q_std, q_warp)
 end

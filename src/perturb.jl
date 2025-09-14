@@ -50,27 +50,27 @@ function outerPerturb!(solver::Solver, solution::Solution)
     end
 end
 
-function randomInterShit10!(solver::Solver)
-    routes = getRoutes(getCurrSol(solver))
-    r1 = rand(solver.seed, 1:length(routes))
-    r2 = rand(solver.seed, 1:length(routes))
-    counter = 0
-    while r1 == r2 || length(routes[r1]) <= 2
-        r1 = rand(solver.seed, 1:length(routes))
-        r2 = rand(solver.seed, 1:length(routes))
-        if counter > 20
-           return false
-        end
-        counter += 1
-    end
-    i = rand(solver.seed, 2:length(routes[r1])-1)
-    j = rand(solver.seed, 2:length(routes[r2]))
-    cost, _ = evalInterShift10(solver.currSol.cost, routes, solver, r1, r2, i, j)
-    applyMoveInterShift10!(solver, cost, r1, r2, i, j)
-    computeLabels(solver, [r1, r2])
+# function randomInterShit10!(solver::Solver, sol::Solution)
+#     routes = sol.routes
+#     r1 = rand(solver.seed, 1:length(routes))
+#     r2 = rand(solver.seed, 1:length(routes))
+#     counter = 0
+#     while r1 == r2 || length(routes[r1]) <= 2
+#         r1 = rand(solver.seed, 1:length(routes))
+#         r2 = rand(solver.seed, 1:length(routes))
+#         if counter > 20
+#            return false
+#         end
+#         counter += 1
+#     end
+#     i = rand(solver.seed, 2:length(routes[r1])-1)
+#     j = rand(solver.seed, 2:length(routes[r2]))
+#     cost, _ = evalInterShift10(sol.cost, sol, routes, solver, r1, r2, i, j)
+#     applyMoveInterShift10!(solver, sol, cost, r1, r2, i, j)
+#     computeLabels(solver, sol, [r1, r2])
 
-    return true
-end
+#     return true
+# end
 
 function randomInterShit10!(solver::Solver, solution::Solution)
     routes = getRoutes(solution)
@@ -87,10 +87,19 @@ function randomInterShit10!(solver::Solver, solution::Solution)
     end
     i = rand(solver.seed, 2:length(routes[r1])-1)
     j = rand(solver.seed, 2:length(routes[r2]))
-    cost, _ = evalInterShift10(solution.cost, solution, routes, solver, r1, r2, i, j)
-    applyMoveInterShift10!(solver, solution, cost, r1, r2, i, j)
-    computeLabels(solver, solution, [r1, r2])
+    # dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solution.dist, solution, routes, solver, r1, r2, i, j)
+    dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
 
+    infeasR1 = length(solution.routes[r1]) - 1 - feasR1 - 1
+    infeasR2 = length(solution.routes[r2]) - 1 - feasR2 + 1
+    # cost = objectiveValue(solver, solution, r1, r2, dist, infeasR1, infeasR2, warpR1, warpR2)
+    infeas = (infeasR1, infeasR2)
+    warp = (warpR1, warpR2)
+    applyMoveInterShift10!(solver, solution, BestMove(cost, dist, r1, r2, i, j, infeas, warp))
+    computeLabels(solver, solution, [r1, r2])
+    solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
+    solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
+    solution.totalInfeas = sum(solution.infeas)
     return true
 end
 

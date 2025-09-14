@@ -3,25 +3,26 @@ function RVND!(solver::Solver, solution::Solution)
     neighborhoods = copy(solver.neighborhoods)
     while length(neighborhoods) > 0
         neigh = rand(solver.seed, neighborhoods)
-        improv = false
+        improvement = false
         if neigh == 1
-            improv = intraShift10!(solver, solution)
+            improvement = intraShift10!(solver, solution)
         end
         if neigh == 2
-            improv = interShift10!(solver, solution)
+            improvement = interShift10!(solver, solution)
         end
         if neigh == 3
-            improv = interSwap11!(solver, solution)
+            improvement = interSwap11!(solver, solution)
         end
         if neigh == 4
-            improv = twoOptStar!(solver, solution)
+            improvement = twoOptStar!(solver, solution)
         end
-        if improv
+        if improvement
             neighborhoods = copy(solver.neighborhoods)
         else
             delete!(neighborhoods, neigh)
         end
     end
+    updatePenalty(solver.params, solution)
 end
 
 

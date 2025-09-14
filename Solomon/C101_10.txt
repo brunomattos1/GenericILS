@@ -1,8 +1,8 @@
-toy
+C101
 
 VEHICLE
 NUMBER     CAPACITY
-  1         100
+  5         200
 
 CUSTOMER
 CUST NO.  XCOORD.   YCOORD.    DEMAND   READY TIME  DUE DATE   SERVICE   TIME
@@ -13,3 +13,8 @@ CUST NO.  XCOORD.   YCOORD.    DEMAND   READY TIME  DUE DATE   SERVICE   TIME
     3      42         66         10         65        146         90   
     4      42         68         10        727        782         90   
     5      42         65         10         15         67         90   
+    6      40         69         20        621        702         90   
+    7      40         66         20        170        225         90   
+    8      38         68         20        255        324         90   
+    9      38         70         10        534        605         90   
+   10      35         66         10        357        410         90   

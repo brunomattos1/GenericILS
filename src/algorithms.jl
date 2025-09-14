@@ -1,12 +1,16 @@
 
 function NILS(solver::Solver)
     solver.outerBestSol.cost = Inf
+    bestFeasCost = Inf
     for r = 1:solver.params.restarts
-        constructSol!(solver)
+        constructSol!(solver, r = r)
         ILS(solver, solver.outerCurrSol)
         push!(solver, solver.outerCurrSol)
         if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             solver.outerBestSol = deepcopy(solver.outerCurrSol)
+            if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
+                bestFeasCost = solver.outerBestSol.cost
+            end
         end
         outerIter = 0
         while outerIter < solver.params.outerIterMax
@@ -15,26 +19,36 @@ function NILS(solver::Solver)
             ILS(solver, solver.outerCurrSol)
             push!(solver, solver.outerCurrSol)
 
-            @printf("%3s| %3s | %8.2f | %8.2f | %d\n",
+            @printf("%3s| %3s | %8.2f | %8.2f | %8.2f | %8.2f | %8.2f | %d\n",
             r,
             outerIter,
+            bestFeasCost, 
             solver.outerBestSol.cost,
             solver.outerCurrSol.cost,
+            solver.params.penaltyCustom,
+            solver.params.penaltyStandard,
             length(solver.pool))
 
             if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
                 solver.outerBestSol = deepcopy(solver.outerCurrSol)
+                if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
+                    bestFeasCost = solver.outerBestSol.cost
+                    outerIter = 0
+                end
+                
+            elseif (solver.outerCurrSol.cost < bestFeasCost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
+                bestFeasCost = solver.outerCurrSol.cost
                 outerIter = 0
             end
         end
     end
 
     # for (route, cost) in solver.pool
-    #     if cost >= 1.1*solver.outerBestSol.cost
+    #     if cost >= 1.02*bestFeasCost
     #         delete!(solver.pool, route)
     #     end
     # end
-    setPartitioning(solver, solver.outerBestSol.cost)
+    setPartitioning(solver, bestFeasCost)
     solver.outerBestSol = deepcopy(solver.currSol)
     # if acceptSol(solver, solver.currSol, solver.outerBestSol)
     #     solver.outerBestSol = deepcopy(solver.currSol)
@@ -47,8 +61,10 @@ function ILS(solver::Solver, sol::Solution)
     while it < solver.params.innerIterMax
         it += 1
         RVND!(solver, sol)
-        push!(solver, sol)
-        accepted = acceptSol(solver, sol, solver.bestSol)
+        accepted = false
+        if sol.cost < solver.bestSol.cost - 1e-6
+            accepted = true
+        end
         if accepted
             solver.bestSol = deepcopy(sol)
             it = 0
@@ -56,7 +72,6 @@ function ILS(solver::Solver, sol::Solution)
         innerPerturb!(solver, sol)
     end
     solver.outerCurrSol = deepcopy(solver.bestSol)
-    # return solver.bestSol
 end
 
 function classicILS(solver::Solver)
@@ -64,6 +79,7 @@ function classicILS(solver::Solver)
     for r = 1:solver.params.restarts
         constructSol!(solver)
         RVND!(solver, solver.outerCurrSol)
+
         push!(solver, solver.outerCurrSol)
         if r == 1#acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             solver.outerBestSol = deepcopy(solver.outerCurrSol)
@@ -71,7 +87,12 @@ function classicILS(solver::Solver)
         iter = 0
         while iter < solver.params.outerIterMax
             iter += 1
-            perturb!(solver, solver.outerCurrSol)
+            outerPerturb!(solver, solver.outerCurrSol)
+
+            # sleep(1000)
+            # @show solver.outerCurrSol.infeas
+            # @show solver.outerCurrSol.totalInfeas
+            # sleep(1000)
             # checkCVRP(solver, solver.currSol)
             cost_perturb = solver.outerCurrSol.cost
             viol_perturb = length(solver.data.vertices) - max(sum(solver.outerCurrSol.feasiblesF), sum(solver.outerCurrSol.feasiblesB))
@@ -109,7 +130,7 @@ function classicILS(solver::Solver)
     #     end
     # end
     setPartitioning(solver, solver.outerBestSol.cost)
-    if acceptSol(solver, solver.currSol, solver.outerBestSol)
-        solver.outerBestSol = deepcopy(solver.currSol)
-    end
+    # if acceptSol(solver, solver.currSol, solver.outerBestSol)
+    #     solver.outerBestSol = deepcopy(solver.currSol)
+    # end
 end
