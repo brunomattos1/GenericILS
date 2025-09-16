@@ -24,15 +24,6 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     computeLabels(solver, solver.outerCurrSol)
     for k = nbRoutes+1:length(vertices)
         bestI = 0
-        bestJ = 0
-        bestR = 0
-        sol = solver.outerCurrSol
-        # currCost = solver.outerCurrSol.cost#solver.currSol.cost
-        currDist = solver.outerCurrSol.dist#solver.currSol.cost
-        bestDist = Inf
-        bestCost = Inf
-        bestInfeas = typemax(Int)
-        bestWarp = Inf
         bestInsertion = BestInsertion()
         improvement = false
         for i = k:length(vertices)
@@ -95,7 +86,7 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         end
         if bestInsertion.pos > 0
             applyMoveInsertion(solver, solver.outerCurrSol, bestInsertion)
-            computeLabels(solver, solver.outerCurrSol, [bestInsertion.route])
+            computeLabels(solver, solver.outerCurrSol, bestInsertion.route)
             vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
             solver.outerCurrSol.infeas[bestInsertion.route] = length(solver.outerCurrSol.routes[bestInsertion.route]) - max(solver.outerCurrSol.feasiblesF[bestInsertion.route], solver.outerCurrSol.feasiblesB[bestInsertion.route]) - 1           
             solver.outerCurrSol.totalInfeas = sum(solver.outerCurrSol.infeas)

@@ -1,13 +1,14 @@
 
 function NILS(solver::Solver)
     solver.outerBestSol.cost = Inf
+    solver.bestSol = Solution()
     bestFeasCost = Inf
     for r = 1:solver.params.restarts
-        constructSol!(solver, r = r)
+        constructSol!(solver)
         ILS(solver, solver.outerCurrSol)
         push!(solver, solver.outerCurrSol)
         if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
-            solver.outerBestSol = deepcopy(solver.outerCurrSol)
+            copy_solution!(solver.outerBestSol, solver.outerCurrSol)
             if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
                 bestFeasCost = solver.outerBestSol.cost
             end
@@ -30,12 +31,11 @@ function NILS(solver::Solver)
             length(solver.pool))
 
             if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
-                solver.outerBestSol = deepcopy(solver.outerCurrSol)
+                copy_solution!(solver.outerBestSol, solver.outerCurrSol)
                 if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
                     bestFeasCost = solver.outerBestSol.cost
                     outerIter = 0
                 end
-                
             elseif (solver.outerCurrSol.cost < bestFeasCost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
                 bestFeasCost = solver.outerCurrSol.cost
                 outerIter = 0
@@ -57,21 +57,17 @@ end
 
 function ILS(solver::Solver, sol::Solution)
     it = 0
-    solver.bestSol = deepcopy(sol)
+    copy_solution!(solver.bestSol, sol)
     while it < solver.params.innerIterMax
         it += 1
         RVND!(solver, sol)
-        accepted = false
-        if sol.cost < solver.bestSol.cost - 1e-6
-            accepted = true
-        end
-        if accepted
-            solver.bestSol = deepcopy(sol)
+        if acceptSol(solver, sol, solver.bestSol)
+            copy_solution!(solver.bestSol, sol)
             it = 0
         end
         innerPerturb!(solver, sol)
     end
-    solver.outerCurrSol = deepcopy(solver.bestSol)
+    copy_solution!(solver.outerCurrSol, solver.bestSol)
 end
 
 function classicILS(solver::Solver)

@@ -169,15 +169,21 @@ end
 #     end
 # end
 
-function computeLabels(solver::Solver, sol::Solution, routes::Vector{Int})
+function computeLabels(solver::Solver, sol::Solution, routes::Int...)
     for r in routes
+        lenR = length(sol.routes[r])
+
+        # Pré-alocação e redimensionamento dos vetores de labels
+        if length(sol.forwardLabels[r]) != lenR
+            resize!(sol.forwardLabels[r], lenR)
+            resize!(sol.backwardLabels[r], lenR)
+        end
+        
+        # O restante do seu código permanece, mas agora opera em vetores pré-alocados.
         sol.lastFeasibleF[r] = -1
         sol.lastFeasibleB[r] = -1
         sol.feasiblesF[r] = -1
         sol.feasiblesB[r] = -1
-        lenR = length(sol.routes[r])
-        sol.forwardLabels[r] = Vector{ForwardLabel}(undef, lenR)
-        sol.backwardLabels[r] = Vector{BackwardLabel}(undef, lenR)
         sol.forwardLabels[r][1] = myInitStateForward()
         sol.backwardLabels[r][lenR] = myInitStateBackward()
     end
@@ -216,7 +222,6 @@ function computeLabels(solver::Solver, sol::Solution, routes::Vector{Int})
             sol.lastFeasibleB[r] = lenR
             sol.feasiblesB[r] = lenR - 1#2
         end
-        # solver.backwardLabels[r] = backwLabels
     end
 end
 

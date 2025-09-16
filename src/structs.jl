@@ -85,6 +85,70 @@ end
 
 Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[])
 
+function copy_solution!(dest::Solution, src::Solution)
+    # Copy scalar fields
+    dest.dist = src.dist
+    dest.cost = src.cost
+    dest.totalInfeas = src.totalInfeas
+    dest.totalWarp = src.totalWarp
+
+    # Copy vector fields using resize! and copyto!
+    resize!(dest.infeas, length(src.infeas))
+    copyto!(dest.infeas, src.infeas)
+
+    resize!(dest.warps, length(src.warps))
+    copyto!(dest.warps, src.warps)
+
+    resize!(dest.feasiblesF, length(src.feasiblesF))
+    copyto!(dest.feasiblesF, src.feasiblesF)
+
+    resize!(dest.feasiblesB, length(src.feasiblesB))
+    copyto!(dest.feasiblesB, src.feasiblesB)
+
+    resize!(dest.lastFeasibleF, length(src.lastFeasibleF))
+    copyto!(dest.lastFeasibleF, src.lastFeasibleF)
+
+    resize!(dest.lastFeasibleB, length(src.lastFeasibleB))
+    copyto!(dest.lastFeasibleB, src.lastFeasibleB)
+
+    # Copy nested vectors (routes)
+    resize!(dest.routes, length(src.routes))
+    for i in 1:length(src.routes)
+        # Check if the inner vector is undefined or has a different size
+        if !isassigned(dest.routes, i) || length(dest.routes[i]) != length(src.routes[i])
+            dest.routes[i] = copy(src.routes[i]) # Create a new, correctly sized vector
+        else
+            copyto!(dest.routes[i], src.routes[i]) # Reuse the existing vector
+        end
+    end
+
+    # Copy nested vectors of labels (forwardLabels, backwardLabels)
+    resize!(dest.forwardLabels, length(src.forwardLabels))
+    for i in 1:length(src.forwardLabels)
+        # Check if the inner vector is undefined or needs resizing
+        if !isassigned(dest.forwardLabels, i)
+            dest.forwardLabels[i] = Vector{ForwardLabel}(undef, length(src.forwardLabels[i]))
+        else
+            resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
+        end
+        copyto!(dest.forwardLabels[i], src.forwardLabels[i])
+    end
+
+    resize!(dest.backwardLabels, length(src.backwardLabels))
+    for i in 1:length(src.backwardLabels)
+        if !isassigned(dest.backwardLabels, i)
+            dest.backwardLabels[i] = Vector{BackwardLabel}(undef, length(src.backwardLabels[i]))
+        else
+            resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
+        end
+        copyto!(dest.backwardLabels[i], src.backwardLabels[i])
+    end
+
+    return dest
+end
+
+
+
 getCost(solution::Solution) = solution.cost
 getRoute(solution::Solution, r::Int) = solution.routes[r]
 getRoutes(solution::Solution) = solution.routes
@@ -150,21 +214,22 @@ mutable struct Solver
     currSol::Solution
     bestSol::Solution
     diversification::Diversification
-    neighborhoods::Set{Int}
+    neighborhoods::Vector{Int}
+    auxNeighborhoods::Vector{Int}
     res::Resources
     stdResource::StandardResource
-    initState::Function
-    extendAlongArc::Function
-    concatenationCost::Function
     forwardLabels::Vector{Vector{ForwardLabel}}
     backwardLabels::Vector{Vector{BackwardLabel}}
     prevLabelF::ForwardLabel
+    prevLabelStdF::ForwardLabel
     prevLabelB::BackwardLabel
-    buffer::ForwardLabel
+    prevLabelStdB::BackwardLabel
+    buffer::Vector{Int}
+    buffer2opt::Vector{Int}
+    bufferRoute::Vector{Int}
     # pool::Vector{Vector{Int}}
     pool::Dict{Vector{Int}, Float64}
     hashes::Set{UInt64}
-
 end
 
 function Solver(; 
@@ -176,33 +241,36 @@ function Solver(;
     currSol = Solution(),
     bestSol = Solution(),
     diversification = Diversification(),
-    neighborhoods = Set(i for i = 1:10),
+    neighborhoods = Int[i for i = 1:10],
+    auxNeighborhoods = Int[],
     res = Resources(CustomResource(zeros(Float64, 1, 1), 0.0),StandardResource(zeros(Float64, 1, 1), Float64[], Float64[])),
     stdResource = StandardResource(zeros(Float64, 1, 1), Float64[], Float64[]),
-    initState = x -> x,
-    extendAlongArc = x -> x,
-    concatenationCost = x -> x,
     forwardLabels = Vector{Vector{ForwardLabel}}(),
     backwardLabels = Vector{Vector{BackwardLabel}}(),
     # prevLabelF = Label(0., 0., [0], 0),
     # prevLabelB = Label(0., 0., [0], 0),
     # pool = Vector{Vector{Int}}(),
+    buffer = Vector{Int}(),
+    buffer2opt = Vector{Int}(),
+    bufferRoute = Vector{Int}(),
     pool = Dict{Vector{Int}, Float64}(),
     hashes = Set{UInt64}()
 )
     if DEBUG_MODE
         prevLabelF = myInitStateForward()
+        prevLabelStdF = myInitStateForward()
         prevLabelB = myInitStateBackward()
-        buffer = myInitStateForward()
+        prevLabelStdB = myInitStateBackward()
     else
         prevLabelF = myInitStateForward()
+        prevLabelStdF = myInitStateForward()
         prevLabelB = myInitStateBackward()
-        buffer = myInitStateForward()
+        prevLabelStdB = myInitStateBackward()
     end
     Solver(
         Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
-        diversification, neighborhoods, res, stdResource, initState, extendAlongArc, concatenationCost, forwardLabels, backwardLabels, prevLabelF, prevLabelB,
-        buffer, pool, hashes
+        diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
+        buffer, buffer2opt, bufferRoute, pool, hashes
     )
 end
 

@@ -70,13 +70,13 @@ function read_solomon(filename::String)
         #         println("vertex $i to vertex $j ready = $(ready[i,j]) due = $(due[i,j])")
         #     end
         # end
-        return vehicles, capacity, customers, dist, time, dmat, ready_time, due_date
+        return x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready_time, due_date
     end
 end
 
-function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solution.html")
-    coords = [(cvrp.coordinates[i, 1], cvrp.coordinates[i, 2]) for i = 2:cvrp.dimension]
-    depot_coord = (cvrp.coordinates[1, 1], cvrp.coordinates[1, 2])
+function plot_vrptw(x, y, demands, solution; filename)
+    coords = [(x[i], y[i]) for i = 2:length(x)]
+    depot_coord = (x[1], y[1])
     routes = solution.routes
     traces = GenericTrace{Dict{Symbol, Any}}[]
 
@@ -85,7 +85,7 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
         x=[depot_coord[1]], y=[depot_coord[2]],
         mode="markers+text",
         marker=attr(color="yellow", size=12, symbol="square"),
-        text=["1 (" * string(cvrp.demand[1]) * ")"],
+        text=["1 (" * string(demands[1]) * ")"],
         hoverinfo="text",
         name="Depot"
     ))
@@ -100,7 +100,7 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
         for i in 2:length(route)-1
             cliente = route[i]
             coord = coords[cliente]
-            demanda = cvrp.demand[cliente+1]
+            demanda = demands[cliente+1]
             texto = "Cliente $(cliente) (Demanda: $(demanda))"
             push!(traces, PlotlyJS.scatter(
                 x=[coord[1]], y=[coord[2]],
@@ -112,17 +112,17 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
             ))
         end
     end
-    layout = Layout(title="Cost: $(solution.cost)", width=1200, height=800, plot_bgcolor = "white", dragmode = "pan")
+    layout = Layout(title="Cost: $(solution.cost)", width=1200, height=800, plot_bgcolor = "white")
     config = PlotConfig(
         displayModeBar=true,
         scrollZoom=true,
         modeBarButtonsToRemove=[
-            "select2d", "lasso2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d",
+            "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
             "drawline", "drawopenpath", "drawclosedpath", "drawcircle", "drawrect", "eraseshape"
         ]
     )
     plt = PlotlyJS.Plot(traces, layout, config = config)
-    open("C:\\Users\\bruno.mattos\\Downloads\\$(filename).html","w") do f
+    open(joinpath(pwd(), "..", "plots", "$filename.html"),"w") do f
         PlotlyJS.PlotlyBase.to_html(f, plt; include_plotlyjs="cdn", full_html=true)
     end
     println("Gráfico interativo salvo como '$filename'")
@@ -181,75 +181,60 @@ end
 
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instName = split(instance, ".")[1]
+    instName2 = split(split(instance, "/")[2], ".")[1]
     instance = joinpath(normpath(joinpath(@__DIR__, "..")), instance)
-    vehicles, capacity, customers, dist, time, dmat, ready, due = read_solomon(instance)
+    x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due = read_solomon(instance)
     deleteat!(customers, 1)
 
-    maxNbRoute = vehicles
-
+    maxNbRoute = 2*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity)#vehicles
+    # maxNbRoute = vehicles
+    @show maxNbRoute
     data = ProblemData(customers, dist, maxNbRoute)
     customRes = CustomResource(dmat, capacity)
     stdRes = StandardResource(time, ready, due)
 
     res = Resources(customRes, stdRes)
-    
     @show capacity
+    @show vehicles
     solver = Solver(
         seed = seed,
         res = res,
         stdResource = stdRes,
-        initState = initStateForward,
-        extendAlongArc = extendAlongArc, 
-        concatenationCost = concatenationCost, 
         params = Parameters(restarts, outerIterMax, innerIterMax, 100, 100, 0.01, 0.01), 
         diversification = Diversification(2, 0, 2, 0),
         data = data, 
-        neighborhoods = Set{Int}([2, 3, 4])
+        neighborhoods = [1, 2, 3, 4]
     )
     # constructSol!(solver)
     # sol = deepcopy(solver.outerCurrSol)
-    # sol.routes = [[0, 2, 1, 0], [0, 5, 3, 0], [0, 4, 0]]
+    # sol.routes = [[0, 1, 3, 0]]
+    # sol.infeas = [0, 0]
+    # sol.warps = [0.0, 0.0]
     # computeLabels(solver, sol)
     # r1 = 1
     # r2 = 2
-    # i = 2
+    # i = 3
     # j = 2
-    # @show computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
-    # sol.routes = [[0, 2, 3, 0], [0, 5, 1, 0]]
+    # @show computeStdViolIntraShift10(solver, sol, r1, i, j)
+    # sol.routes = [[0, 3, 1, 0]]
     # printVRPTW(solver, sol)
-    # # @show computeStdViolInsertion1(solver, sol, 1, customer, pos)
-    # # @show computeStdViolRemove1(solver, sol, 1, 4)
-    # # @show computeStdViolSwap11(solver, sol, r, pos, customer)
-    # # @show concatenationCost(solver.res.stdResource, 2, sol.forwardLabels[1][2], sol.backwardLabels[2][2])
-
     # return
     println("Solving...")
     @time NILS(solver)
     # classicILS(solver)
     sol = deepcopy(solver.outerBestSol)
     printVRPTW(solver, solver.outerBestSol)
-    # for r = 1:length(sol.routes)
-    #     println("Infeas r: $(sol.infeas[r]), warp r: $(sol.warps[r])")
-    # end
-    # println("Total infeas: $(sol.totalInfeas), total warp: $(sol.totalWarp)")
     checkVRPTW(solver, sol)
-    # computeLabels(solver, sol)
-    # for r = 1:length(sol.routes)
-    #     for i = 1:length(sol.forwardLabels[r])
-    #         println(sol.forwardLabels[r][i]," ", solver.res.stdResource.lb[sol.routes[r][i]+1], " ",solver.res.stdResource.ub[sol.routes[r][i]+1])
-    #     end
-    # end
-    # plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
+    plot_vrptw(x, y, demands, solver.outerBestSol, filename = instName2)
 end
 
-seed = 1
+seed = 2
 restarts = 1
-outerIterMax = 400
+outerIterMax = 300
 innerIterMax = 2
 
-instance = "Homberger/C2_4_3.txt"
-# instance = "RC103.txt"
+instance = "Homberger/C2_4_4.txt"
 const U = 3693.0
-# instance = "toy.txt"
-# const U = 1236.0
+# instance = "Solomon/R211.txt"
+# const U = 1000.0
 main(instance, restarts, outerIterMax, innerIterMax, seed)

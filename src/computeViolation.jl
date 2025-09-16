@@ -1,13 +1,13 @@
 function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::Int, pos::Int)
-    insertionLabelForward = myExtendAlongArc(solver.res, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
-    concatCost = myConcatenationCost(solver.res, customer, insertionLabelForward, sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos])
+    insertionLabelForward = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
+    concatCost = myConcatenationCost(solver.res.customResource, customer, insertionLabelForward, sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos])
     if concatCost.cost < Inf
         return length(sol.routes[r]) - 1 + 1
     end
 
     # FORWARD
     if sol.feasiblesF[r] == length(sol.routes[r]) - 1
-        concatCost = myConcatenationCost(solver.res, customer, insertionLabelForward, sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos])
+        concatCost = myConcatenationCost(solver.res.customResource, customer, insertionLabelForward, sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos])
         if insertionLabelForward.cost == Inf
             dFeasForward = 0 - length(sol.routes[r]) + pos
             if pos == length(sol.routes[r])
@@ -25,7 +25,7 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
             forw += sol.lastFeasibleF[r] - 1
         end
     else
-        insertionLabelForward2 = myExtendAlongArc(solver.res, insertionLabelForward, (customer + 1, sol.routes[r][pos]+1))
+        insertionLabelForward2 = myExtendAlongArc(solver.res.customResource, insertionLabelForward, (customer + 1, sol.routes[r][pos]+1))
         if pos < sol.lastFeasibleF[r] + 1
             dFeasForward = -1
             insertionLabelForward.cost < Inf ? dFeasForward += 1 : 0
@@ -50,8 +50,8 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
 
     # BACKWARD
     if sol.feasiblesB[r] == length(sol.routes[r]) - 1
-        insertionLabelBackward = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - pos + 1], (sol.routes[r][pos]+1, customer+1))
-        concatCost = myConcatenationCost(solver.res, customer, sol.forwardLabels[r][pos - 1], insertionLabelBackward)
+        insertionLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) - pos + 1], (sol.routes[r][pos]+1, customer+1))
+        concatCost = myConcatenationCost(solver.res.customResource, customer, sol.forwardLabels[r][pos - 1], insertionLabelBackward)
         if insertionLabelBackward.cost == Inf
             dFeasBackward = -1#length(sol.routes[r]) - pos - 2
         elseif insertionLabelBackward.cost < Inf && concatCost.cost < Inf
@@ -66,8 +66,8 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
             backw += sol.lastFeasibleB[r] - 1
         end
     else
-        insertionLabelBackward = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - pos + 1], (sol.routes[r][pos]+1, customer+1))
-        insertionLabelBackward2 = myExtendAlongArc(solver.res, insertionLabelBackward, (customer + 1, sol.routes[r][pos-1]+1))
+        insertionLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) - pos + 1], (sol.routes[r][pos]+1, customer+1))
+        insertionLabelBackward2 = myExtendAlongArc(solver.res.customResource, insertionLabelBackward, (customer + 1, sol.routes[r][pos-1]+1))
         if pos > length(sol.routes[r]) - sol.lastFeasibleB[r] + 1
             dFeasBackward = -1
             insertionLabelBackward.cost < Inf ? dFeasBackward += 1 : 0
@@ -92,14 +92,14 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
 end
 
 function computeViolRemove1(solver::Solver, sol::Solution, r::Int, pos::Int)
-    concat = myConcatenationCost(solver.res, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
+    concat = myConcatenationCost(solver.res.customResource, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
     removLabelForward = nothing
     if concat.cost < Inf
         return length(sol.routes[r]) - 1 - 1
     end
     # FORWARD
     if sol.feasiblesF[r] == length(sol.routes[r]) - 1
-        removLabelForward = myConcatenationCost(solver.res, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
+        removLabelForward = myConcatenationCost(solver.res.customResource, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
         if removLabelForward.cost < Inf
             dFeasForward = -1
         else
@@ -107,7 +107,7 @@ function computeViolRemove1(solver::Solver, sol::Solution, r::Int, pos::Int)
         end
         forw = length(sol.routes[r]) - 1 - dFeasForward - 2
     else
-        removLabelForward = myExtendAlongArc(solver.res, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, sol.routes[r][pos+1]+1))
+        removLabelForward = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, sol.routes[r][pos+1]+1))
         if pos < sol.lastFeasibleF[r]
             dFeasForward = - 2
             if removLabelForward.cost < Inf
@@ -148,7 +148,7 @@ function computeViolRemove1(solver::Solver, sol::Solution, r::Int, pos::Int)
 
     # BACKWARD
     if sol.feasiblesB[r] == length(sol.routes[r]) - 1
-        removLabelBackward = myConcatenationCost(solver.res, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
+        removLabelBackward = myConcatenationCost(solver.res.customResource, pos, sol.forwardLabels[r][pos-1], sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1])
         if removLabelBackward.cost < Inf
             dFeasBackward = -1
         else
@@ -157,7 +157,7 @@ function computeViolRemove1(solver::Solver, sol::Solution, r::Int, pos::Int)
         backw = length(sol.routes[r]) - 1 - dFeasBackward - 2
     else
         pos_ = length(sol.routes[r]) - pos#+ 1# - 1
-        removLabelBackward = myExtendAlongArc(solver.res, sol.backwardLabels[r][pos_], (sol.routes[r][pos_]+1, sol.routes[r][pos-1]+1))
+        removLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][pos_], (sol.routes[r][pos_]+1, sol.routes[r][pos-1]+1))
         if pos > length(sol.routes[r]) - sol.lastFeasibleB[r] + 1
             dFeasBackward = - 2
             if removLabelBackward.cost < Inf
@@ -204,8 +204,8 @@ end
 function computeViolSwap11(solver::Solver, sol::Solution, r::Int, pos::Int, customer::Int)
     # FORWARD
     if sol.feasiblesF[r] == length(sol.routes[r]) - 1
-        swapLabelForward = myExtendAlongArc(solver.res, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
-        concatCost = myConcatenationCost(solver.res, customer, swapLabelForward, sol.backwardLabels[r][length(sol.routes[r]) - pos])
+        swapLabelForward = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
+        concatCost = myConcatenationCost(solver.res.customResource, customer, swapLabelForward, sol.backwardLabels[r][length(sol.routes[r]) - pos])
         if swapLabelForward.cost == Inf
             dFeasForward = - length(sol.routes[r]) + pos - 1
         elseif swapLabelForward.cost < Inf && concatCost.cost < Inf
@@ -215,8 +215,8 @@ function computeViolSwap11(solver::Solver, sol::Solution, r::Int, pos::Int, cust
         end
         forw = length(sol.routes[r]) - 1 + dFeasForward
     else
-        swapLabelForward = myExtendAlongArc(solver.res, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
-        swapLabelForward2 = myExtendAlongArc(solver.res, swapLabelForward, (customer + 1, sol.routes[r][pos+1]+1))
+        swapLabelForward = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
+        swapLabelForward2 = myExtendAlongArc(solver.res.customResource, swapLabelForward, (customer + 1, sol.routes[r][pos+1]+1))
         if pos < sol.lastFeasibleF[r]
             dFeasForward = -2
             swapLabelForward.cost < Inf ? dFeasForward += 1 : 0
@@ -253,8 +253,8 @@ function computeViolSwap11(solver::Solver, sol::Solution, r::Int, pos::Int, cust
 
     # BACKWARD
     if sol.feasiblesB[r] == length(sol.routes[r]) - 1
-        swapLabelBackward = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - pos], (sol.routes[r][pos]+1, customer+1))
-        concatCost = myConcatenationCost(solver.res, customer, sol.forwardLabels[r][pos-1], swapLabelBackward)
+        swapLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) - pos], (sol.routes[r][pos]+1, customer+1))
+        concatCost = myConcatenationCost(solver.res.customResource, customer, sol.forwardLabels[r][pos-1], swapLabelBackward)
 
         if swapLabelBackward.cost == Inf
             dFeasBackward = - length(sol.routes[r]) + pos# + 1
@@ -265,8 +265,8 @@ function computeViolSwap11(solver::Solver, sol::Solution, r::Int, pos::Int, cust
         end
         backw = length(sol.routes[r]) - 1 + dFeasBackward
     else
-        swapLabelBackward = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - pos], (sol.routes[r][pos]+1, customer+1))
-        swapLabelBackward2 = myExtendAlongArc(solver.res, swapLabelBackward, (customer + 1, sol.routes[r][pos-1]+1))
+        swapLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) - pos], (sol.routes[r][pos]+1, customer+1))
+        swapLabelBackward2 = myExtendAlongArc(solver.res.customResource, swapLabelBackward, (customer + 1, sol.routes[r][pos-1]+1))
         # alterando dentro da zona viavel da rota
         if pos > length(sol.routes[r]) - sol.lastFeasibleB[r] + 1
             dFeasBackward = -2
@@ -312,8 +312,8 @@ end
 
 function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int)
     # FORWARD r1
-    labelForward1 = myExtendAlongArc(solver.res, sol.forwardLabels[r1][i], (sol.routes[r1][i]+1, sol.routes[r2][j+1]+1))
-    # concatForward1 = myConcatenationCost(solver.res, 1, labelForward1, solver.backwardLabels[r2][length(sol.routes[r2]) - j - 1])
+    labelForward1 = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r1][i], (sol.routes[r1][i]+1, sol.routes[r2][j+1]+1))
+    # concatForward1 = myConcatenationCost(solver.res.customResource, 1, labelForward1, solver.backwardLabels[r2][length(sol.routes[r2]) - j - 1])
     forw1 = 0
     forw1 += labelForward1.cost < Inf ? 1 : 0
 
@@ -327,8 +327,8 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
         forw1 += sol.lastFeasibleF[r1] - 1
     end
     # BACKWARD r1
-    labelBackward1 = myExtendAlongArc(solver.res, sol.backwardLabels[r2][length(sol.routes[r2]) - j], (sol.routes[r2][j+1]+1, sol.routes[r1][i]+1))
-    # concatBackward1 = myConcatenationCost(solver.res, 1, labelBackward1, sol.forwardLabels[r1][i-1])
+    labelBackward1 = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r2][length(sol.routes[r2]) - j], (sol.routes[r2][j+1]+1, sol.routes[r1][i]+1))
+    # concatBackward1 = myConcatenationCost(solver.res.customResource, 1, labelBackward1, sol.forwardLabels[r1][i-1])
     backw1 = 0
     backw1 += labelBackward1.cost < Inf ? 1 : 0
     if j > length(sol.routes[r2]) + 1 - sol.lastFeasibleB[r2]
@@ -342,8 +342,8 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     end
     feasR1 = max(backw1, forw1)
     # FORWARD r2
-    labelForward2 = myExtendAlongArc(solver.res, sol.forwardLabels[r2][j], (sol.routes[r2][j]+1, sol.routes[r1][i+1]+1))
-    # concatForward2 = myConcatenationCost(solver.res, 1, labelForward2, sol.backwardLabels[r1][length(sol.routes[r1]) - i - 1])
+    labelForward2 = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r2][j], (sol.routes[r2][j]+1, sol.routes[r1][i+1]+1))
+    # concatForward2 = myConcatenationCost(solver.res.customResource, 1, labelForward2, sol.backwardLabels[r1][length(sol.routes[r1]) - i - 1])
     forw2 = 0
     forw2 += labelForward2.cost < Inf ? 1 : 0
     if j < sol.lastFeasibleF[r2]
@@ -355,8 +355,8 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     if j > sol.lastFeasibleF[r2]
         forw2 += sol.lastFeasibleF[r2] - 1
     end
-    labelBackward2 = myExtendAlongArc(solver.res, sol.backwardLabels[r1][length(sol.routes[r1]) - i], (sol.routes[r1][i+1]+1, sol.routes[r2][j]+1))
-    # concatBackward2 = myConcatenationCost(solver.res, 1, labelBackward2, sol.forwardLabels[r2][j-1])
+    labelBackward2 = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r1][length(sol.routes[r1]) - i], (sol.routes[r1][i+1]+1, sol.routes[r2][j]+1))
+    # concatBackward2 = myConcatenationCost(solver.res.customResource, 1, labelBackward2, sol.forwardLabels[r2][j-1])
     backw2 = 0
     backw2 += labelBackward2.cost < Inf ? 1 : 0
     if i > length(sol.routes[r1]) + 1 - sol.lastFeasibleB[r1]
@@ -375,25 +375,25 @@ end
 function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
     if i < j
         if j == i+1
-            solver.prevLabelF = myExtendAlongArc(solver.res, sol.forwardLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i+1] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
-            res = myConcatenationCost(solver.res, i, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
+            solver.prevLabelF = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i+1] + 1))
+            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
+            res = myConcatenationCost(solver.res.customResource, i, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
         else
-            solver.prevLabelF = myExtendAlongArc(solver.res, solver.prevLabelF, (sol.routes[r][i-1]+1, sol.routes[r][j] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
-            res = myConcatenationCost(solver.res, i, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
+            solver.prevLabelF = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (sol.routes[r][i-1]+1, sol.routes[r][j] + 1))
+            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
+            res = myConcatenationCost(solver.res.customResource, i, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
         end
     else
         if j == i-1
-            solver.prevLabelB = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (sol.routes[r][j]+1, sol.routes[r][j+1] + 1))
-            # res = myConcatenationCost(solver.res, j+1, auxLabel, sol.forwardLabels[r][j - 1])
-            res = myConcatenationCost(solver.res, j+1, sol.forwardLabels[r][j - 1], auxLabel)
+            solver.prevLabelB = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
+            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (sol.routes[r][j]+1, sol.routes[r][j+1] + 1))
+            # res = myConcatenationCost(solver.res.customResource, j+1, auxLabel, sol.forwardLabels[r][j - 1])
+            res = myConcatenationCost(solver.res.customResource, j+1, sol.forwardLabels[r][j - 1], auxLabel)
         else
-            solver.prevLabelB = myExtendAlongArc(solver.res, solver.prevLabelB, (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
-            # res = myConcatenationCost(solver.res, j+1, auxLabel, sol.forwardLabels[r][j - 1])
-            res = myConcatenationCost(solver.res, j+1, sol.forwardLabels[r][j - 1], auxLabel)
+            solver.prevLabelB = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
+            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (sol.routes[r][j]+1, sol.routes[r][i] + 1))
+            # res = myConcatenationCost(solver.res.customResource, j+1, auxLabel, sol.forwardLabels[r][j - 1])
+            res = myConcatenationCost(solver.res.customResource, j+1, sol.forwardLabels[r][j - 1], auxLabel)
 
         end
     end
@@ -417,6 +417,49 @@ function computeViolInterSwap11(solver::Solver, sol::Solution, r1::Int, r2::Int,
     return feasR1, feasR2
 end
 
+function computeStdViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
+    if i < j
+        if j == i+1
+            # solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, sol.forwardLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i+1] + 1)), vcat(sol.forwardLabels[r][i-1].path,sol.routes[r][i+1]), sol.routes[r][i+1])
+            # auxLabel = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), vcat(solver.prevLabelStdF.path, sol.routes[r][i]), sol.routes[r][i])
+
+            solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, sol.forwardLabels[r][i-1], (sol.routes[r][i-1]+1, sol.routes[r][i+1] + 1)), sol.routes[r][i+1])
+            auxLabel = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), sol.routes[r][i])
+        
+            res = concatenationCost(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
+            return res.stdWarp
+        else
+            # solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][i-1]+1, sol.routes[r][j] + 1)), vcat(sol.forwardLabels[r][i-1].path,sol.routes[r][j]), sol.routes[r][j])
+            # auxLabel = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), vcat(solver.prevLabelStdF.path, sol.routes[r][i]), sol.routes[r][i])
+            
+            solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][i-1]+1, sol.routes[r][j] + 1)), sol.routes[r][j])
+            auxLabel = ForwardLabel(solver.prevLabelF.custom_res, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), sol.routes[r][i])
+            
+            res = concatenationCost(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
+            return res.stdWarp
+        end
+    else
+        if j == i-1
+            # solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.custom_res, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1)), vcat(sol.routes[r][i+1], sol.backwardLabels[r][length(sol.routes[r]) - i].path), sol.routes[r][i+1])
+            # auxLabel = BackwardLabel(solver.prevLabelB.custom_res, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][j]+1, sol.routes[r][j+1] + 1)), vcat(sol.routes[r][j+1], solver.prevLabelStdB.path), sol.routes[r][j+1])
+
+            solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.custom_res, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1)), sol.routes[r][i+1])
+            auxLabel = BackwardLabel(solver.prevLabelB.custom_res, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][j]+1, sol.routes[r][j+1] + 1)), sol.routes[r][j+1])
+            
+            res = concatenationCost(solver.res.stdResource, auxLabel.last, sol.forwardLabels[r][j - 1], auxLabel)
+            return res.stdWarp
+        else
+            # solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.custom_res, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][i+1]+1, sol.routes[r][j] + 1)), vcat(sol.routes[r][i+1], sol.backwardLabels[r][length(sol.routes[r]) - i].path), sol.routes[r][i+1])
+            # auxLabel = BackwardLabel(solver.prevLabelB.custom_res, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), vcat(sol.routes[r][i], solver.prevLabelStdB.path), sol.routes[r][i])
+
+            solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.custom_res, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][i+1]+1, sol.routes[r][j] + 1)), sol.routes[r][i+1])
+            auxLabel = BackwardLabel(solver.prevLabelB.custom_res, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (sol.routes[r][j]+1, sol.routes[r][i] + 1)), sol.routes[r][i])
+            
+            res = concatenationCost(solver.res.stdResource, auxLabel.last, sol.forwardLabels[r][j - 1], auxLabel)
+            return res.stdWarp
+        end
+    end
+end
 
 function computeStdViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::Int, pos::Int)
     forwardLabel = sol.forwardLabels[r][pos-1]
@@ -462,7 +505,8 @@ function computeStdViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::In
     backwardLabel2 = sol.backwardLabels[r1][length(sol.routes[r1]) - i]
     # @show forwardLabel2
     # @show backwardLabel2
-    concatForward2 = concatenationCost(solver.res.stdResource, backwardLabel1.last, forwardLabel2, backwardLabel2)
+
+    concatForward2 = concatenationCost(solver.res.stdResource, backwardLabel2.last, forwardLabel2, backwardLabel2)
     return concatForward1.stdWarp, concatForward2.stdWarp
 end
 

@@ -3,47 +3,47 @@ function intraShift10!(solver::Solver, sol::Solution)
     flag = false
     for r = 1:length(sol.routes)
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
-        if (sol.feasiblesF[r] >= length(sol.routes[r]) - 1) && (sol.warps[r] < 1e-6)
+        if (sol.feasiblesF[r] >= length(sol.routes[r]) - 1)# && (sol.warps[r] < 1e-6)
             for i = 2:length(sol.routes[r])-1
                 for j = i+1:length(sol.routes[r])-1
-                    dist, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j))
-                    cost = sol.cost - sol.dist + dist
+                    dist, resViol, warp, cost = evalIntraShift10(solver, sol, Shift(r, r, i, j))
 
-                    if resViol == 0 && (dist < bestMove.dist - 1e-5)
+                    if resViol == 0 && (cost < bestMove.cost - 1e-5)
                         improvement = true
                     else
                         improvement = false
                     end
                     if improvement
-                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (0.0, 0.0))
+                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (warp, 0.0))
                     end
                 end
             end
         end
-        if (sol.feasiblesB[r] >= length(sol.routes[r]) - 1) && (sol.warps[r] < 1e-6)
+        if (sol.feasiblesB[r] >= length(sol.routes[r]) - 1)# && (sol.warps[r] < 1e-6)
             for i = length(sol.routes[r])-1:-1:2
                 for j = i-1:-1:2
                     if j == i - 1
                         solver.prevLabelB = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
                     end
-                    dist, resViol = evalIntraShift10(sol.dist, sol, sol.routes, solver, r, i, j)
-                    cost = sol.cost - sol.dist + dist
-                    if resViol == 0 && (dist < bestMove.dist - 1e-5)
+                    dist, resViol, warp, cost = evalIntraShift10(sol.dist, sol, sol.routes, solver, r, i, j)
+                    if resViol == 0 && (cost < bestMove.cost - 1e-5)
                         improvement = true
                     else
                         improvement = false
                     end
                     if improvement
-                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (0.0, 0.0))
+                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (warp, 0.0))
                     end
                 end
             end
         end
         if bestMove.firstIdx > 0
-            # applyMoveIntraShift10!(solver, sol, bestDist, bestR, bestI, bestJ)
             applyMoveIntraShift10!(solver, sol, bestMove)
 
-            computeLabels(solver, sol, [bestMove.firstRoute])
+            computeLabels(solver, sol, bestMove.firstRoute)
+            sol.totalInfeas -= sol.infeas[bestMove.firstRoute]
+            sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
+            sol.totalInfeas += sol.infeas[bestMove.firstRoute]
             flag = true
         end
     end
@@ -52,7 +52,13 @@ end
 
 function interShift10!(solver::Solver, sol::Solution)
     flag = false
-    routesIdx = randperm(solver.seed, length(sol.routes))
+    resize!(solver.buffer, length(sol.routes))
+
+    copyto!(solver.buffer, 1:length(sol.routes))
+
+    shuffle!(solver.buffer)
+
+    routesIdx = solver.buffer   
     for r1 in routesIdx
         bestMove = BestMove(dist = sol.dist, cost = sol.cost)
         for r2 in routesIdx
@@ -115,10 +121,14 @@ function interShift10!(solver::Solver, sol::Solution)
         if bestMove.firstIdx > 0
             flag = true
             applyMoveInterShift10!(solver, sol, bestMove)
-            computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
+
+            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
             sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
             sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            sol.totalInfeas = sum(sol.infeas)
+            # sol.totalInfeas = sum(sol.infeas)
+            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
         end
     end
     return flag
@@ -126,7 +136,13 @@ end
 
 function interSwap11!(solver::Solver, sol::Solution)
     flag = false
-    routesIdx = randperm(solver.seed, length(sol.routes))
+    resize!(solver.buffer, length(sol.routes))
+
+    copyto!(solver.buffer, 1:length(sol.routes))
+
+    shuffle!(solver.buffer)
+
+    routesIdx = solver.buffer   
     for r1 in routesIdx
         bestMove = BestMove(dist = sol.dist, cost = sol.cost)
         for r2 in routesIdx
@@ -186,18 +202,16 @@ function interSwap11!(solver::Solver, sol::Solution)
             end
         end
         if bestMove.firstIdx > 0
-            # if bestCost < 34
-            #     @show bestI, bestJ, bestR1, bestR2, bestInfeas, bestWarp
-            #     @show sol
-            #     throw()
-            # end
-            # applyMoveInterSwap11!(solver, sol, bestDist, bestCost, bestInfeas, bestWarp, bestR1, bestR2, bestI, bestJ)
             applyMoveInterSwap11!(solver, sol, bestMove)
 
-            computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
+
+            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
             sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
             sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            sol.totalInfeas = sum(sol.infeas)
+            # sol.totalInfeas = sum(sol.infeas)
+            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
             flag = true
 
         end
@@ -206,27 +220,20 @@ function interSwap11!(solver::Solver, sol::Solution)
 end
 
 function twoOptStar!(solver::Solver, sol::Solution)
-    # routesIdx = shuffle!(solver.seed, Int[i for i = 1:length(solver.currSol.routes)])
-    routesIdx = randperm(solver.seed, length(sol.routes))
+    resize!(solver.buffer, length(sol.routes))
+
+    copyto!(solver.buffer, 1:length(sol.routes))
+
+    shuffle!(solver.buffer)
+
+    routesIdx = solver.buffer   
     flag = false
-    for r1 in routesIdx#1:length(sol.routes)
-        bestI = 0
-        bestJ = 0
-        bestR1 = 0
-        bestR2 = 0
-        # sol = solver.currSol
-        routes = sol.routes#getRoutes(sol)
-        bestCost = sol.cost#getCost(sol)
-        bestDist = sol.dist
-        bestInfeas = (0, 0)
-        bestWarp = (0.0, 0.0)
+    for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
-        # bestInfeas = length(sol.routes[r1]) - max(sol.feasiblesF[r1], sol.feasiblesB[r1]) - 2
         for r2 in routesIdx
             if r1 == r2
                 continue
             end
-            # bestInfeas += length(sol.routes[r2]) - max(sol.feasiblesF[r2], sol.feasiblesB[r2]) - 2
             for i = 1:length(sol.routes[r1]) - 2
                 for j = 1:length(sol.routes[r2]) - 2
 
@@ -271,28 +278,21 @@ function twoOptStar!(solver::Solver, sol::Solution)
                         improvement = true
                     end
                     if improvement
-                        # bestDist = dist
-                        # bestCost = cost
-                        # bestR1 = r1
-                        # bestR2 = r2
-                        # bestI = i
-                        # bestJ = j
-                        # bestInfeas = (infeasR1, infeasR2)
-                        # bestWarp = (warpR1, warpR2)
                         bestMove = BestMove(cost, dist, r1, r2, i, j, (infeasR1, infeasR2), (warpR1, warpR2))
                     end
                 end
             end
         end
         if bestMove.firstIdx > 0
-            # applyMoveTwoOptStar!(solver, sol, bestDist, bestCost, bestInfeas, bestWarp, bestR1, bestR2, bestI, bestJ)
-            # computeLabels(solver, sol, [bestR1, bestR2])
-            # flag = true
             applyMoveTwoOptStar!(solver, sol, bestMove)
-            computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
+            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
+
+            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
             sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
             sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            sol.totalInfeas = sum(sol.infeas)
+            # sol.totalInfeas = sum(sol.infeas)
+            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
             flag = true
         end
     end

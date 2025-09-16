@@ -63,8 +63,20 @@ end
         return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), vcat(a[2]-1, label.path), a[2]-1)
     end
 
-    function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+    function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
         return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), vcat(forwardLabel.path, backwardLabel.path), backwardLabel.last)
+    end
+
+    function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
+        return ForwardLabel(extendAlongArc(res, label, a)..., label.std_res, vcat(label.path, a[2]-1), a[2]-1)
+    end
+
+    function myExtendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
+        return BackwardLabel(extendAlongArc(res, label, a)..., label.std_res, vcat(a[2]-1, label.path), a[2]-1)
+    end
+
+    function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+        return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std_res, vcat(forwardLabel.path, backwardLabel.path), backwardLabel.last)
     end
 else
     struct CustomState
@@ -107,6 +119,26 @@ else
 
     function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
         return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
+    end
+
+    function myInitStateForward()
+        return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
+    end
+
+    function myInitStateBackward()
+        return BackwardLabel(initStateBackward()..., StandardState(U, 0.0), 0)
+    end
+
+    function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
+        return ForwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
+    end
+
+    function myExtendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
+        return BackwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
+    end
+
+    function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+        return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std_res, backwardLabel.last)
     end
 end
 

@@ -96,7 +96,7 @@ function randomInterShit10!(solver::Solver, solution::Solution)
     infeas = (infeasR1, infeasR2)
     warp = (warpR1, warpR2)
     applyMoveInterShift10!(solver, solution, BestMove(cost, dist, r1, r2, i, j, infeas, warp))
-    computeLabels(solver, solution, [r1, r2])
+    computeLabels(solver, solution, r1, r2)
     solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
     solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
     solution.totalInfeas = sum(solution.infeas)

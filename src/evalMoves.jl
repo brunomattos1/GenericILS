@@ -43,7 +43,9 @@ end
 function evalIntraShift10(currCost::Float64,  sol::Solution, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
     dist = intraShift10Cost(currCost, solver.data.costMatrix, routes[r], i, j)
     resViol = computeViolIntraShift10(solver, sol, r, i, j)
-    return dist, resViol
+    warp = computeStdViolIntraShift10(solver, sol, r, i, j)
+    cost = objectiveValue(solver, sol, r, dist, 0, warp)
+    return dist, resViol, warp, cost
 end
 
 function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
@@ -54,7 +56,9 @@ function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
     j = shift.toIdx
     dist = intraShift10Cost(currCost, solver.data.costMatrix, routes[r], i, j)
     resViol = computeViolIntraShift10(solver, sol, r, i, j)
-    return dist, resViol
+    warp = computeStdViolIntraShift10(solver, sol, r, i, j)
+    cost = objectiveValue(solver, sol, r, dist, 0, warp)
+    return dist, resViol, warp, cost
 end
 
 function evalInterShift10(solver::Solver, sol::Solution, shift::Shift)

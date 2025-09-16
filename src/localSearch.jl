@@ -1,28 +1,36 @@
 
 function RVND!(solver::Solver, solution::Solution)
-    neighborhoods = copy(solver.neighborhoods)
-    while length(neighborhoods) > 0
-        neigh = rand(solver.seed, neighborhoods)
+    resize!(solver.auxNeighborhoods, length(solver.neighborhoods))
+    copyto!(solver.auxNeighborhoods, solver.neighborhoods)
+    
+    while !isempty(solver.auxNeighborhoods)
+        shuffle!(solver.auxNeighborhoods)
+        
         improvement = false
-        if neigh == 1
-            improvement = intraShift10!(solver, solution)
+        
+        for neigh in solver.auxNeighborhoods
+            if neigh == 1
+                improvement = intraShift10!(solver, solution)
+            elseif neigh == 2
+                improvement = interShift10!(solver, solution)
+            elseif neigh == 3
+                improvement = interSwap11!(solver, solution)
+            elseif neigh == 4
+                improvement = twoOptStar!(solver, solution)
+            end
+            
+            updatePenalty(solver.params, solution)
+            
+            if improvement
+                copyto!(solver.auxNeighborhoods, solver.neighborhoods)
+                break
+            end
         end
-        if neigh == 2
-            improvement = interShift10!(solver, solution)
-        end
-        if neigh == 3
-            improvement = interSwap11!(solver, solution)
-        end
-        if neigh == 4
-            improvement = twoOptStar!(solver, solution)
-        end
-        if improvement
-            neighborhoods = copy(solver.neighborhoods)
-        else
-            delete!(neighborhoods, neigh)
+        
+        if !improvement
+            empty!(solver.auxNeighborhoods)
         end
     end
-    updatePenalty(solver.params, solution)
 end
 
 
@@ -42,6 +50,7 @@ end
 #         elseif neigh == 4
 #             improv = twoOptStar!(solver, solution)
 #         end
+#         updatePenalty(solver.params, solution)
 
 #         if improv
 #             neighborhoods = BitVector([true, true, true, true])
