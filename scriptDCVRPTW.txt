@@ -1,0 +1,9 @@
+mkdir -p out/DCVRPTW
+
+for f in Solomon/*.txt; do
+    filename=$(basename "$f" .txt)
+    for dur in 360 480 600; do
+        echo "Rodando $filename com duração $dur..."
+        julia src/mainSylvain.jl "$f" "$dur" 2>&1 | tee "out/DCVRPTW/${filename}_${dur}.log"
+    done
+done

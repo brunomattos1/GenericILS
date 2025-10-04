@@ -1,7 +1,8 @@
 include("include.jl")
 using CVRPLIB, PlotlyJS
 using CPLEX
-
+# Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
+# ENV["JULIA_HASH_SEED"] = "0"
 function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solution.html")
     coords = [(cvrp.coordinates[i, 1], cvrp.coordinates[i, 2]) for i = 2:cvrp.dimension]
     depot_coord = (cvrp.coordinates[1, 1], cvrp.coordinates[1, 2])
@@ -63,14 +64,14 @@ function printCVRP(solver::Solver, sol::Solution)
         print("#$r: ")
         for i = 1:length(sol.routes[r])
             if i == 1
-                print("0 (0) {$time} [$(solver.res.stdResource.lb[sol.routes[r][i]+1]), $(solver.res.stdResource.ub[sol.routes[r][i]+1])]", " -> ")
+                print("0 (0) -> ")
             elseif i == length(sol.routes[r])
                 time += solver.res.stdResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("0 ($demand) {$time} [$(solver.res.stdResource.lb[sol.routes[r][i]+1]), $(solver.res.stdResource.ub[sol.routes[r][i]+1])]")
+                print("0 ($demand)")
             else
                 time += solver.res.stdResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
                 demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) {$time} [$(solver.res.stdResource.lb[sol.routes[r][i]+1]), $(solver.res.stdResource.ub[sol.routes[r][i]+1])] -> ")
+                print("$(sol.routes[r][i]) ($demand) -> ")
             end
         end
         println()
@@ -244,9 +245,9 @@ function createArcDemands(demands)
         for j in 1:n
             if i != j
                 if j == 1
-                    d[i, j] = 0#demands[i]  # retorno ao depósito -> demanda do i
+                    d[i, j] = 0#demands[i]
                 else
-                    d[i, j] = demands[j]  # demanda associada ao destino j
+                    d[i, j] = demands[j]
                 end
             end
         end
@@ -254,9 +255,23 @@ function createArcDemands(demands)
     return d
 end
 
+function distanceMatrix(cvrp)
+    dist = zeros(Float64, cvrp.dimension, cvrp.dimension)
+    @show cvrp.coordinates[1, :]
+    for i = 1:size(cvrp.coordinates)[1]
+        for j = 1:size(cvrp.coordinates)[1]
+            if i != j
+                dist[i,j] = floor(10*sqrt((cvrp.coordinates[i,:][1] - cvrp.coordinates[j,:][1])^2 + (cvrp.coordinates[i,:][2] - cvrp.coordinates[j,:][2])^2))/10
+            end
+        end
+    end
+    return dist
+end
+
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instName = instance[1:end-4]
     instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", string(instance[1]), instance)
+    # instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", "Golden", "Golden_1.vrp")
 
     cvrp = CVRPLIB.readCVRP(instance)
     dist = Float64.(cvrp.weights)
@@ -265,96 +280,44 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     for i = 1:nbCustomer
         push!(customers, Vertex(i, [(0, 0)]))
     end
-
-    maxNbRoute = ceil(Int, sum(cvrp.demand)/cvrp.capacity)
+    maxNbRoute = ceil(Int, sum(cvrp.demand)/cvrp.capacity) + 3
     data = ProblemData(customers, dist, maxNbRoute)
 
     demands = push!(Float64.(cvrp.demand), 0.0)
     d = createArcDemands(demands)
+
+    # cvrp.capacity = 20
     customRes = CustomResource(d, cvrp.capacity)
     stdRes = StandardResource(d, Float64[0.0 for i = 1:length(customers)+1], Float64[cvrp.capacity for i = 1:length(customers)+1])
 
     res = Resources(customRes, stdRes)
     
     @show cvrp.capacity
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
+        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
+        penaltyStandard = 1.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
+    )
+
+    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
     solver = Solver(
         seed = seed,
         res = res,
         stdResource = stdRes,
-        initState = initStateForward,
-        extendAlongArc = extendAlongArc, 
-        concatenationCost = concatenationCost, 
-        params = Parameters(restarts, outerIterMax, innerIterMax, 100, 100, 0.01, 0.01), 
-        diversification = Diversification(2, 0, 2, 0),
+        params = parameters, 
+        diversification = diversif,
         data = data, 
-        neighborhoods = Set{Int}([1, 2, 3, 4])
+        neighborhoods = Int[1, 2, 3, 4]
     )
-    # constructSol!(solver)
-    # # solver.outerCurrSol.routes[2] = [0, 1, 2, 3, 0]
-    # # solver.outerCurrSol.routes[3] = [0, 5, 6, 7, 0]
-    # solver.outerCurrSol.routes[1] = [0, 4, 0]
-    # sol = deepcopy(solver.outerCurrSol)
-    # computeLabels(solver, sol)
-    # printCVRP(solver, sol)
-    # @show dist[1, 2]
-    # @show dist[2, 7]
-    # @show dist[7, 1]
-    # for r = 1:length(sol.routes)
-    #     println("Infeas r: $(sol.infeas[r]), warp r: $(sol.warps[r])")
-    # end
-    # println("Total infeas: $(sol.totalInfeas), total warp: $(sol.totalWarp)")
-    # println(stdRes)
-    # @show dist[1,3] + dist[3, 5]
-    # @show computeStdViolInsertion1(solver, sol, 1, 2, 2)
-    # printCVRP(solver, sol)
-    # r = 2
-    # customer = 5
-    # pos = 4
-    # @show feas1 = computeViolSwap11(solver, sol, r, pos, customer)
-    # @show infeas1 = length(sol.routes[r]) - 1 - feas1 - 1
-    # @show sol.dist, sol.cost
-    # for r = 1:length(sol.routes)
-    #     println("Infeas r: $(sol.infeas[r]), warp r: $(sol.warps[r])")
-    # end
-    # println("Total infeas: $(sol.totalInfeas), total warp: $(sol.totalWarp)")
-    # r, pos = 2,2
-    # println("-"^50)
-    # @show feas = computeViolRemove1(solver, sol, r, pos)
-    # @show infeas = length(sol.routes[r]) - feas - 1 - 1
-    # @show feas = computeViolInsertion1(solver, sol, r, 7, pos)
-    # @show infeas = length(sol.routes[r]) - feas - 1 + 1
-    # @show feas = computeViolSwap11(solver, sol, r, pos, 7)
-    # @show infeas = length(sol.routes[r]) - feas - 1
-    # sol.routes[r][pos] = 7
-    # @show sol.routes[r]
-    # r1, r2, pos1, pos2 = 2, 3, 3, 2 
-    # @show feas1, feas2 = computeViolTwoOptStar(solver, sol, r1, r2, pos1, pos2)
-    # @show infeas = length(sol.routes[r1]) + length(sol.routes[r2]) - feas1 - feas2 - 4
-    # println("-"^50)
-    # return
-    # classicILS(solver)
     @time NILS(solver)
     printCVRP(solver, solver.outerBestSol)
-    sol = deepcopy(solver.outerBestSol)
-
-    @show solver.outerBestSol
-    @show solver.outerBestSol.dist, solver.outerBestSol.cost
-    for r = 1:length(solver.outerBestSol.routes)
-        println("Infeas r: $(solver.outerBestSol.infeas[r]), warp r: $(solver.outerBestSol.warps[r])")
-    end
-    println("Total infeas: $(solver.outerBestSol.totalInfeas), total warp: $(solver.outerBestSol.totalWarp)")
     isFeasible(solver, solver.outerBestSol)
     plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
     return
 end
 
-# set = "B"
-# n = 38
-# k = 6
-set = "A"
-n = 37
-k = 6
-const U = 100.0
+set = "M"
+n = 151
+k = 12
 instance = "$set-n$n-k$k.vrp"
 seed = 1
 restarts = 1

@@ -1,0 +1,14 @@
+C101
+
+VEHICLE
+NUMBER     CAPACITY
+  25         200
+
+CUSTOMER
+CUST NO.  XCOORD.   YCOORD.    DEMAND   READY TIME  DUE DATE   SERVICE   TIME
+ 
+    0      40         40          0          0        12          0   
+    1      40         41         10        2        6         0   
+    2      40         43         10        1        5         0   
+    3      40         44         10         7        9         0   
+    4      40         45         10        9        11         0   

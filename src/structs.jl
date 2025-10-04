@@ -113,40 +113,57 @@ function copy_solution!(dest::Solution, src::Solution)
 
     # Copy nested vectors (routes)
     resize!(dest.routes, length(src.routes))
+    resize!(dest.forwardLabels, length(src.forwardLabels))
+    resize!(dest.backwardLabels, length(src.backwardLabels))
     for i in 1:length(src.routes)
         # Check if the inner vector is undefined or has a different size
-        if !isassigned(dest.routes, i) || length(dest.routes[i]) != length(src.routes[i])
-            dest.routes[i] = copy(src.routes[i]) # Create a new, correctly sized vector
-        else
-            copyto!(dest.routes[i], src.routes[i]) # Reuse the existing vector
+        if !isassigned(dest.routes, i)
+            dest.routes[i] = similar(src.routes[i])  # aloca uma vez só
         end
-    end
+        resize!(dest.routes[i], length(src.routes[i]))
+        copyto!(dest.routes[i], src.routes[i])
 
-    # Copy nested vectors of labels (forwardLabels, backwardLabels)
-    resize!(dest.forwardLabels, length(src.forwardLabels))
-    for i in 1:length(src.forwardLabels)
-        # Check if the inner vector is undefined or needs resizing
         if !isassigned(dest.forwardLabels, i)
-            dest.forwardLabels[i] = Vector{ForwardLabel}(undef, length(src.forwardLabels[i]))
-        else
-            resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
+            dest.forwardLabels[i] = similar(src.forwardLabels[i])
         end
+        resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
         copyto!(dest.forwardLabels[i], src.forwardLabels[i])
-    end
 
-    resize!(dest.backwardLabels, length(src.backwardLabels))
-    for i in 1:length(src.backwardLabels)
         if !isassigned(dest.backwardLabels, i)
-            dest.backwardLabels[i] = Vector{BackwardLabel}(undef, length(src.backwardLabels[i]))
-        else
-            resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
+            dest.backwardLabels[i] = similar(src.backwardLabels[i])
         end
+        resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
         copyto!(dest.backwardLabels[i], src.backwardLabels[i])
     end
 
-    return dest
-end
+    # Copy nested vectors of labels (forwardLabels, backwardLabels)
+    # resize!(dest.forwardLabels, length(src.forwardLabels))
+    # resize!(dest.backwardLabels, length(src.backwardLabels))
 
+    # for i in 1:length(src.forwardLabels)
+    #     # Check if the inner vector is undefined or needs resizing
+    #     if !isassigned(dest.forwardLabels, i)
+    #         dest.forwardLabels[i] = similar(src.forwardLabels[i])
+    #     end
+    #     resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
+    #     copyto!(dest.forwardLabels[i], src.forwardLabels[i])
+
+    #     if !isassigned(dest.backwardLabels, i)
+    #         dest.backwardLabels[i] = similar(src.backwardLabels[i])
+    #     end
+    #     resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
+    #     copyto!(dest.backwardLabels[i], src.backwardLabels[i])
+    # end
+
+    # resize!(dest.backwardLabels, length(src.backwardLabels))
+    # for i in 1:length(src.backwardLabels)
+    #     if !isassigned(dest.forwardLabels, i)
+    #         dest.forwardLabels[i] = similar(src.forwardLabels[i])
+    #     end
+    #     resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
+    #     copyto!(dest.forwardLabels[i], src.forwardLabels[i])
+    # end
+end
 
 
 getCost(solution::Solution) = solution.cost
@@ -161,23 +178,36 @@ mutable struct Parameters
     outerIterMax::Int
     innerIterMax::Int
     penaltyCustom::Float64
+    penaltyCustomIncrease::Float64
+    penaltyCustomDecrease::Float64
     penaltyStandard::Float64
-    penaltyCustomFactor::Float64
-    penaltyStandardFactor::Float64
+    penaltyStandardIncrease::Float64
+    penaltyStandardDecrease::Float64
 
 end
-Parameters() = Parameters(10, 100, 5, 10, 10, 0.05, 0.01)
+function Parameters(;
+    restarts = 10,
+    outerIterMax = 10,
+    innerIterMax = 3,
+    penaltyCustom = 100.0,
+    penaltyCustomIncrease = 0.01,
+    penaltyCustomDecrease = 0.01,
+    penaltyStandard = 100.0,
+    penaltyStandardIncrease = 0.01,
+    penaltyStandardDecrease = 0.01)
+    return Parameters(restarts, outerIterMax, innerIterMax, penaltyCustom, penaltyCustomIncrease, penaltyCustomDecrease, penaltyStandard, penaltyStandardIncrease, penaltyStandardDecrease)
+end
 
 function updatePenalty(parameters::Parameters, sol::Solution)
     if sol.totalInfeas == 0
-        parameters.penaltyCustom = max((1 - parameters.penaltyCustomFactor)*parameters.penaltyCustom, 1.0)
+        parameters.penaltyCustom = max((1 - parameters.penaltyCustomDecrease)*parameters.penaltyCustom, 0.1)
     else
-        parameters.penaltyCustom = min((1 + parameters.penaltyCustomFactor)*parameters.penaltyCustom, 1000.0)
+        parameters.penaltyCustom = min((1 + parameters.penaltyCustomIncrease)*parameters.penaltyCustom, 10000.0)
     end
     if sol.totalWarp <= 1e-6
-        parameters.penaltyStandard = max((1 - parameters.penaltyStandardFactor)*parameters.penaltyStandard, 1.0)
+        parameters.penaltyStandard = max((1 - parameters.penaltyStandardDecrease)*parameters.penaltyStandard, 0.1)
     else
-        parameters.penaltyStandard = min((1 + parameters.penaltyStandardFactor)*parameters.penaltyStandard, 1000.0)
+        parameters.penaltyStandard = min((1 + parameters.penaltyStandardIncrease)*parameters.penaltyStandard, 10000.0)
     end
 end
 
@@ -187,7 +217,7 @@ struct Diversification
     innerShift::Int
     innerSwap::Int
 end
-Diversification() = Diversification(2, 0, 2, 0)
+Diversification(; outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0) = Diversification(outerShift, outerSwap, innerShift, innerSwap)
 
 mutable struct Vertex
     id::Int
@@ -228,8 +258,12 @@ mutable struct Solver
     buffer2opt::Vector{Int}
     bufferRoute::Vector{Int}
     # pool::Vector{Vector{Int}}
-    pool::Dict{Vector{Int}, Float64}
-    hashes::Set{UInt64}
+    # pool::Dict{Vector{Int}, Float64}
+    # hashes::Set{UInt64}
+    route_storage::Vector{Vector{Int}}
+    cost_storage::Vector{Float64}
+    route_lookup::Dict{Vector{Int}, Int}
+
 end
 
 function Solver(; 
@@ -247,30 +281,32 @@ function Solver(;
     stdResource = StandardResource(zeros(Float64, 1, 1), Float64[], Float64[]),
     forwardLabels = Vector{Vector{ForwardLabel}}(),
     backwardLabels = Vector{Vector{BackwardLabel}}(),
-    # prevLabelF = Label(0., 0., [0], 0),
-    # prevLabelB = Label(0., 0., [0], 0),
-    # pool = Vector{Vector{Int}}(),
     buffer = Vector{Int}(),
     buffer2opt = Vector{Int}(),
     bufferRoute = Vector{Int}(),
-    pool = Dict{Vector{Int}, Float64}(),
-    hashes = Set{UInt64}()
+    # pool = Dict{Vector{Int}, Float64}(),
+    # hashes = Set{UInt64}()
+    
+
 )
     if DEBUG_MODE
-        prevLabelF = myInitStateForward()
-        prevLabelStdF = myInitStateForward()
-        prevLabelB = myInitStateBackward()
-        prevLabelStdB = myInitStateBackward()
+        prevLabelF = myInitStateForward(res.customResource)
+        prevLabelStdF = myInitStateForward(res.customResource)
+        prevLabelB = myInitStateBackward(res.customResource)
+        prevLabelStdB = myInitStateBackward(res.customResource)
     else
-        prevLabelF = myInitStateForward()
-        prevLabelStdF = myInitStateForward()
-        prevLabelB = myInitStateBackward()
-        prevLabelStdB = myInitStateBackward()
+        prevLabelF = myInitStateForward(res.customResource)
+        prevLabelStdF = myInitStateForward(res.customResource)
+        prevLabelB = myInitStateBackward(res.customResource)
+        prevLabelStdB = myInitStateBackward(res.customResource)
     end
+    route_storage = Vector{Vector{Int}}()
+    cost_storage = Vector{Float64}()
+    route_lookup = Dict{Vector{Int}, Int}()
     Solver(
         Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
         diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
-        buffer, buffer2opt, bufferRoute, pool, hashes
+        buffer, buffer2opt, bufferRoute, route_storage, cost_storage, route_lookup#pool, hashes
     )
 end
 

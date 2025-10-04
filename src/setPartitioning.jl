@@ -36,16 +36,47 @@ function push!(solver::Solver, solution::Solution)
                 continue
             end
             # check if the route is feasible in the forward sense
-            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std_res.stdWarp <= 1e-6)# || (solution.feasiblesB[r] == length(solution.routes[r]) - 2)
-                routeHash = hash(solution.routes[r])
-                if !haskey(solver.pool, solution.routes[r])#(!(routeHash in solver.hashes))
-                    push!(solver.hashes, routeHash)
-                    # push!(solver.pool, copy(solution.routes[r]))
-                    solver.pool[copy(solution.routes[r])] = solution.cost
+            # if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std_res.stdWarp <= 1e-6)# || (solution.feasiblesB[r] == length(solution.routes[r]) - 2)
+            #     routeHash = hash(solution.routes[r])
+            #     if !haskey(solver.pool, solution.routes[r])#(!(routeHash in solver.hashes))
+            #         push!(solver.hashes, routeHash)
+            #         # push!(solver.pool, copy(solution.routes[r]))
+            #         solver.pool[copy(solution.routes[r])] = solution.cost
+            #     else
+            #         solver.pool[copy(solution.routes[r])] = min(solver.pool[solution.routes[r]], solution.cost)
+            #     end
+            # end
+            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std_res.stdWarp <= 1e-6)
+                route_id = get(solver.route_lookup, solution.routes[r], 0)
+
+                if route_id > 0
+                    if solution.cost < solver.cost_storage[route_id]
+                        solver.cost_storage[route_id] = solution.cost
+                    end
                 else
-                    solver.pool[copy(solution.routes[r])] = min(solver.pool[solution.routes[r]], solution.cost)
+                    persistent_route_copy = copy(solution.routes[r])
+                    push!(solver.route_storage, persistent_route_copy)
+                    push!(solver.cost_storage, solution.cost)
+                    new_id = length(solver.route_storage)
+                    solver.route_lookup[persistent_route_copy] = new_id
                 end
             end
+            # if (solution.feasiblesB[r] == length(solution.routes[r]) - 1) && (solution.backwardLabels[r][end].std_res.stdWarp <= 1e-6)
+            #     route = solution.routes[r]
+            #     route_id = get(solver.route_lookup, route, 0)
+
+            #     if route_id > 0
+            #         if solution.cost < solver.cost_storage[route_id]
+            #             solver.cost_storage[route_id] = solution.cost
+            #         end
+            #     else
+            #         persistent_route_copy = copy(route)
+            #         push!(solver.route_storage, persistent_route_copy)
+            #         push!(solver.cost_storage, solution.cost)
+            #         new_id = length(solver.route_storage)
+            #         solver.route_lookup[persistent_route_copy] = new_id
+            #     end
+            # end
             # if (solution.feasiblesB[r] == length(solution.routes[r]) - 1) && (solution.backwardLabels[r][end].std_res.stdWarp <= 1e-6)# || (solution.feasiblesB[r] == length(solution.routes[r]) - 2)
             #     revRoute = reverse(copy(solution.routes[r]))
             #     routeHash = hash(revRoute)
@@ -82,27 +113,8 @@ end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(CPLEX.Optimizer)
-    set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 1e-6)
-    # set_silent(sp)
-    # @variable(sp, λ[r = 1:length(solver.pool)], Bin)
-    # @objective(sp, Min, sum(c(solver, r)*λ[r] for r = 1:length(solver.pool)))
-    # @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, solver.pool[r])λ[r] for r = 1:length(solver.pool)) == 1)
-    # @constraint(sp, sum(λ[r] for r = 1:length(solver.pool)) <= solver.data.maxNbRoutes)
-    # optimize!(sp)
-    # if termination_status(sp) == OPTIMAL
-    #     # return Solution([solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9], objective_value(sp), [0 for i = 1:solver.data.maxNbRoutes], 0)
-    #     solver.currSol.routes = [solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9]
-    #     solver.currSol.cost = objective_value(sp)
-    #     computeLabels(solver)
-    #     RVND!(solver)
-    # else
-    #     if objective_value(sp) < solver.bestSol.cost - 0.001
-    #         solver.currSol.routes = [solver.pool[r] for r = 1:length(solver.pool) if value(λ[r]) >= 0.9]
-    #         solver.currSol.cost = objective_value(sp)
-    #         computeLabels(solver)
-    #     end
-    # end
-    routes = collect(keys(solver.pool))
+    set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    routes = solver.route_storage#collect(keys(solver.pool))
     @variable(sp, λ[r = 1:length(routes)], Bin)
 
     @objective(sp, Min, sum(c(solver, routes[r])*λ[r] for r = 1:length(routes)))

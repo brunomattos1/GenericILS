@@ -12,6 +12,13 @@ function improved(cost::Float64, bestCost::Float64, infeas::Int, bestInfeas::Int
     return false
 end
 
+function objectiveValue(solver::Solver, sol::Solution)
+    objVal = sol.dist
+    objVal += solver.params.penaltyCustom * (sol.totalInfeas)
+    objVal += solver.params.penaltyStandard * (sol.totalWarp)
+    return objVal
+end
+
 function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, warp::Float64)
     objVal = dist
     objVal += solver.params.penaltyCustom * (sol.totalInfeas - sol.infeas[r] + infeas)
@@ -93,18 +100,10 @@ function evalInterSwap11(solver::Solver, sol::Solution, swap::Swap)
     infeasR1 = length(sol.routes[r1]) - 1 - feasR1
     infeasR2 = length(sol.routes[r2]) - 1 - feasR2
     cost = objectiveValue(solver, sol, Cost(dist, r1, r2, (infeasR1, infeasR2), (warpR1, warpR2)))
-    return dist, cost, feasR1, feasR2, warpR1, warpR2
+    return dist, cost, infeasR1, infeasR2, warpR1, warpR2
 end
 
-
-function evalTwoOptStar!(currCost::Float64, sol::Solution, routes::Vector{Vector{Int}}, solver::Solver, r1::Int, r2::Int, i::Int, j::Int)
-    dist = twoOptStarCost(currCost, solver.data.costMatrix, routes[r1], routes[r2], i, j)
-    warpR1, warpR2 = computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
-    feasR1, feasR2 = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
-    return dist, feasR1, feasR2, warpR1, warpR2
-end
-
-function evalTwoOptStar!(solver::Solver, sol::Solution, move::Move)
+function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar)
     currCost = sol.dist
     routes = sol.routes
     r1, r2 = move.firstRoute, move.secondRoute
@@ -117,6 +116,7 @@ function evalTwoOptStar!(solver::Solver, sol::Solution, move::Move)
     cost = objectiveValue(solver, sol, Cost(dist, r1, r2, (infeasR1, infeasR2), (warpR1, warpR2)))
     return dist, cost, infeasR1, infeasR2, warpR1, warpR2
 end
+
 
 function evalSplit!(currCost::Float64, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int)
     cost = splitCost(currCost, solver.data.costMatrix, routes[r], i)

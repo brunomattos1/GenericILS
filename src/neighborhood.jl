@@ -1,14 +1,13 @@
 
 function intraShift10!(solver::Solver, sol::Solution)
-    flag = false
+    improved = false
     for r = 1:length(sol.routes)
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
-        if (sol.feasiblesF[r] >= length(sol.routes[r]) - 1)# && (sol.warps[r] < 1e-6)
+        if (sol.feasiblesF[r] >= length(sol.routes[r]) - 1)
             for i = 2:length(sol.routes[r])-1
                 for j = i+1:length(sol.routes[r])-1
-                    dist, resViol, warp, cost = evalIntraShift10(solver, sol, Shift(r, r, i, j))
-
-                    if resViol == 0 && (cost < bestMove.cost - 1e-5)
+                    dist, resViol, warp, cost = evalIntraShift10(sol.dist, sol, sol.routes, solver, r, i, j)
+                    if resViol == 0 && (cost < bestMove.cost - 1e-6)
                         improvement = true
                     else
                         improvement = false
@@ -19,14 +18,14 @@ function intraShift10!(solver::Solver, sol::Solution)
                 end
             end
         end
-        if (sol.feasiblesB[r] >= length(sol.routes[r]) - 1)# && (sol.warps[r] < 1e-6)
+        if (sol.feasiblesB[r] >= length(sol.routes[r]) - 1)
             for i = length(sol.routes[r])-1:-1:2
                 for j = i-1:-1:2
-                    if j == i - 1
-                        solver.prevLabelB = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
-                    end
+                    # if j == i - 1
+                    #     solver.prevLabelB = myExtendAlongArc(solver.res, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][j] + 1))
+                    # end
                     dist, resViol, warp, cost = evalIntraShift10(sol.dist, sol, sol.routes, solver, r, i, j)
-                    if resViol == 0 && (cost < bestMove.cost - 1e-5)
+                    if resViol == 0 && (cost < bestMove.cost - 1e-6)
                         improvement = true
                     else
                         improvement = false
@@ -38,20 +37,18 @@ function intraShift10!(solver::Solver, sol::Solution)
             end
         end
         if bestMove.firstIdx > 0
+            prevCost = sol.cost
             applyMoveIntraShift10!(solver, sol, bestMove)
-
-            computeLabels(solver, sol, bestMove.firstRoute)
-            sol.totalInfeas -= sol.infeas[bestMove.firstRoute]
-            sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
-            sol.totalInfeas += sol.infeas[bestMove.firstRoute]
-            flag = true
+            if sol.cost < prevCost - 1e-6
+                improved = true
+            end
         end
     end
-    return flag
+    return improved
 end
 
 function interShift10!(solver::Solver, sol::Solution)
-    flag = false
+    improved = false
     resize!(solver.buffer, length(sol.routes))
 
     copyto!(solver.buffer, 1:length(sol.routes))
@@ -119,23 +116,18 @@ function interShift10!(solver::Solver, sol::Solution)
             end
         end
         if bestMove.firstIdx > 0
-            flag = true
+            prevCost = sol.cost
             applyMoveInterShift10!(solver, sol, bestMove)
-            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
-            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
-
-            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
-            sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
-            sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            # sol.totalInfeas = sum(sol.infeas)
-            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
+            if sol.cost < prevCost - 1e-6
+                improved = true
+            end
         end
     end
-    return flag
+    return improved
 end
 
 function interSwap11!(solver::Solver, sol::Solution)
-    flag = false
+    improved = false
     resize!(solver.buffer, length(sol.routes))
 
     copyto!(solver.buffer, 1:length(sol.routes))
@@ -145,8 +137,14 @@ function interSwap11!(solver::Solver, sol::Solution)
     routesIdx = solver.buffer   
     for r1 in routesIdx
         bestMove = BestMove(dist = sol.dist, cost = sol.cost)
+        if length(sol.routes[r1]) <= 2
+            continue
+        end
         for r2 in routesIdx
             if r1 == r2
+                continue
+            end
+            if length(sol.routes[r2]) <= 2
                 continue
             end
             for i = 2:length(sol.routes[r1]) - 1
@@ -202,21 +200,14 @@ function interSwap11!(solver::Solver, sol::Solution)
             end
         end
         if bestMove.firstIdx > 0
+            prevCost = sol.cost
             applyMoveInterSwap11!(solver, sol, bestMove)
-
-            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
-            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
-
-            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
-            sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
-            sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            # sol.totalInfeas = sum(sol.infeas)
-            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
-            flag = true
-
+            if sol.cost < prevCost - 1e-6
+                improved = true
+            end
         end
     end
-    return flag
+    return improved
 end
 
 function twoOptStar!(solver::Solver, sol::Solution)
@@ -227,7 +218,7 @@ function twoOptStar!(solver::Solver, sol::Solution)
     shuffle!(solver.buffer)
 
     routesIdx = solver.buffer   
-    flag = false
+    improved = false
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
         for r2 in routesIdx
@@ -236,8 +227,6 @@ function twoOptStar!(solver::Solver, sol::Solution)
             end
             for i = 1:length(sol.routes[r1]) - 2
                 for j = 1:length(sol.routes[r2]) - 2
-
-                    # dist, feasR1, feasR2, warpR1, warpR2 = evalTwoOptStar!(sol.dist, sol, sol.routes, solver, r1, r2, i, j)
                     dist, cost, infeasR1, infeasR2, warpR1, warpR2 = evalTwoOptStar!(solver, sol, OptStar(r1, r2, i, j))
 
                     # infeas = length(sol.routes[r1]) + length(sol.routes[r2]) - 4 - feas
@@ -284,17 +273,12 @@ function twoOptStar!(solver::Solver, sol::Solution)
             end
         end
         if bestMove.firstIdx > 0
+            prevCost = sol.cost
             applyMoveTwoOptStar!(solver, sol, bestMove)
-            # computeLabels(solver, sol, [bestMove.firstRoute, bestMove.secondRoute])
-            computeLabels(solver, sol, bestMove.firstRoute, bestMove.secondRoute)
-
-            sol.totalInfeas -= sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
-            sol.infeas[bestMove.firstRoute] = length(sol.routes[bestMove.firstRoute]) - max(sol.feasiblesF[bestMove.firstRoute], sol.feasiblesB[bestMove.firstRoute]) - 1
-            sol.infeas[bestMove.secondRoute] = length(sol.routes[bestMove.secondRoute]) - max(sol.feasiblesF[bestMove.secondRoute], sol.feasiblesB[bestMove.secondRoute]) - 1
-            # sol.totalInfeas = sum(sol.infeas)
-            sol.totalInfeas += sol.infeas[bestMove.firstRoute] + sol.infeas[bestMove.secondRoute]
-            flag = true
+            if sol.cost < prevCost - 1e-6
+                improved = true
+            end
         end
     end
-    return flag
+    return improved
 end

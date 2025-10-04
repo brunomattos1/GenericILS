@@ -17,7 +17,7 @@ function acceptSol(solver::Solver)
 end
 
 function acceptSol(solver::Solver, currSol::Solution, bestSol::Solution)
-    if currSol.cost < bestSol.cost - 1e-8
+    if currSol.cost < bestSol.cost - 1e-6
         return true
     end
     return false

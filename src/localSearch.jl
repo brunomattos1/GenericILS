@@ -2,10 +2,8 @@
 function RVND!(solver::Solver, solution::Solution)
     resize!(solver.auxNeighborhoods, length(solver.neighborhoods))
     copyto!(solver.auxNeighborhoods, solver.neighborhoods)
-    
     while !isempty(solver.auxNeighborhoods)
-        shuffle!(solver.auxNeighborhoods)
-        
+        shuffle!(solver.seed, solver.auxNeighborhoods)
         improvement = false
         
         for neigh in solver.auxNeighborhoods
@@ -18,15 +16,12 @@ function RVND!(solver::Solver, solution::Solution)
             elseif neigh == 4
                 improvement = twoOptStar!(solver, solution)
             end
-            
-            updatePenalty(solver.params, solution)
-            
+            updatePenalty(solver.params, solution)   
             if improvement
                 copyto!(solver.auxNeighborhoods, solver.neighborhoods)
                 break
             end
         end
-        
         if !improvement
             empty!(solver.auxNeighborhoods)
         end

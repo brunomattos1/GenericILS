@@ -186,55 +186,101 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due = read_solomon(instance)
     deleteat!(customers, 1)
 
-    maxNbRoute = 2*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity)#vehicles
-    # maxNbRoute = vehicles
-    @show maxNbRoute
+    maxNbRoute = vehicles#3*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity)#vehicles
+    # maxNbRoute = ceil(Int, 1.5*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity))
+    # return
     data = ProblemData(customers, dist, maxNbRoute)
     customRes = CustomResource(dmat, capacity)
     stdRes = StandardResource(time, ready, due)
-
+    
     res = Resources(customRes, stdRes)
-    @show capacity
-    @show vehicles
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
+        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
+        penaltyStandard = 100.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
+    )
+
+    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
+
     solver = Solver(
         seed = seed,
         res = res,
         stdResource = stdRes,
-        params = Parameters(restarts, outerIterMax, innerIterMax, 100, 100, 0.01, 0.01), 
-        diversification = Diversification(2, 0, 2, 0),
+        params = parameters,
+        diversification = diversif,
         data = data, 
-        neighborhoods = [1, 2, 3, 4]
+        neighborhoods = [1,2,3,4]
     )
     # constructSol!(solver)
     # sol = deepcopy(solver.outerCurrSol)
-    # sol.routes = [[0, 1, 3, 0]]
-    # sol.infeas = [0, 0]
-    # sol.warps = [0.0, 0.0]
-    # computeLabels(solver, sol)
-    # r1 = 1
-    # r2 = 2
-    # i = 3
-    # j = 2
-    # @show computeStdViolIntraShift10(solver, sol, r1, i, j)
-    # sol.routes = [[0, 3, 1, 0]]
+    # sol.routes = [[0, 1, 2, 3, 0]]
     # printVRPTW(solver, sol)
+    # # computeLabels(solver, sol)
+    # computeLabels(solver, sol, 1)
+    # @printf("%-20s | %-12s | %-12s\n", "Fwd path", "Consumption", "Warp")
+    # @printf("%s\n", "-"^48)  # linha separadora
+    # for r = 1:length(sol.routes)
+    #     for i = 1:length(sol.routes[r])
+    #         path = sol.forwardLabels[r][i].path
+    #         q = sol.forwardLabels[r][i].std_res.q
+    #         warp = sol.forwardLabels[r][i].std_res.stdWarp
+    #         @printf("%-20s | %-12.2f | %-12.2f\n", path, q, warp)
+    #     end
+    # end
+    # @printf("%-20s | %-12s | %-12s\n", "Bwd path", "Consumption", "Warp")
+    # @printf("%s\n", "-"^48)  # linha separadora
+
+    # # Dados
+    # for r = 1:length(sol.routes)
+    #     for i = 1:length(sol.routes[r])
+    #         path = sol.backwardLabels[r][i].path
+    #         q = sol.backwardLabels[r][i].std_res.q
+    #         warp = sol.backwardLabels[r][i].std_res.stdWarp
+    #         @printf("%-20s | %-12.2f | %-12.2f\n", path, q, warp)
+    #     end
+    # end
+    # r1 = 1
+    # i = 2
+    # j = 3
+    # @show feasR1 = computeStdViolIntraShift10(solver, sol, r1, i, j)
+    # i = 2
+    # j = 4
+    # @show feasR1 = computeStdViolIntraShift10(solver, sol, r1, i, j)
     # return
     println("Solving...")
     @time NILS(solver)
     # classicILS(solver)
-    sol = deepcopy(solver.outerBestSol)
     printVRPTW(solver, solver.outerBestSol)
-    checkVRPTW(solver, sol)
-    plot_vrptw(x, y, demands, solver.outerBestSol, filename = instName2)
+    checkVRPTW(solver, solver.outerBestSol)
+    # plot_vrptw(x, y, demands, solver.outerBestSol, filename = instName2)
+    open("/mnt/c/Users/bruno.mattos/OneDrive - americanas s.a/Documentos/GitHub/GenericILS/out/$(instName[9:end]).out", "w") do f
+        write(f, "$(instName[9:end]),$(solver.outerBestSol.cost)\n")
+    end
+    return solver.outerBestSol.cost
 end
 
-seed = 2
-restarts = 1
-outerIterMax = 300
-innerIterMax = 2
+# seed = 1
+# restarts = 1
+# outerIterMax = 500
+# innerIterMax = 5
 
-instance = "Homberger/C2_4_4.txt"
-const U = 3693.0
-# instance = "Solomon/R211.txt"
-# const U = 1000.0
+
+instance     = ARGS[1]
+restarts     = 1
+outerIterMax = 500
+innerIterMax = 5
+seed         = 1
+
 main(instance, restarts, outerIterMax, innerIterMax, seed)
+
+# instance = "Homberger/C1_2_1.txt"
+# Profile.clear_malloc_data()
+# instance = "Solomon/C203.txt"
+# main(instance, restarts, outerIterMax, innerIterMax, seed)
+
+# instances = readdir("/mnt/c/Users/bruno.mattos/OneDrive - americanas s.a/Documentos/GitHub/GenericILS/Solomon/")
+
+# for inst in instances
+#     @show inst
+#     instance = "Solomon/$inst"
+#     costt = main(instance, restarts, outerIterMax, innerIterMax, seed)
+# end

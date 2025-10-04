@@ -7,7 +7,6 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
     # atualizar distância e custo
     solution.dist = move.dist
     solution.cost = move.cost
-
     # atualizar infeasibility
     solution.totalInfeas -= solution.infeas[r]
     solution.totalInfeas += move.infeas
@@ -20,6 +19,17 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
 
     # inserir cliente
     insert!(solution.routes[r], i, c)
+    computeLabels(solver, solution, r)
+
+    solution.totalInfeas -= solution.infeas[r]
+    solution.infeas[r] = length(solution.routes[r]) - max(solution.feasiblesF[r], solution.feasiblesB[r]) - 1
+    solution.totalInfeas += solution.infeas[r]
+
+    solution.totalWarp -= solution.warps[r]
+    solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
+    solution.totalWarp += solution.warps[r]
+    solution.cost = objectiveValue(solver, solution)
+
 end
 
 function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMove)
@@ -29,15 +39,14 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
     # atualizar custo
     solution.cost = move.cost
     solution.dist = move.dist
-
     solution.totalInfeas -= solution.infeas[r]
     solution.totalInfeas += move.infeas[1]
     solution.infeas[r] = move.infeas[1]
-
     # atualizar warp
     solution.totalWarp -= solution.warps[r]
     solution.totalWarp += move.warps[1]
     solution.warps[r] = move.warps[1]
+
     # pegar cliente a mover
     customerI = solution.routes[r][i]
 
@@ -53,6 +62,16 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
         deleteat!(solution.routes[r], i)
         insert!(solution.routes[r], j, customerI)
     end
+    computeLabels(solver, solution, r)
+    solution.totalInfeas -= solution.infeas[r]
+    solution.infeas[r] = length(solution.routes[r]) - max(solution.feasiblesF[r], solution.feasiblesB[r]) - 1
+    solution.totalInfeas += solution.infeas[r]
+
+    solution.totalWarp -= solution.warps[r]
+    solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
+    solution.totalWarp += solution.warps[r]
+
+    solution.cost = objectiveValue(solver, solution)
 end
 
 function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMove)
@@ -71,10 +90,22 @@ function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.totalWarp += move.warps[1] + move.warps[2]
     solution.warps[r1] = move.warps[1]
     solution.warps[r2] = move.warps[2]
-
     customerI = solution.routes[r1][i]
     deleteat!(solution.routes[r1], i)
     insert!(solution.routes[r2], j, customerI)
+    computeLabels(solver, solution, r1, r2)
+
+    solution.totalInfeas -= solution.infeas[r1] + solution.infeas[r2]
+    solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
+    solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
+    solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
+
+    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
+    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
+    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+    # println("-"^100)
+    solution.cost = objectiveValue(solver, solution)
 end
 
 function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMove)
@@ -96,12 +127,31 @@ function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMov
     solution.totalWarp += move.warps[1] + move.warps[2]
     solution.warps[r1] = move.warps[1]
     solution.warps[r2] = move.warps[2]
-
     # troca os clientes
     customerI = solution.routes[r1][i]
     customerJ = solution.routes[r2][j]
+    # @show solution
+    # @show r1, r2, i, j
     solution.routes[r1][i] = customerJ
     solution.routes[r2][j] = customerI
+    computeLabels(solver, solution, r1, r2)
+    # @show solution.infeas[r1]
+    # @show solution.infeas[r2]
+    solution.totalInfeas -= solution.infeas[r1] + solution.infeas[r2]
+    solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
+    solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
+    solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
+    # @show solution.infeas[r1]
+    # @show solution.infeas[r2]
+
+    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
+    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
+    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+
+    # println("-"^100)
+    solution.cost = objectiveValue(solver, solution)
+
 end
 
 function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove)
@@ -123,25 +173,6 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     solution.totalWarp += move.warps[1] + move.warps[2]
     solution.warps[r1] = move.warps[1]
     solution.warps[r2] = move.warps[2]
-
-    # seg1 = solution.routes[r1][i+1:end]
-    # seg2 = solution.routes[r2][j+1:end]
-    # solution.routes[r1] = vcat(solution.routes[r1][1:i], seg2)
-    # solution.routes[r2] = vcat(solution.routes[r2][1:j], seg1)
-
-    # 1. Armazene as caudas temporariamente para não perder os dados
-    # tail1 = solution.routes[r1][i+1:end]
-    # tail2 = solution.routes[r2][j+1:end]
-
-    # # 2. Redimensione as rotas e anexe as novas caudas
-    # # Redimensiona r1 para o novo tamanho
-    # resize!(solution.routes[r1], i)
-    # # Anexa a cauda de r2 em r1
-    # append!(solution.routes[r1], tail2)
-
-    # # 3. Faz o mesmo para r2
-    # resize!(solution.routes[r2], j)
-    # append!(solution.routes[r2], tail1)
     seg1_len = length(solution.routes[r1]) - i
     seg2_len = length(solution.routes[r2]) - j
 
@@ -157,6 +188,19 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     # move cauda salva (seg1) para r2
     resize!(solution.routes[r2], j + seg1_len)
     copyto!(solution.routes[r2], j+1, buffer, 1, seg1_len)
+    computeLabels(solver, solution, r1, r2)
+    solution.totalInfeas -= solution.infeas[r1] + solution.infeas[r2]
+    solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
+    solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
+    solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
+
+    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
+    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
+    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+
+    solution.cost = objectiveValue(solver, solution)
+
 end
 
 function applyMoveSplit!(solver::Solver, newCost::Float64, r::Int, i::Int)
