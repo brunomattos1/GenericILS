@@ -72,6 +72,11 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.totalWarp += solution.warps[r]
 
     solution.cost = objectiveValue(solver, solution)
+    solver.timeStamp += 1
+    solution.lastModif[r] = solver.timeStamp
+    # solution.lastEval[(:intraShift, r, r)] = solver.timeStamp
+    solution.lastEval[1, r, r] = solver.timeStamp
+
 end
 
 function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMove)
@@ -106,6 +111,13 @@ function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.totalWarp += solution.warps[r1] + solution.warps[r2]
     # println("-"^100)
     solution.cost = objectiveValue(solver, solution)
+
+    solver.timeStamp += 1
+    solution.lastModif[r1] = solver.timeStamp
+    solution.lastModif[r2] = solver.timeStamp
+    # solution.lastEval[(:interShift, r1, r2)] = solver.timeStamp
+    solution.lastEval[2, r1, r2] = solver.timeStamp
+
 end
 
 function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMove)
@@ -151,6 +163,11 @@ function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMov
 
     # println("-"^100)
     solution.cost = objectiveValue(solver, solution)
+    solver.timeStamp += 1
+    solution.lastModif[r1] = solver.timeStamp
+    solution.lastModif[r2] = solver.timeStamp
+    # solution.lastEval[(:interSwap, r1, r2)] = solver.timeStamp
+    solution.lastEval[3, r1, r2] = solver.timeStamp
 
 end
 
@@ -200,6 +217,11 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     solution.totalWarp += solution.warps[r1] + solution.warps[r2]
 
     solution.cost = objectiveValue(solver, solution)
+    solver.timeStamp += 1
+    solution.lastModif[r1] = solver.timeStamp
+    solution.lastModif[r2] = solver.timeStamp
+    # solution.lastEval[(:twoOptStar, r1, r2)] = solver.timeStamp
+    solution.lastEval[4, r1, r2] = solver.timeStamp
 
 end
 

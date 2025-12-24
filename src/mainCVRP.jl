@@ -1,8 +1,8 @@
 include("include.jl")
 using CVRPLIB, PlotlyJS
 using CPLEX
-# Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
-# ENV["JULIA_HASH_SEED"] = "0"
+Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
+ENV["JULIA_HASH_SEED"] = "0"
 function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solution.html")
     coords = [(cvrp.coordinates[i, 1], cvrp.coordinates[i, 2]) for i = 2:cvrp.dimension]
     depot_coord = (cvrp.coordinates[1, 1], cvrp.coordinates[1, 2])
@@ -298,7 +298,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         penaltyStandard = 1.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
     )
 
-    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
+    diversif = Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0)
     solver = Solver(
         seed = seed,
         res = res,
@@ -308,6 +308,25 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         data = data, 
         neighborhoods = Int[1, 2, 3, 4]
     )
+    # constructSol!(solver)
+    # sol = deepcopy(solver.outerCurrSol)
+    # sol.routes = [[0,1,3,0], [0,2,5,0], [0,4,0]]
+    # cost = 0.0
+    # for r = 1:3
+    #     cost += c(solver, sol.routes[r])
+    # end
+    # sol.cost, sol.dist = cost, cost
+    # computeLabels(solver, sol)
+    # @show interSwap11!(solver, sol)
+    # for r1 = 1:length(sol.routes)
+    #     @show sol.lastModif[r1]
+    #     for r2 = 1:length(sol.routes)
+    #         if r1 != r2
+    #             @show sol.lastEval[(:interSwap, r1, r2)]
+    #         end
+    #     end
+    # end
+    # return
     @time NILS(solver)
     printCVRP(solver, solver.outerBestSol)
     isFeasible(solver, solver.outerBestSol)
@@ -319,9 +338,9 @@ set = "M"
 n = 151
 k = 12
 instance = "$set-n$n-k$k.vrp"
-seed = 1
+seed = 2
 restarts = 1
 outerIterMax = 500
-innerIterMax = 10
+innerIterMax = 5
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)

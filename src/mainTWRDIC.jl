@@ -3,20 +3,20 @@ using CPLEX
 Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
 ENV["JULIA_HASH_SEED"] = "0"
 
-function fastbitset_str(bs::FastBitSet32)
-    elems = Int[]
-    for (block_idx, block) in enumerate(bs.data)
-        if block == 0
-            continue
-        end
-        for bit in 0:31
-            if (block & (UInt32(1) << bit)) != 0
-                push!(elems, (block_idx - 1) * 32 + bit + 1)
-            end
-        end
-    end
-    return "{" * join(elems, ", ") * "}"
-end
+# function fastbitset_str(bs::FastBitSet32)
+#     elems = Int[]
+#     for (block_idx, block) in enumerate(bs.data)
+#         if block == 0
+#             continue
+#         end
+#         for bit in 0:31
+#             if (block & (UInt32(1) << bit)) != 0
+#                 push!(elems, (block_idx - 1) * 32 + bit + 1)
+#             end
+#         end
+#     end
+#     return "{" * join(elems, ", ") * "}"
+# end
 
 
 function read_solomon(path::String)
@@ -158,28 +158,28 @@ function checkVRPTW(solver::Solver, sol::Solution)
             end
             if time > solver.res.stdResource.ub[sol.routes[r][i+1] + 1] + 1e-6
                 feasible = false
-                # throw("violou janela do cliente $(sol.routes[r][i+1]) na rota $r")
+                throw("violou janela do cliente $(sol.routes[r][i+1]) na rota $r")
             end
             if demand > solver.res.customResource.Q + 1e-6
                 feasible = false
-                # throw("rota $r viola capacidade do veiculo")
+                throw("rota $r viola capacidade do veiculo")
             end
         end
     end
-    for r = 1:length(sol.routes)
-        for i = 2:length(sol.routes[r]) - 1
-            for j = 2:length(sol.routes[r]) - 1
-                if i == j 
-                    continue
-                end
-                if has(solver.res.customResource.inc[sol.routes[r][j]+1], sol.routes[r][i])
-                    # @show sol.routes[r]
-                    feasible = false
-                    # throw("clientes $(sol.routes[r][i]) e $(sol.routes[r][j]) são incompativeis e estao na rota $r")
-                end
-            end
-        end
-    end
+    # for r = 1:length(sol.routes)
+    #     for i = 2:length(sol.routes[r]) - 1
+    #         for j = 2:length(sol.routes[r]) - 1
+    #             if i == j 
+    #                 continue
+    #             end
+    #             if has(solver.res.customResource.inc[sol.routes[r][j]+1], sol.routes[r][i])
+    #                 # @show sol.routes[r]
+    #                 feasible = false
+    #                 # throw("clientes $(sol.routes[r][i]) e $(sol.routes[r][j]) são incompativeis e estao na rota $r")
+    #             end
+    #         end
+    #     end
+    # end
     return feasible
 end
 
@@ -194,17 +194,17 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     maxNbRoute = vehicles
     data = ProblemData(customers, dist, maxNbRoute)
 
-    n = length(inc)
-    fastinc = Vector{FastBitSet32}(undef, n)
-    for i in 1:n
-        fb = FastBitSet32(100)
-        for x in inc[i]
-            add!(fb, x)
-        end
-        fastinc[i] = fb
-    end
+    # n = length(inc)
+    # fastinc = Vector{FastBitSet32}(undef, n)
+    # for i in 1:n
+    #     fb = FastBitSet32(100)
+    #     # for x in inc[i]
+    #     #     add!(fb, x)
+    #     # end
+    #     fastinc[i] = fb
+    # end
     # inc = [BitSet() for _ = 1:26]
-    customRes = CustomResource(time, due, release, dmat, capacity, fastinc)
+    customRes = CustomResource(time, due, release, dmat, capacity)
     # stdRes = StandardResource(zeros(Float64, size(time)[1], size(time)[1]), ready, due)
     stdRes = StandardResource(time, ready, due)
     
@@ -214,7 +214,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         penaltyStandard = 1.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
     )
 
-    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 0, innerSwap = 0)
+    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
 
     solver = Solver(
         seed = seed,
@@ -239,10 +239,10 @@ end
 
 # instance     = ARGS[1]
 restarts     = 1
-outerIterMax = 500
-innerIterMax = 5
+outerIterMax = 1000
+innerIterMax = 20
 seed         = 1
-instance = "TWRD/incomp/25/Incompatibility0.1/25_con_rate_01_R105.txt"
+instance = "TWRD/incomp/100/Incompatibility0.1/100_con_rate_01_R104.txt"
 # instance = "TWRD/incomp/5_toy.txt"
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
