@@ -2,6 +2,13 @@
 function intraShift10!(solver::Solver, sol::Solution)
     improved = false
     for r = 1:length(sol.routes)
+        # key = (:intraShift, r, r)
+        # lastEval = get(sol.lastEval, key, -1)
+        lastEval = sol.lastEval[1, r, r]
+
+        if lastEval >= max(sol.lastModif[r], sol.lastModif[r])
+            continue  # pular pares que não mudaram
+        end
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
         if (sol.feasiblesF[r] >= length(sol.routes[r]) - 1)
             for i = 2:length(sol.routes[r])-1
@@ -61,6 +68,13 @@ function interShift10!(solver::Solver, sol::Solution)
         for r2 in routesIdx
             if r1 == r2
                 continue
+            end
+            # key = (:interShift, r1, r2)
+            # lastEval = get(sol.lastEval, key, -1)
+            lastEval = sol.lastEval[2, r1, r2]
+
+            if lastEval >= max(sol.lastModif[r1], sol.lastModif[r2])
+                continue  # pular pares que não mudaram
             end
             for i = 2:length(sol.routes[r1]) - 1
                 for j = 2:length(sol.routes[r2])
@@ -141,11 +155,18 @@ function interSwap11!(solver::Solver, sol::Solution)
             continue
         end
         for r2 in routesIdx
-            if r1 == r2
+            if r1 >= r2
                 continue
             end
             if length(sol.routes[r2]) <= 2
                 continue
+            end
+            # key = (:interSwap, r1, r2)
+            # lastEval = get(sol.lastEval, key, -1)
+            lastEval = sol.lastEval[3, r1, r2]
+
+            if lastEval >= max(sol.lastModif[r1], sol.lastModif[r2])
+                continue  # pular pares que não mudaram
             end
             for i = 2:length(sol.routes[r1]) - 1
                 for j = 2:length(sol.routes[r2]) - 1
@@ -224,6 +245,13 @@ function twoOptStar!(solver::Solver, sol::Solution)
         for r2 in routesIdx
             if r1 == r2
                 continue
+            end
+            # key = (:twoOptStar, r1, r2)
+            # lastEval = get(sol.lastEval, key, -1)
+            lastEval = sol.lastEval[4, r1, r2]
+
+            if lastEval >= max(sol.lastModif[r1], sol.lastModif[r2])
+                continue  # pular pares que não mudaram
             end
             for i = 1:length(sol.routes[r1]) - 2
                 for j = 1:length(sol.routes[r2]) - 2

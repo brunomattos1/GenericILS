@@ -5,11 +5,7 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
     insertionLabelForward = myExtendAlongArc(solver.res.customResource, sol.forwardLabels[r][pos-1], (sol.routes[r][pos-1]+1, customer + 1))
     insertionLabelBackward = myExtendAlongArc(solver.res.customResource, sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos], (sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos].last +1, customer + 1))
     concatCost = myConcatenationCost(solver.res.customResource, insertionLabelBackward.last, insertionLabelForward, insertionLabelBackward)
-    # @show concatCost
-    # @show concatCost
-    # @show sol.routes[r][1:pos-1], (sol.routes[r][pos-1]+1, customer + 1)
-    # @show reverse(sol.routes[r])[1:length(sol.routes[r]) + 1 - pos], (sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos].last +1, customer + 1)
-    # @show insertionLabelBackward
+
     if concatCost.cost < Inf
         return length(sol.routes[r]) - 1 + 1
     end
@@ -25,7 +21,7 @@ function computeViolInsertion1(solver::Solver, sol::Solution, r::Int, customer::
         # Se a inserção é numa parte inviável da rota, não há perda de viabilidade
         if pos > sol.lastFeasibleF[r]
             dFeasForward = 0
-        else # Se a inserção é numa parte inviável da rota, eu perco 1 arco viável que conecta $sol.routes[r][pos-1] ao $sol.routes[r][pos]
+        else # Se a inserção é numa parte viavel da rota, eu perco 1 arco viável que conecta $sol.routes[r][pos-1] ao $sol.routes[r][pos]
             dFeasForward = - 1
         end
         # if pos < sol.lastFeasibleF[r]

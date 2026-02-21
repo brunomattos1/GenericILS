@@ -21,6 +21,7 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
 
         push!(solver.outerCurrSol.warps, 0.0)
         push!(solver.outerCurrSol.infeas, 0)
+        push!(solver.outerCurrSol.lastModif, 0)
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
     end
     computeLabels(solver, solver.outerCurrSol)
@@ -47,6 +48,31 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         if bestInsertion.pos > 0
             applyMoveInsertion(solver, solver.outerCurrSol, bestInsertion)
             vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
+        end
+    end
+    # R = length(solver.outerCurrSol.routes)
+    # nVizinhas = 4  # :intraShift, :interShift, :interSwap, :twoOptStar
+
+    # solver.outerCurrSol.lastEval = [
+    #     [ zeros(Int, R) for r1 in 1:R ]   # cria R vetores de tamanho R
+    #     for move in 1:nVizinhas
+    # ]
+    R = length(solver.outerCurrSol.routes)
+    nVizinhas = 4  # exemplo: :intraShift, :interShift, :interSwap, :twoOptStar
+
+    solver.outerCurrSol.lastEval = zeros(Int, nVizinhas, R, R)
+
+    for r in 1:R
+        solver.outerCurrSol.lastEval[1, r, r] = solver.timeStamp
+    end
+    for move = 2:4
+        for r1 in 1:R-1
+            for r2 in r1+1:R
+                solver.outerCurrSol.lastEval[move, r1, r2] = solver.timeStamp
+                # solver.outerCurrSol.lastEval[(:interShift, r1, r2)] = solver.timeStamp
+                # solver.outerCurrSol.lastEval[(:interSwap, r1, r2)] = solver.timeStamp
+                # solver.outerCurrSol.lastEval[(:twoOptStar, r1, r2)] = solver.timeStamp
+            end
         end
     end
 end

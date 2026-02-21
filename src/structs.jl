@@ -81,9 +81,14 @@ mutable struct Solution
     lastFeasibleB::Vector{Int} # last feasible position for each route backward sense
     forwardLabels::Vector{Vector{ForwardLabel}}
     backwardLabels::Vector{Vector{BackwardLabel}}
+    lastEval::Array{Int, 3}#Vector{Vector{Vector{Int}}}#Dict{Tuple{Symbol, Int, Int}, Int}
+    lastModif::Vector{Int}
 end
 
-Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[])
+# Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Dict{Tuple{Symbol, Int, Int}, Int}(), Vector{Int}())
+# Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Vector{Vector{Vector{Int}}}(), Vector{Int}())
+Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Array{Int,3}(undef, 4, 10, 10), Vector{Int}())
+
 
 function copy_solution!(dest::Solution, src::Solution)
     # Copy scalar fields
@@ -135,6 +140,22 @@ function copy_solution!(dest::Solution, src::Solution)
         resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
         copyto!(dest.backwardLabels[i], src.backwardLabels[i])
     end
+
+    # if dest.lastEval === nothing
+    #     dest.lastEval = Dict{Tuple,Int}()
+    # else
+    #     empty!(dest.lastEval)
+    # end
+    # for (k,v) in src.lastEval
+    #     dest.lastEval[k] = v
+    # end
+    if dest.lastEval === nothing || size(dest.lastEval) != size(src.lastEval)
+        dest.lastEval = similar(src.lastEval)  # cria novo array do mesmo tamanho
+    end
+    copyto!(dest.lastEval, src.lastEval)
+
+    resize!(dest.lastModif, length(src.lastModif))
+    copyto!(dest.lastModif, src.lastModif)
 
     # Copy nested vectors of labels (forwardLabels, backwardLabels)
     # resize!(dest.forwardLabels, length(src.forwardLabels))
@@ -235,6 +256,8 @@ struct ProblemData
 end
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
+
+
 mutable struct Solver
     seed::Random.MersenneTwister
     params::Parameters
@@ -263,7 +286,7 @@ mutable struct Solver
     route_storage::Vector{Vector{Int}}
     cost_storage::Vector{Float64}
     route_lookup::Dict{Vector{Int}, Int}
-
+    timeStamp::Int
 end
 
 function Solver(; 
@@ -284,6 +307,7 @@ function Solver(;
     buffer = Vector{Int}(),
     buffer2opt = Vector{Int}(),
     bufferRoute = Vector{Int}(),
+    timeStamp = 0
     # pool = Dict{Vector{Int}, Float64}(),
     # hashes = Set{UInt64}()
     
@@ -306,7 +330,7 @@ function Solver(;
     Solver(
         Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
         diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
-        buffer, buffer2opt, bufferRoute, route_storage, cost_storage, route_lookup#pool, hashes
+        buffer, buffer2opt, bufferRoute, route_storage, cost_storage, route_lookup, timeStamp#pool, hashes
     )
 end
 

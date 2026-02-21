@@ -110,11 +110,11 @@ else
         std_res::StandardState
         last::Int
     end
-    function myInitStateForward()
+    function myInitStateForward(res::CustomResource)
         return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
     end
 
-    function myInitStateBackward()
+    function myInitStateBackward(res::CustomResource)
         return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
     end
 
@@ -130,11 +130,11 @@ else
         return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
     end
 
-    function myInitStateForward()
+    function myInitStateForward(res::CustomResource)
         return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
     end
 
-    function myInitStateBackward()
+    function myInitStateBackward(res::CustomResource)
         return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
     end
 

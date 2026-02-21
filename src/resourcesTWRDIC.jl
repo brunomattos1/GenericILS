@@ -215,12 +215,12 @@ else
         return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
     end
 
-    function myInitStateForward()
-        return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
+    function myInitStateForward(res::CustomResource)
+        return ForwardLabel(initStateForward(res::CustomResource)..., StandardState(0.0, 0.0), 0)
     end
 
-    function myInitStateBackward()
-        return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
+    function myInitStateBackward(res::CustomResource)
+        return BackwardLabel(initStateBackward(res::CustomResource)..., StandardState(Inf, 0.0), 0)
     end
 
     function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
@@ -241,11 +241,11 @@ end
 
 # CUSTOM, user-dependent
 
-function initStateForward()
+function initStateForward(res::CustomResource)
     return (CustomState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
 
-function initStateBackward()
+function initStateBackward(res::CustomResource)
     return (CustomState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
 
