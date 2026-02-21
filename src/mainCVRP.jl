@@ -1,5 +1,5 @@
 include("include.jl")
-using CVRPLIB, PlotlyJS
+using CVRPLIB#, PlotlyJS
 using CPLEX
 Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
 ENV["JULIA_HASH_SEED"] = "0"
