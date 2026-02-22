@@ -108,6 +108,9 @@ function c(solver::Solver, r::Vector{Int})
     for i = 1:length(r)-1
         cost += solver.data.costMatrix[r[i]+1, r[i+1]+1]
     end
+    if isCostResource()
+        cost += computeRouteLabelCost(solver, r)
+    end
     return cost
 end
 
@@ -115,6 +118,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(CPLEX.Optimizer)
     set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
     routes = solver.route_storage#collect(keys(solver.pool))
+    
     @variable(sp, λ[r = 1:length(routes)], Bin)
 
     @objective(sp, Min, sum(c(solver, routes[r])*λ[r] for r = 1:length(routes)))
@@ -122,9 +126,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
     @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, routes[r])λ[r] for r = 1:length(routes)) == 1)
     @constraint(sp, sum(λ[r] for r = 1:length(routes)) <= solver.data.maxNbRoutes)
     optimize!(sp)
-    @show objective_value(sp)
     if termination_status(sp) == OPTIMAL
-        # return Solution([routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9], objective_value(sp), [0 for i = 1:solver.data.maxNbRoutes], 0)
         solver.currSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
         solver.currSol.cost = objective_value(sp)
         solver.currSol.dist = objective_value(sp)

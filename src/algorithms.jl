@@ -15,53 +15,13 @@ function NILS(solver::Solver)
     ts = time()
     for r = 1:solver.params.restarts
         constructSol!(solver)
-        # if (solver.outerCurrSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-12)
-        #     copy_solution!(bestFeasSol, solver.outerCurrSol)
-        # end
         push!(solver, solver.outerCurrSol)
         ILS(solver, solver.outerCurrSol)
-        # if (solver.outerCurrSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-12)
-        #     copy_solution!(bestFeasSol, solver.outerCurrSol)
-        # end
+
         if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             copy_solution!(solver.outerBestSol, solver.outerCurrSol)
             if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
                 copy_solution!(bestFeasSol, solver.outerBestSol)
-                computeLabels(solver, bestFeasSol)
-                for r = 1:length(bestFeasSol.routes)
-                    if bestFeasSol.forwardLabels[r][end].cost > 0 && bestFeasSol.backwardLabels[r][end].cost > 0
-                        println("-"^150)
-                        @printf("%-50s | %-12s | %-12s | %-12s | %-12s | %-12s\n", "Fwd path", "Cap", "ET", "RD", "TB", "Cost")
-                        for i = 1:length(bestFeasSol.routes[r])
-                            path = bestFeasSol.routes[r][1:i]
-                            q = bestFeasSol.forwardLabels[r][i].custom_res.q
-                            ET = bestFeasSol.forwardLabels[r][i].custom_res.ET
-                            RD = bestFeasSol.forwardLabels[r][i].custom_res.RD
-                            TB = bestFeasSol.forwardLabels[r][i].custom_res.TB
-                            cost = bestFeasSol.forwardLabels[r][i].cost
-                            @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                        end
-                        println("-"^150)
-                        route = bestFeasSol.routes[r]
-                        n = length(route)
-                        for i = 1:n
-                            start = n - i + 1
-                            path = route[start:n]           # SUFIXO que termina em `end`
-                            q = bestFeasSol.backwardLabels[r][i].custom_res.q
-                            ET = bestFeasSol.backwardLabels[r][i].custom_res.ET
-                            RD = bestFeasSol.backwardLabels[r][i].custom_res.RD
-                            TB = bestFeasSol.backwardLabels[r][i].custom_res.TB
-                            cost = bestFeasSol.backwardLabels[r][i].cost
-                            @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                        end
-                        @show bestFeasSol.totalInfeas
-                        @show bestFeasSol.infeas
-                        throw("Best Feas Sol is infeasible within the custom resource")
-                    end
-                    if bestFeasSol.forwardLabels[r][end].std_res.stdWarp > 1e-6
-                        throw("Best Feas Sol is infeasible within the standard resource")
-                    end
-                end
             end
         end
         outerIter = 0
@@ -75,82 +35,10 @@ function NILS(solver::Solver)
                 if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
                     copy_solution!(bestFeasSol, solver.outerBestSol)
                     computeLabels(solver, bestFeasSol)
-                    for r = 1:length(bestFeasSol.routes)
-                        if bestFeasSol.forwardLabels[r][end].cost > 0 && bestFeasSol.backwardLabels[r][end].cost > 0
-                            println("-"^150)
-                            @printf("%-50s | %-12s | %-12s | %-12s | %-12s | %-12s\n", "Fwd path", "Cap", "ET", "RD", "TB", "Cost")
-                            for i = 1:length(bestFeasSol.routes[r])
-                                path = bestFeasSol.routes[r][1:i]
-                                q = bestFeasSol.forwardLabels[r][i].custom_res.q
-                                ET = bestFeasSol.forwardLabels[r][i].custom_res.ET
-                                RD = bestFeasSol.forwardLabels[r][i].custom_res.RD
-                                TB = bestFeasSol.forwardLabels[r][i].custom_res.TB
-                                cost = bestFeasSol.forwardLabels[r][i].cost
-                                @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                            end
-                            println("-"^150)
-                            route = bestFeasSol.routes[r]
-                            n = length(route)
-                            for i = 1:n
-                                start = n - i + 1
-                                path = route[start:n]           # SUFIXO que termina em `end`
-                                q = bestFeasSol.backwardLabels[r][i].custom_res.q
-                                ET = bestFeasSol.backwardLabels[r][i].custom_res.ET
-                                RD = bestFeasSol.backwardLabels[r][i].custom_res.RD
-                                TB = bestFeasSol.backwardLabels[r][i].custom_res.TB
-                                cost = bestFeasSol.backwardLabels[r][i].cost
-                                @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                            end
-                            @show bestFeasSol.totalInfeas
-                            @show bestFeasSol.infeas
-                            throw("Best Feas Sol is infeasible within the custom resource")
-                        end
-                        if bestFeasSol.forwardLabels[r][end].std_res.stdWarp > 1e-6
-                            throw("Best Feas Sol is infeasible within the standard resource")
-                        end
-                    end
                     outerIter = 0
                 end
             elseif (solver.outerCurrSol.cost < bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
                 copy_solution!(bestFeasSol, solver.outerCurrSol)
-                computeLabels(solver, bestFeasSol)
-                for r = 1:length(bestFeasSol.routes)
-                    if bestFeasSol.forwardLabels[r][end].cost > 0 && bestFeasSol.backwardLabels[r][end].cost > 0
-                        @printf("%-50s | %-12s | %-12s | %-12s | %-12s | %-12s\n", "Fwd path", "Cap", "ET", "RD", "TB", "Cost")
-                        for i = 1:length(bestFeasSol.routes[r])
-                            path = bestFeasSol.routes[r][1:i]
-                            q = bestFeasSol.forwardLabels[r][i].custom_res.q
-                            ET = bestFeasSol.forwardLabels[r][i].custom_res.ET
-                            RD = bestFeasSol.forwardLabels[r][i].custom_res.RD
-                            TB = bestFeasSol.forwardLabels[r][i].custom_res.TB
-                            cost = bestFeasSol.forwardLabels[r][i].cost
-                            @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                        end
-                        println("-"^150)
-                        route = bestFeasSol.routes[r]
-                        n = length(route)
-                        for i = 1:n
-                            start = n - i + 1
-                            path = route[start:n]           # SUFIXO que termina em `end`
-                            q = bestFeasSol.backwardLabels[r][i].custom_res.q
-                            ET = bestFeasSol.backwardLabels[r][i].custom_res.ET
-                            RD = bestFeasSol.backwardLabels[r][i].custom_res.RD
-                            TB = bestFeasSol.backwardLabels[r][i].custom_res.TB
-                            cost = bestFeasSol.backwardLabels[r][i].cost
-                            @printf("%-50s | %-12.2f | %-12.2f | %-12.2f | %-12.2f | %-12.2f\n", path, q, ET, RD, TB, cost)
-                        end
-                        println("-"^150)
-                        @show bestFeasSol.totalInfeas
-                        @show bestFeasSol.infeas
-                        @show bestFeasSol.feasiblesF[r]
-                        @show bestFeasSol.feasiblesB[r]
-
-                        throw("Best Feas Sol is infeasible within the custom resource")
-                    end
-                    if bestFeasSol.forwardLabels[r][end].std_res.stdWarp > 1e-6
-                        throw("Best Feas Sol is infeasible within the standard resource")
-                    end
-                end
                 outerIter = 0
             end
             total_algorithm_time = time() - ts

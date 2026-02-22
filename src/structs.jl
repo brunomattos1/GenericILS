@@ -59,18 +59,31 @@ struct OptStar <: Move
     secondIdx::Int
 end
 
+struct ViolationInfo
+    firstRouteInfeas::Int
+    secondRouteInfeas::Int
+    firstRouteLabelCost::Float64
+    secondRouteLabelCost::Float64
+end
+
 struct Cost
     dist::Float64
     route1::Int
     route2::Int
-    infeas::Tuple{Int, Int}
+    #infeas::Tuple{Int, Int}
+    violInfo::ViolationInfo
     warp::Tuple{Float64, Float64}
+end
+
+abstract type AbstractSolution 
 end
 
 mutable struct Solution
     routes::Vector{Vector{Int}} # routes of the solution
     dist::Float64 # total distance
     cost::Float64 # total cost
+    totalLabelCost::Float64
+    labelCosts::Vector{Float64}
     totalInfeas::Int
     infeas::Vector{Int}
     totalWarp::Float64
@@ -85,9 +98,17 @@ mutable struct Solution
     lastModif::Vector{Int}
 end
 
+mutable struct UserSolution
+    routes::Vector{Vector{Int}} # routes of the solution
+    dist::Float64 # total distance
+    cost::Float64 # total cost
+    forwardLabels::Vector{Vector{ForwardLabel}}
+    backwardLabels::Vector{Vector{BackwardLabel}}
+end
+
 # Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Dict{Tuple{Symbol, Int, Int}, Int}(), Vector{Int}())
 # Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Vector{Vector{Vector{Int}}}(), Vector{Int}())
-Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Array{Int,3}(undef, 4, 10, 10), Vector{Int}())
+Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0.0, Vector{Int}(), 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Array{Int,3}(undef, 4, 10, 10), Vector{Int}())
 
 
 function copy_solution!(dest::Solution, src::Solution)
@@ -96,13 +117,17 @@ function copy_solution!(dest::Solution, src::Solution)
     dest.cost = src.cost
     dest.totalInfeas = src.totalInfeas
     dest.totalWarp = src.totalWarp
-
+    dest.totalLabelCost = src.totalLabelCost
+    
     # Copy vector fields using resize! and copyto!
     resize!(dest.infeas, length(src.infeas))
     copyto!(dest.infeas, src.infeas)
 
     resize!(dest.warps, length(src.warps))
     copyto!(dest.warps, src.warps)
+
+    resize!(dest.labelCosts, length(src.infeas))
+    copyto!(dest.labelCosts, src.labelCosts)
 
     resize!(dest.feasiblesF, length(src.feasiblesF))
     copyto!(dest.feasiblesF, src.feasiblesF)
@@ -185,13 +210,6 @@ function copy_solution!(dest::Solution, src::Solution)
     #     copyto!(dest.forwardLabels[i], src.forwardLabels[i])
     # end
 end
-
-
-getCost(solution::Solution) = solution.cost
-getRoute(solution::Solution, r::Int) = solution.routes[r]
-getRoutes(solution::Solution) = solution.routes
-getResViolation(solution::Solution) = sum(solution.resViolation)
-#getResViolation(solution::Solution, r::Int) = solution.resViolation[r]
 
 
 mutable struct Parameters
@@ -280,6 +298,7 @@ mutable struct Solver
     buffer::Vector{Int}
     buffer2opt::Vector{Int}
     bufferRoute::Vector{Int}
+    bufferSol::Solution
     # pool::Vector{Vector{Int}}
     # pool::Dict{Vector{Int}, Float64}
     # hashes::Set{UInt64}
@@ -307,35 +326,174 @@ function Solver(;
     buffer = Vector{Int}(),
     buffer2opt = Vector{Int}(),
     bufferRoute = Vector{Int}(),
-    timeStamp = 0
-    # pool = Dict{Vector{Int}, Float64}(),
-    # hashes = Set{UInt64}()
+    bufferSol = Solution(),
+    timeStamp = 0)
+    prevLabelF = myInitStateForward(res.customResource)
+    prevLabelStdF = myInitStateForward(res.customResource)
+    prevLabelB = myInitStateBackward(res.customResource)
+    prevLabelStdB = myInitStateBackward(res.customResource)
     
-
-)
-    if DEBUG_MODE
-        prevLabelF = myInitStateForward(res.customResource)
-        prevLabelStdF = myInitStateForward(res.customResource)
-        prevLabelB = myInitStateBackward(res.customResource)
-        prevLabelStdB = myInitStateBackward(res.customResource)
-    else
-        prevLabelF = myInitStateForward(res.customResource)
-        prevLabelStdF = myInitStateForward(res.customResource)
-        prevLabelB = myInitStateBackward(res.customResource)
-        prevLabelStdB = myInitStateBackward(res.customResource)
-    end
     route_storage = Vector{Vector{Int}}()
     cost_storage = Vector{Float64}()
     route_lookup = Dict{Vector{Int}, Int}()
     Solver(
         Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
         diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
-        buffer, buffer2opt, bufferRoute, route_storage, cost_storage, route_lookup, timeStamp#pool, hashes
+        buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp#pool, hashes
     )
 end
 
 getCurrSol(solver::Solver) = solver.currSol
-getBestSol(solver::Solver) = solver.bestSol
+getBestSol(solver::Solver) = solver.outerBestSol
+
+getBestRoutes(solver::Solver) = solver.outerBestSol.routes
+
+getBestRoutes(solver::Solver, routes::AbstractVector{Int}) = solver.outerBestSol.routes[routes]
+
+getBestRoutes(solver::Solver, route::Int) = [solver.outerBestSol.routes[route]]
+
+getRoutes(sol::Union{Solution, UserSolution}) = sol.routes
+
+getCost(sol::Union{Solution, UserSolution}) = sol.cost
+
+getDistance(sol::Union{Solution, UserSolution}) = sol.dist
+
+# -------- Formata apenas os campos internos do state --------
+function format_state(state)
+    T = typeof(state)
+    state_name = nameof(T)
+
+    parts = String[]
+    for f in fieldnames(T)
+        value = getfield(state, f)
+        push!(parts, "$(f): $(value)")
+    end
+
+    return "$state_name: ($(join(parts, ", ")))"
+end
+
+# -------- Formata o label completo --------
+function print_label(route_prefix, label)
+
+    # 1) imprime rota parcial
+    print("Partial label: ")
+    println(join(route_prefix, " -> "))
+
+    state_parts = String[]
+    other_parts = String[]
+
+    for fname in fieldnames(typeof(label))
+        value = getfield(label, fname)
+
+        if isstructtype(typeof(value))
+            push!(state_parts, format_state(value))
+        else
+            push!(other_parts, "$(fname): $(value)")
+        end
+    end
+    # 2) imprime states abaixo da rota
+    line = "  States: $(join(state_parts, ", "))"
+
+    if !isempty(other_parts)
+        line *= ", $(join(other_parts, ", "))"
+    end
+
+    println(line)
+    println()
+end
+
+function print_label(label)
+    state_parts = String[]
+    other_parts = String[]
+
+    for fname in fieldnames(typeof(label))
+        value = getfield(label, fname)
+
+        if isstructtype(typeof(value))
+            push!(state_parts, format_state(value))
+        else
+            push!(other_parts, "$(fname): $(value)")
+        end
+    end
+
+    all_parts = vcat(
+        ["States: $(join(state_parts, ", "))"],
+        other_parts
+    )
+
+    println("  " * join(all_parts, ", "))
+    println()
+end
+
+
+function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
+    computeLabels(solver, sol)
+    println("#"^100)
+    println("FORWARD LABELS:")
+    println("#"^100)
+
+    # -------- Seu loop --------
+    for r = 1:length(sol.routes)
+        println("-"^100)
+        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("-"^100)
+
+        for i = 1:length(sol.routes[r])
+            route_prefix = sol.routes[r][1:i]
+            label = sol.forwardLabels[r][i]
+            print_label(route_prefix, label)
+        end
+    end
+    println("#"^100)
+    println("BACKWARD LABELS:")
+    println("#"^100)
+
+    for r = 1:length(sol.routes)
+        println("-"^100)
+        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("-"^100)
+        n = length(sol.routes[r])
+        for i = 1:n
+            start = n - i + 1
+            route_prefix = sol.routes[r][start:n]
+            label = sol.backwardLabels[r][i]
+            print_label(route_prefix, label)
+        end
+    end
+end
+
+function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
+    for r = 1:length(sol.routes)
+        println("-"^100)
+        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("-"^100)
+        lenR = length(sol.routes[r])
+        for i in 1:lenR
+            prefix = sol.routes[r][1:i]
+            suffix = sol.routes[r][i:end]
+            concat = myConcatenationCost(
+                solver.res,
+                1,
+                sol.forwardLabels[r][i],
+                sol.backwardLabels[r][lenR - i + 1]
+            )
+            println("Concatenating $(join(prefix, " -> ")) with $(join(suffix, " -> "))")
+            print_label(concat)
+        end
+    end
+end
+
+function createSolution(solver::Solver, dist::Float64, cost::Float64, routes::Vector{Vector{Int}})
+    sol = UserSolution(
+        routes,
+        dist,
+        cost,
+        Vector{Vector{ForwardLabel}}(),
+        Vector{Vector{BackwardLabel}}(),
+    )
+    computeLabels(solver, sol)
+    return sol
+end
 
 
 getCostMatrix(solver::Solver) = solver.data.costMatrix
