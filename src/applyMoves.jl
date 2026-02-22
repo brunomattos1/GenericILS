@@ -28,6 +28,9 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
     solution.totalWarp -= solution.warps[r]
     solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
     solution.totalWarp += solution.warps[r]
+    solution.totalLabelCost -= solution.labelCosts[r]
+    solution.labelCosts[r] = min(solution.forwardLabels[r][end].cost, solution.backwardLabels[r][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r]
     solution.cost = objectiveValue(solver, solution)
 
 end
@@ -71,6 +74,10 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
     solution.totalWarp += solution.warps[r]
 
+    solution.totalLabelCost -= solution.labelCosts[r]
+    solution.labelCosts[r] = min(solution.forwardLabels[r][end].cost, solution.backwardLabels[r][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r]
+
     solution.cost = objectiveValue(solver, solution)
     solver.timeStamp += 1
     solution.lastModif[r] = solver.timeStamp
@@ -109,7 +116,12 @@ function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
     solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
     solution.totalWarp += solution.warps[r1] + solution.warps[r2]
-    # println("-"^100)
+
+    solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
+    solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
+    solution.labelCosts[r2] = min(solution.forwardLabels[r2][end].cost, solution.backwardLabels[r2][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r1] + solution.labelCosts[r2]
+
     solution.cost = objectiveValue(solver, solution)
 
     solver.timeStamp += 1
@@ -160,6 +172,11 @@ function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMov
     solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
     solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
     solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+
+    solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
+    solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
+    solution.labelCosts[r2] = min(solution.forwardLabels[r2][end].cost, solution.backwardLabels[r2][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r1] + solution.labelCosts[r2]
 
     # println("-"^100)
     solution.cost = objectiveValue(solver, solution)
@@ -215,6 +232,11 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
     solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
     solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+
+    solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
+    solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
+    solution.labelCosts[r2] = min(solution.forwardLabels[r2][end].cost, solution.backwardLabels[r2][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r1] + solution.labelCosts[r2]
 
     solution.cost = objectiveValue(solver, solution)
     solver.timeStamp += 1

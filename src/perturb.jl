@@ -88,10 +88,10 @@ function randomInterShit10!(solver::Solver, solution::Solution)
     i = rand(solver.seed, 2:length(routes[r1])-1)
     j = rand(solver.seed, 2:length(routes[r2]))
     # dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solution.dist, solution, routes, solver, r1, r2, i, j)
-    dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
+    dist, cost, infeasR1, infeasR2, warpR1, warpR2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
 
-    infeasR1 = length(solution.routes[r1]) - 1 - feasR1 - 1
-    infeasR2 = length(solution.routes[r2]) - 1 - feasR2 + 1
+    # infeasR1 = length(solution.routes[r1]) - 1 - feasR1 - 1
+    # infeasR2 = length(solution.routes[r2]) - 1 - feasR2 + 1
     # cost = objectiveValue(solver, solution, r1, r2, dist, infeasR1, infeasR2, warpR1, warpR2)
     infeas = (infeasR1, infeasR2)
     warp = (warpR1, warpR2)

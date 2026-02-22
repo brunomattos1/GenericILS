@@ -14,13 +14,19 @@ end
 
 function objectiveValue(solver::Solver, sol::Solution)
     objVal = sol.dist
+    if isCostResource()
+        objVal += sol.totalLabelCost
+    end
     objVal += solver.params.penaltyCustom * (sol.totalInfeas)
     objVal += solver.params.penaltyStandard * (sol.totalWarp)
     return objVal
 end
 
-function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, warp::Float64)
+function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, labelCost::Float64, warp::Float64)
     objVal = dist
+    if isCostResource()
+        objVal += sol.totalLabelCost - sol.labelCosts[r] + labelCost
+    end
     objVal += solver.params.penaltyCustom * (sol.totalInfeas - sol.infeas[r] + infeas)
     objVal += solver.params.penaltyStandard * (sol.totalWarp - sol.warps[r] + warp)
     return objVal
@@ -28,7 +34,10 @@ end
 
 function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     objVal = costing.dist
-    objVal += solver.params.penaltyCustom * (sol.totalInfeas - sol.infeas[costing.route1]  + costing.infeas[1] - sol.infeas[costing.route2] + costing.infeas[2])
+    if isCostResource()
+        objVal += sol.totalLabelCost - sol.labelCosts[costing.route1] + costing.violInfo.firstRouteLabelCost - sol.labelCosts[costing.route2] + costing.violInfo.secondRouteLabelCost
+    end
+    objVal += solver.params.penaltyCustom * (sol.totalInfeas - sol.infeas[costing.route1]  + costing.violInfo.firstRouteInfeas - sol.infeas[costing.route2] + costing.violInfo.secondRouteInfeas)
     objVal += solver.params.penaltyStandard * (sol.totalWarp - sol.warps[costing.route1] + costing.warp[1] - sol.warps[costing.route2] + costing.warp[2])
     return objVal
 end
@@ -41,19 +50,19 @@ function evalBestInsertion(solver::Solver, sol::Solution, insertion::Insertion)
     j = insertion.pos
     dist = bestInsertionCost(currCost, solver.data.costMatrix, routes[r], customer, j)
     warp = computeStdViolInsertion1(solver, sol, r, customer, j)
-    feas = computeViolInsertion1(solver, sol, r, customer, j)
+    feas, labelCost = computeViolInsertion1(solver, sol, r, customer, j)
     infeas = length(sol.routes[r]) - 1 - feas + 1
-    cost = objectiveValue(solver, sol, r, dist, infeas, warp)
+    cost = objectiveValue(solver, sol, r, dist, infeas, labelCost, warp)
     return dist, cost, infeas, warp
 end
 
-function evalIntraShift10(currCost::Float64,  sol::Solution, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
-    dist = intraShift10Cost(currCost, solver.data.costMatrix, routes[r], i, j)
-    resViol = computeViolIntraShift10(solver, sol, r, i, j)
-    warp = computeStdViolIntraShift10(solver, sol, r, i, j)
-    cost = objectiveValue(solver, sol, r, dist, 0, warp)
-    return dist, resViol, warp, cost
-end
+# function evalIntraShift10(currCost::Float64,  sol::Solution, routes::Vector{Vector{Int}}, solver::Solver, r::Int, i::Int, j::Int)
+#     dist = intraShift10Cost(currCost, solver.data.costMatrix, routes[r], i, j)
+#     resViol = computeViolIntraShift10(solver, sol, r, i, j)
+#     warp = computeStdViolIntraShift10(solver, sol, r, i, j)
+#     cost = objectiveValue(solver, sol, r, dist, 0, warp)
+#     return dist, resViol, warp, cost
+# end
 
 function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
     currCost = sol.dist
@@ -61,10 +70,11 @@ function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
     r = shift.routeFrom
     i = shift.fromIdx
     j = shift.toIdx
+
     dist = intraShift10Cost(currCost, solver.data.costMatrix, routes[r], i, j)
-    resViol = computeViolIntraShift10(solver, sol, r, i, j)
+    resViol, labelCost = computeViolIntraShift10(solver, sol, r, i, j)
     warp = computeStdViolIntraShift10(solver, sol, r, i, j)
-    cost = objectiveValue(solver, sol, r, dist, 0, warp)
+    cost = objectiveValue(solver, sol, r, dist, 0, labelCost, warp)
     return dist, resViol, warp, cost
 end
 
@@ -79,11 +89,11 @@ function evalInterShift10(solver::Solver, sol::Solution, shift::Shift)
     dist = interShift10Cost(currCost, solver.data.costMatrix, routes[r1], routes[r2], i, j)
     warpR1 = computeStdViolRemove1(solver, sol, r1, i)
     warpR2 = computeStdViolInsertion1(solver, sol, r2, sol.routes[r1][i], j)
-    feasR1, feasR2 = computeViolInterShift10(solver, sol, r1, r2, i, j)
-    infeasR1 = length(sol.routes[r1]) - 1 - feasR1 - 1
-    infeasR2 = length(sol.routes[r2]) - 1 - feasR2 + 1
-    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, (infeasR1, infeasR2), (warpR1, warpR2)))
-    return dist, cost, infeasR1, infeasR2, warpR1, warpR2
+    violInfo = computeViolInterShift10(solver, sol, r1, r2, i, j)
+    # infeasR1 = length(sol.routes[r1]) - 1 - feasR1 - 1
+    # infeasR2 = length(sol.routes[r2]) - 1 - feasR2 + 1
+    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1, warpR2)))
+    return dist, cost, violInfo.firstRouteInfeas, violInfo.secondRouteInfeas, warpR1, warpR2
 end
 
 function evalInterSwap11(solver::Solver, sol::Solution, swap::Swap)
@@ -96,11 +106,11 @@ function evalInterSwap11(solver::Solver, sol::Solution, swap::Swap)
     dist = interSwap11Cost(currCost, solver.data.costMatrix, routes[r1], routes[r2], i, j)
     warpR1 = computeStdViolSwap11(solver, sol, r1, i, sol.routes[r2][j])
     warpR2 = computeStdViolSwap11(solver, sol, r2, j, sol.routes[r1][i])
-    feasR1, feasR2 = computeViolInterSwap11(solver, sol, r1, r2, i, j)
-    infeasR1 = length(sol.routes[r1]) - 1 - feasR1
-    infeasR2 = length(sol.routes[r2]) - 1 - feasR2
-    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, (infeasR1, infeasR2), (warpR1, warpR2)))
-    return dist, cost, infeasR1, infeasR2, warpR1, warpR2
+    violInfo = computeViolInterSwap11(solver, sol, r1, r2, i, j)
+    # infeasR1 = length(sol.routes[r1]) - 1 - feasR1
+    # infeasR2 = length(sol.routes[r2]) - 1 - feasR2
+    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1, warpR2)))
+    return dist, cost, violInfo.firstRouteInfeas, violInfo.secondRouteInfeas, warpR1, warpR2
 end
 
 function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar)
@@ -110,11 +120,9 @@ function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar)
     i, j = move.firstIdx, move.secondIdx
     dist = twoOptStarCost(currCost, solver.data.costMatrix, routes[r1], routes[r2], i, j)
     warpR1, warpR2 = computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
-    feasR1, feasR2 = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
-    infeasR1 = i + length(sol.routes[r2]) - j - feasR1 - 1
-    infeasR2 = j + length(sol.routes[r1]) - i - feasR2 - 1
-    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, (infeasR1, infeasR2), (warpR1, warpR2)))
-    return dist, cost, infeasR1, infeasR2, warpR1, warpR2
+    violInfo = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
+    cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1, warpR2)))
+    return dist, cost, violInfo.firstRouteInfeas, violInfo.secondRouteInfeas, warpR1, warpR2
 end
 
 
