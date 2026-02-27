@@ -19,7 +19,9 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         solver.outerCurrSol.dist += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         solver.outerCurrSol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
 
-        push!(solver.outerCurrSol.warps, 0.0)
+        push!(solver.outerCurrSol.warpsStd1, 0.0)
+        push!(solver.outerCurrSol.warpsStd2, 0.0)
+
         push!(solver.outerCurrSol.infeas, 0)
         push!(solver.outerCurrSol.lastModif, 0)
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
@@ -39,9 +41,9 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         for i = k:length(vertices)
             for r = 1:nbRoutes
                 for j = 2:length(solver.outerCurrSol.routes[r])
-                    dist, cost, infeas, warp = evalBestInsertion(solver, solver.outerCurrSol, Insertion(r, vertices[i].id, j))
+                    dist, cost, infeas, warpStd1, warpStd2 = evalBestInsertion(solver, solver.outerCurrSol, Insertion(r, vertices[i].id, j))
                     if cost < bestInsertion.cost - 1e-6
-                        bestInsertion = BestInsertion(cost, dist, r, vertices[i].id, j, infeas, warp)
+                        bestInsertion = BestInsertion(cost, dist, r, vertices[i].id, j, infeas, warpStd1, warpStd2)
                         bestI = i
                     end
                 end

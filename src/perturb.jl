@@ -88,14 +88,16 @@ function randomInterShit10!(solver::Solver, solution::Solution)
     i = rand(solver.seed, 2:length(routes[r1])-1)
     j = rand(solver.seed, 2:length(routes[r2]))
     # dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solution.dist, solution, routes, solver, r1, r2, i, j)
-    dist, cost, infeasR1, infeasR2, warpR1, warpR2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
+    dist, cost, infeasR1, infeasR2, warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
 
     # infeasR1 = length(solution.routes[r1]) - 1 - feasR1 - 1
     # infeasR2 = length(solution.routes[r2]) - 1 - feasR2 + 1
     # cost = objectiveValue(solver, solution, r1, r2, dist, infeasR1, infeasR2, warpR1, warpR2)
-    infeas = (infeasR1, infeasR2)
-    warp = (warpR1, warpR2)
-    applyMoveInterShift10!(solver, solution, BestMove(cost, dist, r1, r2, i, j, infeas, warp))
+    # infeas = (infeasR1, infeasR2)
+    # warp = (warpR1, warpR2)
+    move = BestMove(cost, dist, r1, r2, i, j, (infeasR1, infeasR2), (warpR1Std1, warpR1Std2), (warpR2Std1, warpR2Std2))
+
+    applyMoveInterShift10!(solver, solution, move)
     # computeLabels(solver, solution, r1, r2)
     # solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
     # solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1

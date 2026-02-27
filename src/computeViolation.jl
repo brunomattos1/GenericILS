@@ -582,36 +582,225 @@ end
 
 function computeStdViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
     if i < j
+
         if j == i+1
-            solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.state, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, sol.forwardLabels[r][i-1], (sol.routes[r][i-1] + 1, sol.routes[r][i+1] + 1)), sol.routes[r][i+1])
-            auxLabel = ForwardLabel(solver.prevLabelF.state, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j] + 1, sol.routes[r][i] + 1)), sol.routes[r][i])
-            auxLabel = ForwardLabel(auxLabel.state, auxLabel.cost, extendAlongArc(solver.res.stdResource, auxLabel, (auxLabel.last + 1, sol.routes[r][j+1] + 1)), sol.routes[r][j+1])
 
-            res = concatenationCost(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
-            return res.stdWarp
+            solver.prevLabelStdF = ForwardLabel(
+                solver.prevLabelF.state,
+                solver.prevLabelF.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            sol.forwardLabels[r][i-1],
+                            (sol.routes[r][i-1] + 1, sol.routes[r][i+1] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            sol.forwardLabels[r][i-1],
+                            (sol.routes[r][i-1] + 1, sol.routes[r][i+1] + 1)),
+                sol.routes[r][i+1]
+            )
+
+            auxLabel = ForwardLabel(
+                solver.prevLabelF.state,
+                solver.prevLabelF.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][j] + 1, sol.routes[r][i] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][j] + 1, sol.routes[r][i] + 1)),
+                sol.routes[r][i]
+            )
+
+            auxLabel = ForwardLabel(
+                auxLabel.state,
+                auxLabel.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            auxLabel,
+                            (auxLabel.last + 1, sol.routes[r][j+1] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            auxLabel,
+                            (auxLabel.last + 1, sol.routes[r][j+1] + 1)),
+                sol.routes[r][j+1]
+            )
+
+            resStd1 = concatenationCost(
+                solver.res.stdResource1,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last,
+                auxLabel,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1]
+            )
+
+            resStd2 = concatenationCost(
+                solver.res.stdResource2,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last,
+                auxLabel,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1]
+            )
+
+            return resStd1.stdWarp, resStd2.stdWarp
+
         else
-            solver.prevLabelStdF = ForwardLabel(solver.prevLabelF.state, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][i-1]+1, sol.routes[r][j] + 1)), sol.routes[r][j])
-            auxLabel = ForwardLabel(solver.prevLabelF.state, solver.prevLabelF.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdF, (sol.routes[r][j]+1, sol.routes[r][i] + 1)),  sol.routes[r][i])
-            auxLabel = ForwardLabel(auxLabel.state, auxLabel.cost, extendAlongArc(solver.res.stdResource, auxLabel, (auxLabel.last+1, sol.routes[r][j+1]+1)), sol.routes[r][j+1])
-            res = concatenationCost(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last, auxLabel, sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1])
 
-           return res.stdWarp
+            solver.prevLabelStdF = ForwardLabel(
+                solver.prevLabelF.state,
+                solver.prevLabelF.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][i-1]+1, sol.routes[r][j] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][i-1]+1, sol.routes[r][j] + 1)),
+                sol.routes[r][j]
+            )
+
+            auxLabel = ForwardLabel(
+                solver.prevLabelF.state,
+                solver.prevLabelF.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][j]+1, sol.routes[r][i] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdF,
+                            (sol.routes[r][j]+1, sol.routes[r][i] + 1)),
+                sol.routes[r][i]
+            )
+
+            auxLabel = ForwardLabel(
+                auxLabel.state,
+                auxLabel.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            auxLabel,
+                            (auxLabel.last+1, sol.routes[r][j+1]+1)),
+                extendAlongArc(solver.res.stdResource2,
+                            auxLabel,
+                            (auxLabel.last+1, sol.routes[r][j+1]+1)),
+                sol.routes[r][j+1]
+            )
+
+            resStd1 = concatenationCost(
+                solver.res.stdResource1,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last,
+                auxLabel,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1]
+            )
+
+            resStd2 = concatenationCost(
+                solver.res.stdResource2,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1].last,
+                auxLabel,
+                sol.backwardLabels[r][length(sol.routes[r]) + 1 - j - 1]
+            )
+
+            return resStd1.stdWarp, resStd2.stdWarp
         end
-    else
-        if j == i-1
-            solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.state, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, sol.backwardLabels[r][length(sol.routes[r]) - i], (sol.routes[r][i+1]+1, sol.routes[r][i-1] + 1)), sol.routes[r][i-1])
-            auxLabel = BackwardLabel(solver.prevLabelB.state, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)), sol.routes[r][i])
-            auxLabel = BackwardLabel(auxLabel.state, auxLabel.cost, extendAlongArc(solver.res.stdResource, auxLabel, (sol.routes[r][j]+1, sol.routes[r][j-1]+1)), sol.routes[r][j-1])
-            
-            res = concatenationCost(solver.res.stdResource, auxLabel.last, sol.forwardLabels[r][j - 1], auxLabel)
 
-            return res.stdWarp
+    else
+
+        if j == i-1
+
+            solver.prevLabelStdB = BackwardLabel(
+                solver.prevLabelStdB.state,
+                solver.prevLabelStdB.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            sol.backwardLabels[r][length(sol.routes[r]) - i],
+                            (sol.routes[r][i+1]+1, sol.routes[r][i-1] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            sol.backwardLabels[r][length(sol.routes[r]) - i],
+                            (sol.routes[r][i+1]+1, sol.routes[r][i-1] + 1)),
+                sol.routes[r][i-1]
+            )
+
+            auxLabel = BackwardLabel(
+                solver.prevLabelB.state,
+                solver.prevLabelB.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)),
+                sol.routes[r][i]
+            )
+
+            auxLabel = BackwardLabel(
+                auxLabel.state,
+                auxLabel.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            auxLabel,
+                            (sol.routes[r][j]+1, sol.routes[r][j-1]+1)),
+                extendAlongArc(solver.res.stdResource2,
+                            auxLabel,
+                            (sol.routes[r][j]+1, sol.routes[r][j-1]+1)),
+                sol.routes[r][j-1]
+            )
+
+            resStd1 = concatenationCost(
+                solver.res.stdResource1,
+                auxLabel.last,
+                sol.forwardLabels[r][j - 1],
+                auxLabel
+            )
+
+            resStd2 = concatenationCost(
+                solver.res.stdResource2,
+                auxLabel.last,
+                sol.forwardLabels[r][j - 1],
+                auxLabel
+            )
+
+            return resStd1.stdWarp, resStd2.stdWarp
+
         else
-            solver.prevLabelStdB = BackwardLabel(solver.prevLabelStdB.state, solver.prevLabelStdB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (solver.prevLabelStdB.last+1, sol.routes[r][j] + 1)),  sol.routes[r][j])
-            auxLabel = BackwardLabel(solver.prevLabelB.state, solver.prevLabelB.cost, extendAlongArc(solver.res.stdResource, solver.prevLabelStdB, (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)), sol.routes[r][i])
-            auxLabel = BackwardLabel(auxLabel.state, auxLabel.cost, extendAlongArc(solver.res.stdResource, auxLabel, (sol.routes[r][j]+1, sol.routes[r][j-1]+1)), sol.routes[r][j-1])
-            res = concatenationCost(solver.res.stdResource, auxLabel.last, sol.forwardLabels[r][j - 1], auxLabel)
-            return res.stdWarp
+
+            solver.prevLabelStdB = BackwardLabel(
+                solver.prevLabelStdB.state,
+                solver.prevLabelStdB.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][j] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][j] + 1)),
+                sol.routes[r][j]
+            )
+
+            auxLabel = BackwardLabel(
+                solver.prevLabelB.state,
+                solver.prevLabelB.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)),
+                extendAlongArc(solver.res.stdResource2,
+                            solver.prevLabelStdB,
+                            (solver.prevLabelStdB.last+1, sol.routes[r][i] + 1)),
+                sol.routes[r][i]
+            )
+
+            auxLabel = BackwardLabel(
+                auxLabel.state,
+                auxLabel.cost,
+                extendAlongArc(solver.res.stdResource1,
+                            auxLabel,
+                            (sol.routes[r][j]+1, sol.routes[r][j-1]+1)),
+                extendAlongArc(solver.res.stdResource2,
+                            auxLabel,
+                            (sol.routes[r][j]+1, sol.routes[r][j-1]+1)),
+                sol.routes[r][j-1]
+            )
+
+            resStd1 = concatenationCost(
+                solver.res.stdResource1,
+                auxLabel.last,
+                sol.forwardLabels[r][j - 1],
+                auxLabel
+            )
+
+            resStd2 = concatenationCost(
+                solver.res.stdResource2,
+                auxLabel.last,
+                sol.forwardLabels[r][j - 1],
+                auxLabel
+            )
+
+            return resStd1.stdWarp, resStd2.stdWarp
         end
     end
 end
@@ -620,63 +809,81 @@ function computeStdViolInsertion1(solver::Solver, sol::Solution, r::Int, custome
     forwardLabel = sol.forwardLabels[r][pos-1]
     backwardLabel = sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos]
 
-    stdResForward = extendAlongArc(solver.res.stdResource, forwardLabel, (sol.routes[r][pos-1]+1, customer+1))
-    # insertionLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, vcat(forwardLabel.path, customer), customer)
-    insertionLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, customer)
+    std1ResForward = extendAlongArc(solver.res.stdResource1, forwardLabel, (sol.routes[r][pos-1]+1, customer+1))
+    std2ResForward = extendAlongArc(solver.res.stdResource2, forwardLabel, (sol.routes[r][pos-1]+1, customer+1))
 
-    stdResBackward = extendAlongArc(solver.res.stdResource, backwardLabel, (sol.routes[r][pos]+1, customer+1))
-    # insertionLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, stdResBackward, vcat(customer, backwardLabel.path), customer)
-    insertionLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, stdResBackward, customer)
+    insertionLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, std1ResForward, std2ResForward, customer)
 
-    concatCost = concatenationCost(solver.res.stdResource, insertionLabelBackward.last, insertionLabelForward, insertionLabelBackward)
-    return concatCost.stdWarp
+    std1ResBackward = extendAlongArc(solver.res.stdResource1, backwardLabel, (sol.routes[r][pos]+1, customer+1))
+    std2ResBackward = extendAlongArc(solver.res.stdResource2, backwardLabel, (sol.routes[r][pos]+1, customer+1))
+
+    insertionLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, std1ResBackward, std2ResBackward, customer)
+
+    concatCost1 = concatenationCost(solver.res.stdResource1, insertionLabelBackward.last, insertionLabelForward, insertionLabelBackward)
+    concatCost2 = concatenationCost(solver.res.stdResource2, insertionLabelBackward.last, insertionLabelForward, insertionLabelBackward)
+
+    return concatCost1.stdWarp, concatCost2.stdWarp
 end
 
 function computeStdViolRemove1(solver::Solver, sol::Solution, r::Int, pos::Int)
     forwardLabel = sol.forwardLabels[r][pos-1]
     backwardLabel = sol.backwardLabels[r][length(sol.routes[r]) + 1 - pos - 1]
-    stdResForward = extendAlongArc(solver.res.stdResource, forwardLabel, (sol.routes[r][pos-1]+1, sol.routes[r][pos+1]+1))
-    # removalLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, vcat(forwardLabel.path, sol.routes[r][pos+1]), sol.routes[r][pos+1])
-    removalLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, sol.routes[r][pos+1])
+    stdRes1Forward = extendAlongArc(solver.res.stdResource1, forwardLabel, (sol.routes[r][pos-1]+1, sol.routes[r][pos+1]+1))
+    stdRes2Forward = extendAlongArc(solver.res.stdResource2, forwardLabel, (sol.routes[r][pos-1]+1, sol.routes[r][pos+1]+1))
 
-    concatCost = concatenationCost(solver.res.stdResource, backwardLabel.last, removalLabelForward, backwardLabel)
-    return concatCost.stdWarp
+    # removalLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, vcat(forwardLabel.path, sol.routes[r][pos+1]), sol.routes[r][pos+1])
+    removalLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdRes1Forward, stdRes2Forward, sol.routes[r][pos+1])
+
+    concatStd1 = concatenationCost(solver.res.stdResource1, backwardLabel.last, removalLabelForward, backwardLabel)
+    concatStd2 = concatenationCost(solver.res.stdResource2, backwardLabel.last, removalLabelForward, backwardLabel)
+
+    return concatStd1.stdWarp, concatStd2.stdWarp
 end
 
 function computeStdViolSwap11(solver::Solver, sol::Solution, r::Int, pos::Int, customer::Int)
     forwardLabel = sol.forwardLabels[r][pos-1]
     backwardLabel = sol.backwardLabels[r][length(sol.routes[r]) - pos]
-    stdResForward = extendAlongArc(solver.res.stdResource, forwardLabel, (sol.routes[r][pos-1]+1, customer + 1))
-    # swapLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, vcat(forwardLabel.path, customer), customer)
-    swapLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdResForward, customer)
+    stdRes1Forward = extendAlongArc(solver.res.stdResource1, forwardLabel, (sol.routes[r][pos-1]+1, customer + 1))
+    stdRes2Forward = extendAlongArc(solver.res.stdResource2, forwardLabel, (sol.routes[r][pos-1]+1, customer + 1))
 
-    stdResBackward = extendAlongArc(solver.res.stdResource, backwardLabel, (sol.routes[r][pos+1]+1, customer+1))
-    # swapLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, stdResBackward, vcat(customer, backwardLabel.path), customer)
-    swapLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, stdResBackward, customer)
+    swapLabelForward = ForwardLabel(forwardLabel.state, forwardLabel.cost, stdRes1Forward, stdRes2Forward, customer)
 
-    concatCost = concatenationCost(solver.res.stdResource, swapLabelBackward.last, swapLabelForward, swapLabelBackward)
-    return concatCost.stdWarp
+    stdRes1Backward = extendAlongArc(solver.res.stdResource1, backwardLabel, (sol.routes[r][pos+1]+1, customer+1))
+    stdRes2Backward = extendAlongArc(solver.res.stdResource2, backwardLabel, (sol.routes[r][pos+1]+1, customer+1))
+
+    swapLabelBackward = BackwardLabel(backwardLabel.state, backwardLabel.cost, stdRes1Backward, stdRes2Backward, customer)
+
+    concatStd1 = concatenationCost(solver.res.stdResource1, swapLabelBackward.last, swapLabelForward, swapLabelBackward)
+    concatStd2 = concatenationCost(solver.res.stdResource2, swapLabelBackward.last, swapLabelForward, swapLabelBackward)
+
+    return concatStd1.stdWarp, concatStd2.stdWarp
 end
 
 function computeStdViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int)
     # route r1
     forwardLabel1 = sol.forwardLabels[r1][i]
     backwardLabel1 = sol.backwardLabels[r2][length(sol.routes[r2]) - j]
-    stdResForward = extendAlongArc(solver.res.stdResource, forwardLabel1, (sol.routes[r1][i]+1, sol.routes[r2][j+1] + 1))
-    # forwardLabel1 = ForwardLabel(forwardLabel1.state, forwardLabel1.cost, stdResForward, vcat(forwardLabel1.path, sol.routes[r2][j+1]), sol.routes[r2][j+1])
-    forwardLabel1 = ForwardLabel(forwardLabel1.state, forwardLabel1.cost, stdResForward, sol.routes[r2][j+1])
+    stdRes1Forward = extendAlongArc(solver.res.stdResource1, forwardLabel1, (sol.routes[r1][i]+1, sol.routes[r2][j+1] + 1))
+    stdRes2Forward = extendAlongArc(solver.res.stdResource2, forwardLabel1, (sol.routes[r1][i]+1, sol.routes[r2][j+1] + 1))
 
-    concat1 = concatenationCost(solver.res.stdResource, backwardLabel1.last, forwardLabel1, backwardLabel1)
+    forwardLabel1 = ForwardLabel(forwardLabel1.state, forwardLabel1.cost, stdRes1Forward, stdRes2Forward, sol.routes[r2][j+1])
+
+    concat1Std1 = concatenationCost(solver.res.stdResource1, backwardLabel1.last, forwardLabel1, backwardLabel1)
+    concat1Std2 = concatenationCost(solver.res.stdResource2, backwardLabel1.last, forwardLabel1, backwardLabel1)
 
     # route r2
     forwardLabel2 = sol.forwardLabels[r2][j]
     backwardLabel2 = sol.backwardLabels[r1][length(sol.routes[r1]) - i]
-    stdResForward = extendAlongArc(solver.res.stdResource, forwardLabel2, (sol.routes[r2][j]+1, sol.routes[r1][i+1] + 1))
-    # forwardLabel2 = ForwardLabel(forwardLabel2.state, forwardLabel2.cost, stdResForward, vcat(forwardLabel2.path, sol.routes[r1][i+1]), sol.routes[r1][i+1])
-    forwardLabel2 = ForwardLabel(forwardLabel2.state, forwardLabel2.cost, stdResForward,  sol.routes[r1][i+1])
+    stdRes1Forward = extendAlongArc(solver.res.stdResource1, forwardLabel2, (sol.routes[r2][j]+1, sol.routes[r1][i+1] + 1))
+    stdRes2Forward = extendAlongArc(solver.res.stdResource2, forwardLabel2, (sol.routes[r2][j]+1, sol.routes[r1][i+1] + 1))
 
-    concat2 = concatenationCost(solver.res.stdResource, backwardLabel2.last, forwardLabel2, backwardLabel2)
-    return concat1.stdWarp, concat2.stdWarp
+    # forwardLabel2 = ForwardLabel(forwardLabel2.state, forwardLabel2.cost, stdResForward, vcat(forwardLabel2.path, sol.routes[r1][i+1]), sol.routes[r1][i+1])
+    forwardLabel2 = ForwardLabel(forwardLabel2.state, forwardLabel2.cost, stdRes1Forward, stdRes2Forward,  sol.routes[r1][i+1])
+
+    concat2Std1 = concatenationCost(solver.res.stdResource1, backwardLabel2.last, forwardLabel2, backwardLabel2)
+    concat2Std2 = concatenationCost(solver.res.stdResource1, backwardLabel2.last, forwardLabel2, backwardLabel2)
+
+    return concat1Std1.stdWarp, concat1Std2.stdWarp, concat2Std1.stdWarp, concat2Std2.stdWarp
 end
 
 # TO DO

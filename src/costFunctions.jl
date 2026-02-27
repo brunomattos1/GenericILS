@@ -1,4 +1,4 @@
-function manualCost(sol::Solution, costMatrix::Matrix{Float64})
+function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float64})
     cost = 0.
     for r = 1:length(sol.routes)
         for i = 1:length(sol.routes[r])-1
