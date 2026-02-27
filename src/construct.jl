@@ -26,12 +26,13 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     end
     computeLabels(solver, solver.outerCurrSol)
     for r = 1:length(solver.outerCurrSol.routes)
-        push!(solver.outerCurrSol.labelCosts, solver.outerCurrSol.forwardLabels[r][end].cost)
+        push!(solver.outerCurrSol.labelCosts, min(solver.outerCurrSol.forwardLabels[r][end].cost, solver.outerCurrSol.backwardLabels[r][end].cost))
     end
     solver.outerCurrSol.totalLabelCost = sum(solver.outerCurrSol.labelCosts)
-    if isCostResource()
-        solver.outerCurrSol.cost += solver.outerCurrSol.totalLabelCost
-    end
+    solver.outerCurrSol.cost = objectiveValue(solver, solver.outerCurrSol)
+    # if isCostResource()
+    #     solver.outerCurrSol.cost += solver.outerCurrSol.totalLabelCost
+    # end
     for k = nbRoutes+1:length(vertices)
         bestI = 0
         bestInsertion = BestInsertion()

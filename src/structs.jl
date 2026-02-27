@@ -59,7 +59,7 @@ struct OptStar <: Move
     secondIdx::Int
 end
 
-struct ViolationInfo
+mutable struct ViolationInfo
     firstRouteInfeas::Int
     secondRouteInfeas::Int
     firstRouteLabelCost::Float64
@@ -282,6 +282,7 @@ mutable struct Solver
     data::ProblemData
     outerCurrSol::Solution
     outerBestSol::Solution
+    bestFeasSol::Solution
     currSol::Solution
     bestSol::Solution
     diversification::Diversification
@@ -306,6 +307,9 @@ mutable struct Solver
     cost_storage::Vector{Float64}
     route_lookup::Dict{Vector{Int}, Int}
     timeStamp::Int
+    timeLimitILS::Float64
+    timeLimitSP::Float64
+    aggressivePool::Bool
 end
 
 function Solver(; 
@@ -314,6 +318,7 @@ function Solver(;
     data = ProblemData(),
     outerCurrSol = Solution(),
     bestCurrSol = Solution(),
+    bestFeasSol = Solution(),
     currSol = Solution(),
     bestSol = Solution(),
     diversification = Diversification(),
@@ -327,7 +332,11 @@ function Solver(;
     buffer2opt = Vector{Int}(),
     bufferRoute = Vector{Int}(),
     bufferSol = Solution(),
-    timeStamp = 0)
+    timeStamp = 0,
+    timeLimitILS = 3600.0,
+    timeLimitSP = 3600.0,
+    aggressivePool = false)
+
     prevLabelF = myInitStateForward(res.customResource)
     prevLabelStdF = myInitStateForward(res.customResource)
     prevLabelB = myInitStateBackward(res.customResource)
@@ -336,11 +345,24 @@ function Solver(;
     route_storage = Vector{Vector{Int}}()
     cost_storage = Vector{Float64}()
     route_lookup = Dict{Vector{Int}, Int}()
+    
     Solver(
-        Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, currSol, bestSol,
+        Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
         diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
-        buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp#pool, hashes
-    )
+        buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp, timeLimitILS, timeLimitSP,
+        aggressivePool)
+end
+
+function setTimeLimitILS(solver::Solver, time::Float64)
+    solver.timeLimitILS = time
+end
+
+function setTimeLimitSP(solver::Solver, time::Float64)
+    solver.timeLimitSP = time
+end
+
+function aggressivePool(solver::Solver, agg::Bool)
+    solver.aggressivePool = agg
 end
 
 getCurrSol(solver::Solver) = solver.currSol

@@ -4,8 +4,8 @@ function NILS(solver::Solver)
     solver.bestSol = Solution()
     total_algorithm_time = 0.0 # Podemos capturar o tempo de brinde
     header_time = 20.0
-    bestFeasSol = Solution()
-    bestFeasSol.cost = Inf
+    solver.bestFeasSol = Solution()
+    solver.bestFeasSol.cost = Inf
     println("-"^144)
 
     # Atualizamos o cabeçalho para refletir a nova precisão
@@ -21,7 +21,7 @@ function NILS(solver::Solver)
         if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             copy_solution!(solver.outerBestSol, solver.outerCurrSol)
             if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
-                copy_solution!(bestFeasSol, solver.outerBestSol)
+                copy_solution!(solver.bestFeasSol, solver.outerBestSol)
             end
         end
         outerIter = 0
@@ -33,12 +33,11 @@ function NILS(solver::Solver)
             if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
                 copy_solution!(solver.outerBestSol, solver.outerCurrSol)
                 if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
-                    copy_solution!(bestFeasSol, solver.outerBestSol)
-                    computeLabels(solver, bestFeasSol)
+                    copy_solution!(solver.bestFeasSol, solver.outerBestSol)
                     outerIter = 0
                 end
-            elseif (solver.outerCurrSol.cost < bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
-                copy_solution!(bestFeasSol, solver.outerCurrSol)
+            elseif (solver.outerCurrSol.cost < solver.bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
+                copy_solution!(solver.bestFeasSol, solver.outerCurrSol)
                 outerIter = 0
             end
             total_algorithm_time = time() - ts
@@ -53,7 +52,7 @@ function NILS(solver::Solver)
             @printf("| %8d | %10d | %16.2f | %12.2f | %12.2f | %21.2f | %23.2f | %6d | %10.4f |\n",
                 r,
                 outerIter,
-                bestFeasSol.cost,
+                solver.bestFeasSol.cost,
                 solver.outerBestSol.cost,
                 solver.outerCurrSol.cost,
                 solver.params.penaltyCustom,
@@ -61,7 +60,9 @@ function NILS(solver::Solver)
                 length(solver.route_storage),
                 total_algorithm_time
             )
-
+            if total_algorithm_time >= solver.timeLimitILS
+                @goto SP
+            end
         end
     end
     # for (route, cost) in solver.pool
@@ -69,10 +70,16 @@ function NILS(solver::Solver)
     #         delete!(solver.pool, route)
     #     end
     # end
+    @label SP
     println("-"^144)
-    setPartitioning(solver, bestFeasSol.cost)
-    solver.outerBestSol = deepcopy(solver.currSol)
-    # solver.outerBestSol = bestFeasSol
+    if total_algorithm_time >= solver.timeLimitILS
+        println("Search finished due to time limit! Executing Set Partitioning model...")
+    else
+        println("Search finished! Executing Set Partitioning model...")
+    end
+    println("-"^144)
+    setPartitioning(solver, solver.bestFeasSol.cost)
+    solver.outerBestSol = deepcopy(solver.bestFeasSol)
 end
 
 function ILS(solver::Solver, sol::Solution)
@@ -81,6 +88,9 @@ function ILS(solver::Solver, sol::Solution)
     while it < solver.params.innerIterMax
         it += 1
         RVND!(solver, sol)
+        if solver.aggressivePool
+            push!(solver, sol)
+        end
         if acceptSol(solver, sol, solver.bestSol)
             copy_solution!(solver.bestSol, sol)
             it = 0
