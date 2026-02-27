@@ -6,57 +6,81 @@ function NILS(solver::Solver)
     header_time = 20.0
     solver.bestFeasSol = Solution()
     solver.bestFeasSol.cost = Inf
-    println("-"^144)
+    println("-"^135)
 
-    # Atualizamos o cabeçalho para refletir a nova precisão
-    @printf("| %8s | %10s | %16s | %12s | %12s | %21s | %23s | %6s | %10s |\n",
-                        "Restart", "Iteration", "Best Feas. Cost", "Best Cost", "Curr. Cost", "Penalty Custom Res.", "Penalty Standard Res.", "Pool", "Time (s)")
-    println("-"^144)
+    @printf("| %7s | %6s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
+        "Restart",
+        "Iter.",
+        "Best Feas",
+        "Best",
+        "Curr",
+        "Pen. Custom",
+        "Pen. Standard 1",
+        "Pen. Standard 2",
+        "Pool",
+        "Time (s)"
+    )
+
+    println("-"^135)
     ts = time()
-    for r = 1:solver.params.restarts
+    for r = 1:solver.parameters.restarts
         constructSol!(solver)
         push!(solver, solver.outerCurrSol)
         ILS(solver, solver.outerCurrSol)
 
         if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             copy_solution!(solver.outerBestSol, solver.outerCurrSol)
-            if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
+            if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarpStd1 <= 1e-6) && (solver.outerBestSol.totalWarpStd2 <= 1e-6)
                 copy_solution!(solver.bestFeasSol, solver.outerBestSol)
             end
         end
         outerIter = 0
-        while outerIter < solver.params.outerIterMax
+        while outerIter < solver.parameters.outerIterMax
             outerIter += 1
             outerPerturb!(solver, solver.outerCurrSol)
             ILS(solver, solver.outerCurrSol)
             push!(solver, solver.outerCurrSol)
             if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
                 copy_solution!(solver.outerBestSol, solver.outerCurrSol)
-                if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-6)
+                if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarpStd1 <= 1e-6) && (solver.outerBestSol.totalWarpStd2 <= 1e-6)
                     copy_solution!(solver.bestFeasSol, solver.outerBestSol)
                     outerIter = 0
                 end
-            elseif (solver.outerCurrSol.cost < solver.bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarp <= 1e-6)
+            elseif (solver.outerCurrSol.cost < solver.bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarpStd1 <= 1e-6 && solver.outerCurrSol.totalWarpStd2 <= 1e-6)
                 copy_solution!(solver.bestFeasSol, solver.outerCurrSol)
                 outerIter = 0
             end
             total_algorithm_time = time() - ts
 
             if total_algorithm_time >= header_time
-                println("-"^144)
-                @printf("| %8s | %10s | %16s | %12s | %12s | %21s | %23s | %6s | %10s |\n",
-                        "Restart", "Iteration", "Best Feas. Cost", "Best Cost", "Curr. Cost", "Penalty Custom Res.", "Penalty Standard Res.", "Pool", "Time (s)")
-                println("-"^144)
+                println("-"^135)
+
+                @printf("| %7s | %6s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
+                    "Restart",
+                    "Iter.",
+                    "Best Feas",
+                    "Best",
+                    "Curr",
+                    "Pen. Custom",
+                    "Pen. Standard 1",
+                    "Pen. Standard 2",
+                    "Pool",
+                    "Time (s)"
+                )
+
+                println("-"^135)
                 header_time += 20.0
             end
-            @printf("| %8d | %10d | %16.2f | %12.2f | %12.2f | %21.2f | %23.2f | %6d | %10.4f |\n",
+
+            @printf("| %7d | %6d | %10.2f | %12.2f | %12.2f | %11.2f | %15.2f | %15.2f | %6d | %10.4f |\n",
                 r,
                 outerIter,
                 solver.bestFeasSol.cost,
                 solver.outerBestSol.cost,
                 solver.outerCurrSol.cost,
-                solver.params.penaltyCustom,
-                solver.params.penaltyStandard,
+                solver.parameters.penaltyCustom,
+                solver.parameters.penaltyStandard1,
+                solver.parameters.penaltyStandard2,
                 length(solver.route_storage),
                 total_algorithm_time
             )
@@ -85,7 +109,7 @@ end
 function ILS(solver::Solver, sol::Solution)
     it = 0
     copy_solution!(solver.bestSol, sol)
-    while it < solver.params.innerIterMax
+    while it < solver.parameters.innerIterMax
         it += 1
         RVND!(solver, sol)
         if solver.aggressivePool
@@ -102,7 +126,7 @@ end
 
 function classicILS(solver::Solver)
     solver.outerBestSol.cost = Inf
-    for r = 1:solver.params.restarts
+    for r = 1:solver.parameters.restarts
         constructSol!(solver)
         RVND!(solver, solver.outerCurrSol)
 
@@ -111,7 +135,7 @@ function classicILS(solver::Solver)
             solver.outerBestSol = deepcopy(solver.outerCurrSol)
         end
         iter = 0
-        while iter < solver.params.outerIterMax
+        while iter < solver.parameters.outerIterMax
             iter += 1
             outerPerturb!(solver, solver.outerCurrSol)
 

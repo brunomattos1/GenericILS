@@ -145,12 +145,12 @@ function printVRPTW(solver::Solver, sol::Solution)
                 print("0 ", " -> ")
             else
                 dist += solver.data.costMatrix[sol.routes[r][i-1]+1, sol.routes[r][i]+1]
-                time += round(solver.res.stdResource.d[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
-                if time < solver.res.stdResource.lb[sol.routes[r][i] + 1]
-                    time = solver.res.stdResource.lb[sol.routes[r][i] + 1]
+                time += round(solver.res.stdResource1.d[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
+                if time < solver.res.stdResource1.lb[sol.routes[r][i] + 1]
+                    time = solver.res.stdResource1.lb[sol.routes[r][i] + 1]
                 end
                 demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource.lb[sol.routes[r][i] + 1]), $(solver.res.stdResource.ub[sol.routes[r][i] + 1])]")
+                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource1.lb[sol.routes[r][i] + 1]), $(solver.res.stdResource1.ub[sol.routes[r][i] + 1])]")
                 if i < length(sol.routes[r]) print(" -> ") end
             end
         end
@@ -188,41 +188,47 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due = read_solomon(instance)
     deleteat!(customers, 1)
 
-    maxNbRoute = vehicles#3*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity)#vehicles
-    # maxNbRoute = ceil(Int, 1.5*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity))
-    # return
+    maxNbRoute = vehicles
     data = ProblemData(customers, dist, maxNbRoute)
+    # Capacity as custom resource
     customRes = CustomResource(dmat, capacity)
-    stdRes = StandardResource(time, ready, due)
+    # customRes = CustomResource(zeros(Float64, length(customers)+1, length(customers)+1), capacity)
+
+    # Time as standard resource
+    stdRes1 = StandardResource{1}(time, Float64.(ready), Float64.(due))
+    # Capacity also as standard resource
+    stdRes2 = StandardResource{2}(dmat, Float64[0.0 for i = 1:length(customers)+1], Float64[capacity for i = 1:length(customers)+1])
     
-    res = Resources(customRes, stdRes)
+    res = Resources(customRes, stdRes1, stdRes2)
+
     parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
         penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
-        penaltyStandard = 100.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
+        penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
+        penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
     )
 
     diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
 
     solver = Solver(
         seed = seed,
-        res = res,
-        stdResource = stdRes,
-        params = parameters,
+        parameters = parameters,
         diversification = diversif,
-        data = data, 
+        res = res,
+        data = data,
         neighborhoods = [1,2,3,4]
     )
     println("Solving...")
-    @time NILS(solver)
-    printVRPTW(solver, solver.outerBestSol)
-    checkVRPTW(solver, solver.outerBestSol)
-    # plot_vrptw(x, y, demands, solver.outerBestSol, filename = instName2)
-    return solver.outerBestSol.cost
+    NILS(solver)
+    sol = getBestSol(solver)
+    printVRPTW(solver, sol)
+    # sol = createSolution(solver, [[0,5,3,4,2,1,0]])
+    # @show sol.dist, sol.cost
+    return sol.cost
 end
 
-instance     = "Solomon/C101.txt"
+instance     = "Solomon/toy.txt"
 restarts     = 1
-outerIterMax = 500
+outerIterMax = 100
 innerIterMax = 5
 seed         = 1
 

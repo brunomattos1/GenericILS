@@ -7,9 +7,10 @@ struct BestInsertion
     customer::Int
     pos::Int
     infeas::Int
-    warp::Float64
+    warpStd1::Float64
+    warpStd2::Float64
 end
-BestInsertion() = BestInsertion(Inf, Inf, 0, 0, 0, typemax(Int), Inf)
+BestInsertion() = BestInsertion(Inf, Inf, 0, 0, 0, typemax(Int), Inf, Inf)
 
 struct BestMove 
     cost::Float64
@@ -19,7 +20,8 @@ struct BestMove
     firstIdx::Int
     secondIdx::Int
     infeas::Tuple{Int, Int}
-    warps::Tuple{Float64, Float64}
+    warpsR1::Tuple{Float64, Float64}
+    warpsR2::Tuple{Float64, Float64}
 end
 BestMove(; 
     cost::Float64 = Inf,
@@ -29,8 +31,10 @@ BestMove(;
     firstIdx::Int = 0,
     secondIdx::Int = 0,
     infeas::Tuple{Int,Int} = (typemax(Int), typemax(Int)),
-    warps::Tuple{Float64,Float64} = (Inf, Inf)
-) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx, infeas, warps)
+    warpsR1::Tuple{Float64,Float64} = (Inf, Inf),
+    warpsR2::Tuple{Float64,Float64} = (Inf, Inf)
+
+) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx, infeas, warpsR1, warpsR2)
 
 struct Insertion <: Move
     route::Int
@@ -59,20 +63,28 @@ struct OptStar <: Move
     secondIdx::Int
 end
 
-mutable struct ViolationInfo
+struct ViolationInfo
     firstRouteInfeas::Int
     secondRouteInfeas::Int
     firstRouteLabelCost::Float64
     secondRouteLabelCost::Float64
 end
 
+struct Warps
+    warpStd1FirstRoute::Float64
+    warpStd1SecondRoute::Float64
+    warpStd2FirstRoute::Float64
+    warpStd2SecondRoute::Float64
+end
+
+
 struct Cost
-    dist::Float64
-    route1::Int
-    route2::Int
-    #infeas::Tuple{Int, Int}
-    violInfo::ViolationInfo
-    warp::Tuple{Float64, Float64}
+    dist::Float64 # distance
+    route1::Int # route 1
+    route2::Int # route 2
+    violInfo::ViolationInfo # violation info for custom resource
+    warpStd1::Tuple{Float64, Float64} # warp for the first and second route (!)
+    warpStd2::Tuple{Float64, Float64} # warp for the first and second route (!)
 end
 
 abstract type AbstractSolution 
@@ -86,8 +98,12 @@ mutable struct Solution
     labelCosts::Vector{Float64}
     totalInfeas::Int
     infeas::Vector{Int}
-    totalWarp::Float64
-    warps::Vector{Float64}
+
+    totalWarpStd1::Float64
+    warpsStd1::Vector{Float64}
+    totalWarpStd2::Float64
+    warpsStd2::Vector{Float64}
+
     feasiblesF::Vector{Int} # number of feasible customers per route forward sense
     feasiblesB::Vector{Int} # number of feasible customers per route backward sense
     lastFeasibleF::Vector{Int} # last feasible position for each route forward sense
@@ -108,7 +124,25 @@ end
 
 # Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Dict{Tuple{Symbol, Int, Int}, Int}(), Vector{Int}())
 # Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Vector{Vector{Vector{Int}}}(), Vector{Int}())
-Solution() = Solution(Vector{Vector{Int}}(), 0.0, 0.0, 0.0, Vector{Int}(), 0, Vector{Int}(), 0.0, Vector{Float64}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{ForwardLabel}[], Vector{BackwardLabel}[], Array{Int,3}(undef, 4, 10, 10), Vector{Int}())
+Solution() = Solution(Vector{Vector{Int}}(),
+                0.0, 
+                0.0, 
+                0.0, 
+                Vector{Int}(), 
+                0, 
+                Vector{Int}(), 
+                0.0, 
+                Vector{Float64}(), 
+                0.0, 
+                Vector{Float64}(), 
+                Vector{Int}(), 
+                Vector{Int}(),
+                Vector{Int}(), 
+                Vector{Int}(), 
+                Vector{ForwardLabel}[], 
+                Vector{BackwardLabel}[], 
+                Array{Int,3}(undef, 4, 10, 10), 
+                Vector{Int}())
 
 
 function copy_solution!(dest::Solution, src::Solution)
@@ -116,15 +150,19 @@ function copy_solution!(dest::Solution, src::Solution)
     dest.dist = src.dist
     dest.cost = src.cost
     dest.totalInfeas = src.totalInfeas
-    dest.totalWarp = src.totalWarp
+    dest.totalWarpStd1 = src.totalWarpStd1
+    dest.totalWarpStd2 = src.totalWarpStd2
     dest.totalLabelCost = src.totalLabelCost
     
     # Copy vector fields using resize! and copyto!
     resize!(dest.infeas, length(src.infeas))
     copyto!(dest.infeas, src.infeas)
 
-    resize!(dest.warps, length(src.warps))
-    copyto!(dest.warps, src.warps)
+    resize!(dest.warpsStd1, length(src.warpsStd1))
+    copyto!(dest.warpsStd1, src.warpsStd1)
+
+    resize!(dest.warpsStd2, length(src.warpsStd2))
+    copyto!(dest.warpsStd2, src.warpsStd2)
 
     resize!(dest.labelCosts, length(src.infeas))
     copyto!(dest.labelCosts, src.labelCosts)
@@ -219,10 +257,12 @@ mutable struct Parameters
     penaltyCustom::Float64
     penaltyCustomIncrease::Float64
     penaltyCustomDecrease::Float64
-    penaltyStandard::Float64
-    penaltyStandardIncrease::Float64
-    penaltyStandardDecrease::Float64
-
+    penaltyStandard1::Float64
+    penaltyStandard1Increase::Float64
+    penaltyStandard1Decrease::Float64
+    penaltyStandard2::Float64
+    penaltyStandard2Increase::Float64
+    penaltyStandard2Decrease::Float64
 end
 function Parameters(;
     restarts = 10,
@@ -231,10 +271,14 @@ function Parameters(;
     penaltyCustom = 100.0,
     penaltyCustomIncrease = 0.01,
     penaltyCustomDecrease = 0.01,
-    penaltyStandard = 100.0,
-    penaltyStandardIncrease = 0.01,
-    penaltyStandardDecrease = 0.01)
-    return Parameters(restarts, outerIterMax, innerIterMax, penaltyCustom, penaltyCustomIncrease, penaltyCustomDecrease, penaltyStandard, penaltyStandardIncrease, penaltyStandardDecrease)
+    penaltyStandard1 = 100.0,
+    penaltyStandard1Increase = 0.01,
+    penaltyStandard1Decrease = 0.01,
+    penaltyStandard2 = 100.0,
+    penaltyStandard2Increase = 0.01,
+    penaltyStandard2Decrease = 0.01)
+    return Parameters(restarts, outerIterMax, innerIterMax, penaltyCustom, penaltyCustomIncrease, penaltyCustomDecrease, 
+    penaltyStandard1, penaltyStandard1Increase, penaltyStandard1Decrease, penaltyStandard2, penaltyStandard2Increase, penaltyStandard2Decrease)
 end
 
 function updatePenalty(parameters::Parameters, sol::Solution)
@@ -243,10 +287,15 @@ function updatePenalty(parameters::Parameters, sol::Solution)
     else
         parameters.penaltyCustom = min((1 + parameters.penaltyCustomIncrease)*parameters.penaltyCustom, 10000.0)
     end
-    if sol.totalWarp <= 1e-6
-        parameters.penaltyStandard = max((1 - parameters.penaltyStandardDecrease)*parameters.penaltyStandard, 0.1)
+    if sol.totalWarpStd1 <= 1e-6
+        parameters.penaltyStandard1 = max((1 - parameters.penaltyStandard1Decrease)*parameters.penaltyStandard1, 0.1)
     else
-        parameters.penaltyStandard = min((1 + parameters.penaltyStandardIncrease)*parameters.penaltyStandard, 10000.0)
+        parameters.penaltyStandard1 = min((1 + parameters.penaltyStandard1Increase)*parameters.penaltyStandard1, 10000.0)
+    end
+    if sol.totalWarpStd2 <= 1e-6
+        parameters.penaltyStandard2 = max((1 - parameters.penaltyStandard2Decrease)*parameters.penaltyStandard2, 0.1)
+    else
+        parameters.penaltyStandard2 = min((1 + parameters.penaltyStandard2Increase)*parameters.penaltyStandard2, 10000.0)
     end
 end
 
@@ -278,7 +327,7 @@ ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
 mutable struct Solver
     seed::Random.MersenneTwister
-    params::Parameters
+    parameters::Parameters
     data::ProblemData
     outerCurrSol::Solution
     outerBestSol::Solution
@@ -289,7 +338,7 @@ mutable struct Solver
     neighborhoods::Vector{Int}
     auxNeighborhoods::Vector{Int}
     res::Resources
-    stdResource::StandardResource
+
     forwardLabels::Vector{Vector{ForwardLabel}}
     backwardLabels::Vector{Vector{BackwardLabel}}
     prevLabelF::ForwardLabel
@@ -314,18 +363,24 @@ end
 
 function Solver(; 
     seed = 1,
-    params = Parameters(),
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
+        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
+        penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
+        penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
+    ),
     data = ProblemData(),
     outerCurrSol = Solution(),
     bestCurrSol = Solution(),
     bestFeasSol = Solution(),
     currSol = Solution(),
     bestSol = Solution(),
-    diversification = Diversification(),
-    neighborhoods = Int[i for i = 1:10],
+    diversification = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
+    neighborhoods = Int[i for i = 1:4],
     auxNeighborhoods = Int[],
-    res = Resources(CustomResource(zeros(Float64, 1, 1), 0.0),StandardResource(zeros(Float64, 1, 1), Float64[], Float64[])),
-    stdResource = StandardResource(zeros(Float64, 1, 1), Float64[], Float64[]),
+    res = Resources(CustomResource(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), 0.0),
+        StandardResource{1}(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), Float64[0.0 for i = 1:length(data.vertices)+1], Float64[typemax(Float64) for i = 1:length(data.vertices)+1]), 
+        StandardResource{2}(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), Float64[0.0 for i = 1:length(data.vertices)+1], Float64[typemax(Float64) for i = 1:length(data.vertices)+1])),
+
     forwardLabels = Vector{Vector{ForwardLabel}}(),
     backwardLabels = Vector{Vector{BackwardLabel}}(),
     buffer = Vector{Int}(),
@@ -347,11 +402,12 @@ function Solver(;
     route_lookup = Dict{Vector{Int}, Int}()
     
     Solver(
-        Random.MersenneTwister(seed), params, data, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
-        diversification, neighborhoods, auxNeighborhoods, res, stdResource, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
+        Random.MersenneTwister(seed), parameters, data, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
+        diversification, neighborhoods, auxNeighborhoods, res, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
         buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp, timeLimitILS, timeLimitSP,
         aggressivePool)
 end
+
 
 function setTimeLimitILS(solver::Solver, time::Float64)
     solver.timeLimitILS = time
@@ -366,13 +422,13 @@ function aggressivePool(solver::Solver, agg::Bool)
 end
 
 getCurrSol(solver::Solver) = solver.currSol
-getBestSol(solver::Solver) = solver.outerBestSol
+getBestSol(solver::Solver) = solver.bestFeasSol
 
-getBestRoutes(solver::Solver) = solver.outerBestSol.routes
+getBestRoutes(solver::Solver) = solver.bestFeasSol.routes
 
-getBestRoutes(solver::Solver, routes::AbstractVector{Int}) = solver.outerBestSol.routes[routes]
+getBestRoutes(solver::Solver, routes::AbstractVector{Int}) = solver.bestFeasSol.routes[routes]
 
-getBestRoutes(solver::Solver, route::Int) = [solver.outerBestSol.routes[route]]
+getBestRoutes(solver::Solver, route::Int) = [solver.bestFeasSol.routes[route]]
 
 getRoutes(sol::Union{Solution, UserSolution}) = sol.routes
 
@@ -505,15 +561,26 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
     end
 end
 
-function createSolution(solver::Solver, dist::Float64, cost::Float64, routes::Vector{Vector{Int}})
+function createSolution(
+    solver::Solver,
+    routes::Vector{Vector{Int}};
+    dist::Union{Float64,Nothing}=nothing,
+    cost::Union{Float64,Nothing}=nothing)
+
     sol = UserSolution(
         routes,
-        dist,
-        cost,
+        0.0,
+        0.0,
         Vector{Vector{ForwardLabel}}(),
         Vector{Vector{BackwardLabel}}(),
     )
+
+    sol.dist = isnothing(dist) ? manualCost(sol, solver.data.costMatrix) : dist
+
     computeLabels(solver, sol)
+
+    sol.cost = isnothing(cost) ? sol.dist + sum(min(sol.forwardLabels[r][end].cost,sol.backwardLabels[r][end].cost) for r in 1:length(sol.routes)) : cost
+
     return sol
 end
 

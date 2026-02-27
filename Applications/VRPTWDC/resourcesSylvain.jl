@@ -10,7 +10,13 @@ struct CustomResource
     Q::Float64
 end
 
-struct StandardResource
+struct StandardResource1
+    d::Matrix{Float64}
+    lb::Vector{Float64}
+    ub::Vector{Float64}
+end
+
+struct StandardResource2
     d::Matrix{Float64}
     lb::Vector{Float64}
     ub::Vector{Float64}
@@ -18,7 +24,8 @@ end
 
 struct Resources
     customResource::CustomResource
-    stdResource::StandardResource
+    stdResource1::StandardResource
+    stdResource2::StandardResource
 end
 
 function isSymmetric()

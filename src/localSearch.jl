@@ -16,7 +16,7 @@ function RVND!(solver::Solver, solution::Solution)
             elseif neigh == 4
                 improvement = twoOptStar!(solver, solution)
             end
-            updatePenalty(solver.params, solution)   
+            updatePenalty(solver.parameters, solution)   
             if improvement
                 copyto!(solver.auxNeighborhoods, solver.neighborhoods)
                 break
@@ -45,7 +45,7 @@ end
 #         elseif neigh == 4
 #             improv = twoOptStar!(solver, solution)
 #         end
-#         updatePenalty(solver.params, solution)
+#         updatePenalty(solver.parameters, solution)
 
 #         if improv
 #             neighborhoods = BitVector([true, true, true, true])

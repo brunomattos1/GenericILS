@@ -13,10 +13,12 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
     solution.infeas[r] = move.infeas
 
     # atualizar warp
-    solution.totalWarp -= solution.warps[r]
-    solution.totalWarp += move.warp
-    solution.warps[r] = move.warp
-
+    solution.totalWarpStd1 -= solution.warpsStd1[r]
+    solution.totalWarpStd1 += move.warpStd1
+    solution.warpsStd1[r] = move.warpStd1
+    solution.totalWarpStd2 -= solution.warpsStd2[r]
+    solution.totalWarpStd2 += move.warpStd2
+    solution.warpsStd2[r] = move.warpStd2
     # inserir cliente
     insert!(solution.routes[r], i, c)
     computeLabels(solver, solution, r)
@@ -25,9 +27,9 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
     solution.infeas[r] = length(solution.routes[r]) - max(solution.feasiblesF[r], solution.feasiblesB[r]) - 1
     solution.totalInfeas += solution.infeas[r]
 
-    solution.totalWarp -= solution.warps[r]
-    solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
-    solution.totalWarp += solution.warps[r]
+    # solution.totalWarp -= solution.warps[r]
+    # solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
+    # solution.totalWarp += solution.warps[r]
     solution.totalLabelCost -= solution.labelCosts[r]
     solution.labelCosts[r] = min(solution.forwardLabels[r][end].cost, solution.backwardLabels[r][end].cost)
     solution.totalLabelCost += solution.labelCosts[r]
@@ -46,10 +48,13 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.totalInfeas += move.infeas[1]
     solution.infeas[r] = move.infeas[1]
     # atualizar warp
-    solution.totalWarp -= solution.warps[r]
-    solution.totalWarp += move.warps[1]
-    solution.warps[r] = move.warps[1]
+    solution.totalWarpStd1 -= solution.warpsStd1[r]
+    solution.totalWarpStd1 += move.warpsR1[1]
+    solution.warpsStd1[r] = move.warpsR1[1]
 
+    solution.totalWarpStd2 -= solution.warpsStd2[r]
+    solution.totalWarpStd2 += move.warpsR1[2]
+    solution.warpsStd2[r] = move.warpsR1[2]
     # pegar cliente a mover
     customerI = solution.routes[r][i]
 
@@ -70,9 +75,13 @@ function applyMoveIntraShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.infeas[r] = length(solution.routes[r]) - max(solution.feasiblesF[r], solution.feasiblesB[r]) - 1
     solution.totalInfeas += solution.infeas[r]
 
-    solution.totalWarp -= solution.warps[r]
-    solution.warps[r] = solution.forwardLabels[r][end].std_res.stdWarp
-    solution.totalWarp += solution.warps[r]
+    solution.totalWarpStd1 -= solution.warpsStd1[r]
+    solution.warpsStd1[r] = solution.forwardLabels[r][end].std1State.stdWarp
+    solution.totalWarpStd1 += solution.warpsStd1[r]
+
+    solution.totalWarpStd2 -= solution.warpsStd2[r]
+    solution.warpsStd2[r] = solution.forwardLabels[r][end].std2State.stdWarp
+    solution.totalWarpStd2 += solution.warpsStd2[r]
 
     solution.totalLabelCost -= solution.labelCosts[r]
     solution.labelCosts[r] = min(solution.forwardLabels[r][end].cost, solution.backwardLabels[r][end].cost)
@@ -98,10 +107,10 @@ function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.infeas[r1] = move.infeas[1]
     solution.infeas[r2] = move.infeas[2]
 
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.totalWarp += move.warps[1] + move.warps[2]
-    solution.warps[r1] = move.warps[1]
-    solution.warps[r2] = move.warps[2]
+    # solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    # solution.totalWarp += move.warps[1] + move.warps[2]
+    # solution.warps[r1] = move.warps[1]
+    # solution.warps[r2] = move.warps[2]
     customerI = solution.routes[r1][i]
     deleteat!(solution.routes[r1], i)
     insert!(solution.routes[r2], j, customerI)
@@ -112,10 +121,15 @@ function applyMoveInterShift10!(solver::Solver, solution::Solution, move::BestMo
     solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
     solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
 
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
-    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
-    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+    solution.totalWarpStd1 -= solution.warpsStd1[r1] + solution.warpsStd1[r2]
+    solution.warpsStd1[r1] = solution.forwardLabels[r1][end].std1State.stdWarp
+    solution.warpsStd1[r2] = solution.forwardLabels[r2][end].std1State.stdWarp
+    solution.totalWarpStd1 += solution.warpsStd1[r1] + solution.warpsStd1[r2]
+
+    solution.totalWarpStd2 -= solution.warpsStd2[r1] + solution.warpsStd2[r2]
+    solution.warpsStd2[r1] = solution.forwardLabels[r1][end].std2State.stdWarp
+    solution.warpsStd2[r2] = solution.forwardLabels[r2][end].std2State.stdWarp
+    solution.totalWarpStd2 += solution.warpsStd2[r1] + solution.warpsStd2[r2]
 
     solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
     solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
@@ -147,10 +161,10 @@ function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMov
     solution.infeas[r2] = move.infeas[2]
 
     # atualizar warp
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.totalWarp += move.warps[1] + move.warps[2]
-    solution.warps[r1] = move.warps[1]
-    solution.warps[r2] = move.warps[2]
+    # solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    # solution.totalWarp += move.warps[1] + move.warps[2]
+    # solution.warps[r1] = move.warps[1]
+    # solution.warps[r2] = move.warps[2]
     # troca os clientes
     customerI = solution.routes[r1][i]
     customerJ = solution.routes[r2][j]
@@ -168,10 +182,15 @@ function applyMoveInterSwap11!(solver::Solver, solution::Solution, move::BestMov
     # @show solution.infeas[r1]
     # @show solution.infeas[r2]
 
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
-    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
-    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+    solution.totalWarpStd1 -= solution.warpsStd1[r1] + solution.warpsStd1[r2]
+    solution.warpsStd1[r1] = solution.forwardLabels[r1][end].std1State.stdWarp
+    solution.warpsStd1[r2] = solution.forwardLabels[r2][end].std1State.stdWarp
+    solution.totalWarpStd1 += solution.warpsStd1[r1] + solution.warpsStd1[r2]
+
+    solution.totalWarpStd2 -= solution.warpsStd2[r1] + solution.warpsStd2[r2]
+    solution.warpsStd2[r1] = solution.forwardLabels[r1][end].std2State.stdWarp
+    solution.warpsStd2[r2] = solution.forwardLabels[r2][end].std2State.stdWarp
+    solution.totalWarpStd2 += solution.warpsStd2[r1] + solution.warpsStd2[r2]
 
     solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
     solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
@@ -203,10 +222,10 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     solution.infeas[r2] = move.infeas[2]
 
     # atualizar warp
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.totalWarp += move.warps[1] + move.warps[2]
-    solution.warps[r1] = move.warps[1]
-    solution.warps[r2] = move.warps[2]
+    # solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
+    # solution.totalWarp += move.warps[1] + move.warps[2]
+    # solution.warps[r1] = move.warps[1]
+    # solution.warps[r2] = move.warps[2]
     seg1_len = length(solution.routes[r1]) - i
     seg2_len = length(solution.routes[r2]) - j
 
@@ -228,10 +247,15 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
     solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
     solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
 
-    solution.totalWarp -= solution.warps[r1] + solution.warps[r2]
-    solution.warps[r1] = solution.forwardLabels[r1][end].std_res.stdWarp
-    solution.warps[r2] = solution.forwardLabels[r2][end].std_res.stdWarp
-    solution.totalWarp += solution.warps[r1] + solution.warps[r2]
+    solution.totalWarpStd1 -= solution.warpsStd1[r1] + solution.warpsStd1[r2]
+    solution.warpsStd1[r1] = solution.forwardLabels[r1][end].std1State.stdWarp
+    solution.warpsStd1[r2] = solution.forwardLabels[r2][end].std1State.stdWarp
+    solution.totalWarpStd1 += solution.warpsStd1[r1] + solution.warpsStd1[r2]
+
+    solution.totalWarpStd2 -= solution.warpsStd2[r1] + solution.warpsStd2[r2]
+    solution.warpsStd2[r1] = solution.forwardLabels[r1][end].std2State.stdWarp
+    solution.warpsStd2[r2] = solution.forwardLabels[r2][end].std2State.stdWarp
+    solution.totalWarpStd2 += solution.warpsStd2[r1] + solution.warpsStd2[r2]
 
     solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
     solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)

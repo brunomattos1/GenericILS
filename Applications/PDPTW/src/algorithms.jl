@@ -13,7 +13,7 @@ function NILS(solver::Solver)
                         "Restart", "Iteration", "Best Feas. Cost", "Best Cost", "Curr. Cost", "Penalty Custom Res.", "Penalty Standard Res.", "Pool", "Time (s)")
     println("-"^144)
     ts = time()
-    for r = 1:solver.params.restarts
+    for r = 1:solver.parameters.restarts
         constructSol!(solver)
         # if (solver.outerCurrSol.totalInfeas == 0) && (solver.outerBestSol.totalWarp <= 1e-12)
         #     copy_solution!(bestFeasSol, solver.outerCurrSol)
@@ -65,7 +65,7 @@ function NILS(solver::Solver)
             end
         end
         outerIter = 0
-        while outerIter < solver.params.outerIterMax
+        while outerIter < solver.parameters.outerIterMax
             outerIter += 1
             outerPerturb!(solver, solver.outerCurrSol)
             ILS(solver, solver.outerCurrSol)
@@ -168,8 +168,8 @@ function NILS(solver::Solver)
                 bestFeasSol.cost,
                 solver.outerBestSol.cost,
                 solver.outerCurrSol.cost,
-                solver.params.penaltyCustom,
-                solver.params.penaltyStandard,
+                solver.parameters.penaltyCustom,
+                solver.parameters.penaltyStandard,
                 length(solver.route_storage),
                 total_algorithm_time
             )
@@ -190,7 +190,7 @@ end
 function ILS(solver::Solver, sol::Solution)
     it = 0
     copy_solution!(solver.bestSol, sol)
-    while it < solver.params.innerIterMax
+    while it < solver.parameters.innerIterMax
         it += 1
         RVND!(solver, sol)
         push!(solver,sol)
@@ -205,7 +205,7 @@ end
 
 function classicILS(solver::Solver)
     solver.outerBestSol.cost = Inf
-    for r = 1:solver.params.restarts
+    for r = 1:solver.parameters.restarts
         constructSol!(solver)
         RVND!(solver, solver.outerCurrSol)
 
@@ -214,7 +214,7 @@ function classicILS(solver::Solver)
             solver.outerBestSol = deepcopy(solver.outerCurrSol)
         end
         iter = 0
-        while iter < solver.params.outerIterMax
+        while iter < solver.parameters.outerIterMax
             iter += 1
             outerPerturb!(solver, solver.outerCurrSol)
 

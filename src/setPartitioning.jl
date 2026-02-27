@@ -46,7 +46,7 @@ function push!(solver::Solver, solution::Solution)
             #         solver.pool[copy(solution.routes[r])] = min(solver.pool[solution.routes[r]], solution.cost)
             #     end
             # end
-            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std_res.stdWarp <= 1e-6)
+            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std1State.stdWarp <= 1e-6) && (solution.forwardLabels[r][end].std2State.stdWarp <= 1e-6)
                 route_id = get(solver.route_lookup, solution.routes[r], 0)
 
                 if route_id > 0
