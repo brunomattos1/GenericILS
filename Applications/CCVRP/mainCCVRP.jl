@@ -154,9 +154,11 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         data = data, 
         neighborhoods = Int[1, 2, 3, 4]
     )
+    setTimeLimitILS(solver, 30.0)
+    setTimeLimitSP(solver, 50.0)
+    aggressivePool(solver, false)
     @time NILS(solver)
     printCVRP(solver, solver.outerBestSol)
-
     # sol = getBestSol(solver)
     # routes = getBestRoutes(solver)
     # routes = getBestRoutes(solver, [1,2])
@@ -178,6 +180,6 @@ instance = "$set-n$n-k$k.vrp"
 seed = 1
 restarts = 1
 outerIterMax = 500
-innerIterMax = 5
+innerIterMax = 30
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)

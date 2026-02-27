@@ -117,6 +117,7 @@ end
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(CPLEX.Optimizer)
     set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    set_time_limit_sec(sp, solver.timeLimitSP)
     routes = solver.route_storage#collect(keys(solver.pool))
     
     @variable(sp, λ[r = 1:length(routes)], Bin)
@@ -126,17 +127,36 @@ function setPartitioning(solver::Solver, cutOff::Float64)
     @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, routes[r])λ[r] for r = 1:length(routes)) == 1)
     @constraint(sp, sum(λ[r] for r = 1:length(routes)) <= solver.data.maxNbRoutes)
     optimize!(sp)
-    if termination_status(sp) == OPTIMAL
-        solver.currSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
-        solver.currSol.cost = objective_value(sp)
-        solver.currSol.dist = objective_value(sp)
 
-        computeLabels(solver, solver.currSol)
-    else
-        if objective_value(sp) < solver.bestSol.cost - 0.001
-            solver.currSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
-            solver.currSol.cost = objective_value(sp)
-            computeLabels(solver)
+    if termination_status(sp) == OPTIMAL
+        println("-"^144)
+        println("Set Partitioning optimally solved!")
+        println("-"^144)
+
+        solver.bestFeasSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
+        solver.bestFeasSol.cost = objective_value(sp)
+        solver.bestFeasSol.dist = 0#objective_value(sp)
+
+        computeLabels(solver, solver.bestFeasSol)
+    end
+    if termination_status(sp) == INFEASIBLE
+        println("-"^144)
+        println("Set Partitioning is infeasible!")
+        println("-"^144)
+        return solver.bestFeasSol
+    end
+    if termination_status(sp) == TIME_LIMIT
+        println("-"^144)
+        println("Set Partitioning reached time limit!")
+        println("-"^144)
+        if result_count(sp) >= 1
+            if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
+                solver.bestFeasSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
+                solver.bestFeasSol.cost = objective_value(sp)
+                solver.bestFeasSol.dist = 0#objective_value(sp)
+                computeLabels(solver, solver.bestFeasSol)
+            end
         end
+        return solver.bestFeasSol
     end
 end
