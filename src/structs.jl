@@ -141,7 +141,7 @@ Solution() = Solution(Vector{Vector{Int}}(),
                 Vector{Int}(), 
                 Vector{ForwardLabel}[], 
                 Vector{BackwardLabel}[], 
-                Array{Int,3}(undef, 4, 10, 10), 
+                Array{Int,3}(undef, 5, 10, 10),
                 Vector{Int}())
 
 
@@ -375,7 +375,7 @@ function Solver(;
     currSol = Solution(),
     bestSol = Solution(),
     diversification = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
-    neighborhoods = Int[i for i = 1:4],
+    neighborhoods = Int[i for i = 1:5],
     auxNeighborhoods = Int[],
     res = Resources(CustomResource(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), 0.0),
         StandardResource{1}(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), Float64[0.0 for i = 1:length(data.vertices)+1], Float64[typemax(Float64) for i = 1:length(data.vertices)+1]), 

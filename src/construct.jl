@@ -55,14 +55,14 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         end
     end
     R = length(solver.outerCurrSol.routes)
-    nVizinhas = 4  # exemplo: :intraShift, :interShift, :interSwap, :twoOptStar
+    nVizinhas = 5  # exemplo: :intraShift, :interShift, :interSwap, :twoOptStar
 
     solver.outerCurrSol.lastEval = zeros(Int, nVizinhas, R, R)
 
     for r in 1:R
         solver.outerCurrSol.lastEval[1, r, r] = solver.timeStamp
     end
-    for move = 2:4
+    for move = 2:5
         for r1 in 1:R-1
             for r2 in r1+1:R
                 solver.outerCurrSol.lastEval[move, r1, r2] = solver.timeStamp

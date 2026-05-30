@@ -15,6 +15,8 @@ function RVND!(solver::Solver, solution::Solution)
                 improvement = interSwap11!(solver, solution)
             elseif neigh == 4
                 improvement = twoOptStar!(solver, solution)
+            elseif neigh == 5
+                improvement = interShift20!(solver, solution)
             end
             updatePenalty(solver.parameters, solution)   
             if improvement

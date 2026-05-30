@@ -115,8 +115,8 @@ function c(solver::Solver, r::Vector{Int})
 end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
-    sp = Model(CPLEX.Optimizer)
-    set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    sp = Model(HiGHS.Optimizer)
+    # set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
     set_time_limit_sec(sp, solver.timeLimitSP)
     routes = solver.route_storage#collect(keys(solver.pool))
     

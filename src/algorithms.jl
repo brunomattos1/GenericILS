@@ -84,6 +84,7 @@ function NILS(solver::Solver)
                 length(solver.route_storage),
                 total_algorithm_time
             )
+            copy_solution!(solver.outerCurrSol, solver.outerBestSol)
             if total_algorithm_time >= solver.timeLimitILS
                 @goto SP
             end
@@ -119,6 +120,7 @@ function ILS(solver::Solver, sol::Solution)
             copy_solution!(solver.bestSol, sol)
             it = 0
         end
+        copy_solution!(sol, solver.bestSol)
         innerPerturb!(solver, sol)
     end
     copy_solution!(solver.outerCurrSol, solver.bestSol)

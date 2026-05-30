@@ -1,7 +1,7 @@
 include("resourcesVRPTW.jl")
 include("../../src/include.jl")
 # using PlotlyJS
-using CPLEX
+# using CPLEX
 
 function read_solomon(filename::String)
     open(filename, "r") do io
@@ -191,6 +191,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     maxNbRoute = vehicles
     data = ProblemData(customers, dist, maxNbRoute)
     # Capacity as custom resource
+    # capacity = 50
     customRes = CustomResource(dmat, capacity)
     # customRes = CustomResource(zeros(Float64, length(customers)+1, length(customers)+1), capacity)
 
@@ -215,21 +216,56 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         diversification = diversif,
         res = res,
         data = data,
-        neighborhoods = [1,2,3,4]
+        neighborhoods = [1,2,3,4,5]
     )
     println("Solving...")
     NILS(solver)
     sol = getBestSol(solver)
-    printVRPTW(solver, sol)
+    sol.routes = [[0, 2,1, 3, 4, 5, 0]]
+    computeLabels(solver, sol)
+    @show sol.forwardLabels
+    # printVRPTW(solver, sol)
     # sol = createSolution(solver, [[0,5,3,4,2,1,0]])
+    computeLabels(solver, sol)
+    # printLabels(solver, sol)
+    # @show sol.forwardLabels
+    r, pos, c = 1, 3, 5
+    @show sol.lastFeasibleF[r]
+    @show sol.lastFeasibleB[r]
+    remove1Feas, _ = computeViolRemove1(solver, sol, r, pos)
+    infeas_old = length(sol.routes[r]) - 1 - remove1Feas - 1
+    infeas_new = infeasArcsRemoval(solver, sol, r, pos)
+    @show infeas_old
+    @show infeas_new
+    println("="^50)
+    feas_old, _ = computeViolInsertion1(solver, sol, r, c, pos)
+    infeas_old   = length(sol.routes[r]) - 1 - feas_old + 1   # = lenR - feas_old
+    infeas_new   = infeasArcsInsertion(solver, sol, r, c, pos)
+    @show infeas_old
+    @show infeas_new
+    println("="^50)
+    feasR1, labelCostR1 = computeViolSwap11(solver, sol, r, pos, c)
+    infeas_old = length(sol.routes[r]) - 1 - feasR1
+    infeas_new = infeasArcsSwap11(solver, sol, r, c, pos)
+    @show infeas_old
+    @show infeas_new
+    # println("="^50)
+
+    # feasR1, labelCostR1 = computeViolTwoOptStar(solver, sol, 1, 2,)
+    # infeas_old = length(sol.routes[r]) - 1 - feasR1
+    # infeas_new = infeasArcsSwap11(solver, sol, r, c, pos)
+    # @show infeas_old
+    # @show infeas_new
     # @show sol.dist, sol.cost
+    # 0 5 3 4 2 1 0
     return sol.cost
 end
 
-instance     = "Solomon/toy.txt"
+instance     = "Solomon/C101.txt"
 restarts     = 1
 outerIterMax = 100
 innerIterMax = 5
 seed         = 1
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
+

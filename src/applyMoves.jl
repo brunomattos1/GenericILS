@@ -271,6 +271,55 @@ function applyMoveTwoOptStar!(solver::Solver, solution::Solution, move::BestMove
 
 end
 
+function applyMoveInterShift20!(solver::Solver, solution::Solution, move::BestMove)
+    r1, r2 = move.firstRoute, move.secondRoute
+    i, j   = move.firstIdx, move.secondIdx
+
+    solution.dist = move.dist
+    solution.cost = move.cost
+
+    solution.totalInfeas -= solution.infeas[r1] + solution.infeas[r2]
+    solution.totalInfeas += move.infeas[1] + move.infeas[2]
+    solution.infeas[r1] = move.infeas[1]
+    solution.infeas[r2] = move.infeas[2]
+
+    c1 = solution.routes[r1][i]
+    c2 = solution.routes[r1][i+1]
+    deleteat!(solution.routes[r1], i+1)
+    deleteat!(solution.routes[r1], i)
+    insert!(solution.routes[r2], j, c2)
+    insert!(solution.routes[r2], j, c1)
+
+    computeLabels(solver, solution, r1, r2)
+
+    solution.totalInfeas -= solution.infeas[r1] + solution.infeas[r2]
+    solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
+    solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
+    solution.totalInfeas += solution.infeas[r1] + solution.infeas[r2]
+
+    solution.totalWarpStd1 -= solution.warpsStd1[r1] + solution.warpsStd1[r2]
+    solution.warpsStd1[r1] = solution.forwardLabels[r1][end].std1State.stdWarp
+    solution.warpsStd1[r2] = solution.forwardLabels[r2][end].std1State.stdWarp
+    solution.totalWarpStd1 += solution.warpsStd1[r1] + solution.warpsStd1[r2]
+
+    solution.totalWarpStd2 -= solution.warpsStd2[r1] + solution.warpsStd2[r2]
+    solution.warpsStd2[r1] = solution.forwardLabels[r1][end].std2State.stdWarp
+    solution.warpsStd2[r2] = solution.forwardLabels[r2][end].std2State.stdWarp
+    solution.totalWarpStd2 += solution.warpsStd2[r1] + solution.warpsStd2[r2]
+
+    solution.totalLabelCost -= solution.labelCosts[r1] + solution.labelCosts[r2]
+    solution.labelCosts[r1] = min(solution.forwardLabels[r1][end].cost, solution.backwardLabels[r1][end].cost)
+    solution.labelCosts[r2] = min(solution.forwardLabels[r2][end].cost, solution.backwardLabels[r2][end].cost)
+    solution.totalLabelCost += solution.labelCosts[r1] + solution.labelCosts[r2]
+
+    solution.cost = objectiveValue(solver, solution)
+
+    solver.timeStamp += 1
+    solution.lastModif[r1] = solver.timeStamp
+    solution.lastModif[r2] = solver.timeStamp
+    solution.lastEval[5, r1, r2] = solver.timeStamp
+end
+
 function applyMoveSplit!(solver::Solver, newCost::Float64, r::Int, i::Int)
     solver.currSol.cost = newCost
     split1 = copy(solver.currSol.routes[r][1:i-1])

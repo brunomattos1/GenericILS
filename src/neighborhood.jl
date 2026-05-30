@@ -95,6 +95,55 @@ function interShift10!(solver::Solver, sol::Solution)
     return improved
 end
 
+function interShift20!(solver::Solver, sol::Solution)
+    improved = false
+    copy_solution!(solver.bufferSol, sol)
+    oldSol = solver.bufferSol
+    resize!(solver.buffer, length(sol.routes))
+    copyto!(solver.buffer, 1:length(sol.routes))
+    shuffle!(solver.buffer)
+
+    routesIdx = solver.buffer
+    for r1 in routesIdx
+        bestMove = BestMove(dist = sol.dist, cost = sol.cost)
+        if length(sol.routes[r1]) <= 3
+            continue
+        end
+        for r2 in routesIdx
+            if r1 == r2
+                continue
+            end
+            lastEval = sol.lastEval[5, r1, r2]
+            if lastEval > max(sol.lastModif[r1], sol.lastModif[r2])
+                continue
+            end
+            for i = 2:length(sol.routes[r1]) - 2
+                for j = 2:length(sol.routes[r2])
+                    dist, cost, infeasR1, infeasR2, warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 =
+                        evalInterShift20(solver, sol, Shift(r1, r2, i, j))
+                    if cost < bestMove.cost - 1e-6
+                        bestMove = BestMove(cost, dist, r1, r2, i, j,
+                            (infeasR1, infeasR2),
+                            (warpR1Std1, warpR1Std2),
+                            (warpR2Std1, warpR2Std2))
+                    end
+                end
+            end
+        end
+        if bestMove.firstIdx > 0
+            prevCost = oldSol.cost
+            applyMoveInterShift20!(solver, sol, bestMove)
+            if sol.cost < prevCost - 1e-6
+                improved = true
+                copy_solution!(oldSol, sol)
+            else
+                copy_solution!(sol, oldSol)
+            end
+        end
+    end
+    return improved
+end
+
 function interSwap11!(solver::Solver, sol::Solution)
     improved = false
     copy_solution!(solver.bufferSol, sol)

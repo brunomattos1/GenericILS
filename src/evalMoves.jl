@@ -55,8 +55,9 @@ function evalBestInsertion(solver::Solver, sol::Solution, insertion::Insertion)
     j = insertion.pos
     dist = bestInsertionCost(currCost, solver.data.costMatrix, routes[r], customer, j)
     warpStd1, warpStd2 = computeStdViolInsertion1(solver, sol, r, customer, j)
-    feas, labelCost = computeViolInsertion1(solver, sol, r, customer, j)
-    infeas = length(sol.routes[r]) - 1 - feas + 1
+    # feas, labelCost = computeViolInsertion1(solver, sol, r, customer, j)
+    # infeas = length(sol.routes[r]) - 1 - feas + 1
+    infeas, labelCost = infeasArcsInsertion(solver, sol, r, customer, j)
     cost = objectiveValue(solver, sol, r, dist, infeas, labelCost, warpStd1, warpStd2)
     return dist, cost, infeas, warpStd1, warpStd2
 end
@@ -106,6 +107,23 @@ function evalInterSwap11(solver::Solver, sol::Solution, swap::Swap)
     violInfo = computeViolInterSwap11(solver, sol, r1, r2, i, j)
     cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1Std1, warpR2Std1), (warpR1Std2, warpR2Std2)))
     return dist, cost, violInfo.firstRouteInfeas, violInfo.secondRouteInfeas, warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2
+end
+
+function evalInterShift20(solver::Solver, sol::Solution, shift::Shift)
+    currCost = sol.dist
+    r1 = shift.routeFrom
+    r2 = shift.routeTo
+    i  = shift.fromIdx
+    j  = shift.toIdx
+
+    dist = interShift20Cost(currCost, solver.data.costMatrix, sol.routes[r1], sol.routes[r2], i, j)
+    warpR1Std1, warpR1Std2 = computeStdViolRemove2(solver, sol, r1, i)
+    warpR2Std1, warpR2Std2 = computeStdViolInsertion2(solver, sol, r2, sol.routes[r1][i], sol.routes[r1][i+1], j)
+    violInfo = computeViolInterShift20(solver, sol, r1, r2, i, j)
+    cost = objectiveValue(solver, sol,
+        Cost(dist, r1, r2, violInfo, (warpR1Std1, warpR2Std1), (warpR1Std2, warpR2Std2)))
+    return dist, cost, violInfo.firstRouteInfeas, violInfo.secondRouteInfeas,
+           warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2
 end
 
 function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar)
