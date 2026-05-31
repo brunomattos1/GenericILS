@@ -1,26 +1,8 @@
-
-function perturb!(solver::Solver)
-    rnd = rand(solver.seed)
-    if rnd <= 1.5
-        for _ = 1:solver.diversification.shift
-            perturbed = randomInterShit10!(solver)
-        end
-    elseif rnd <= 1.
-        for _ = 1:solver.diversification.swap
-            perturbed = randomInterSwap11!(solver)
-        end
-    else
-        for _ = 1:1
-            perturbed = split!(solver)
-        end
-    end
-end
-
 function innerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 1.333
         for _ = 1:solver.diversification.innerShift
-            perturbed = randomInterShit10!(solver, solution)
+            perturbed = randomInterShift10!(solver, solution)
         end
     elseif rnd <= 0.666
         for _ = 1:solver.diversification.innerSwap
@@ -37,7 +19,7 @@ function outerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 1.333
         for _ = 1:solver.diversification.outerShift
-            perturbed = randomInterShit10!(solver, solution)
+            perturbed = randomInterShift10!(solver, solution)
         end
     elseif rnd <= 0.666
         for _ = 1:solver.diversification.outerSwap
@@ -50,7 +32,7 @@ function outerPerturb!(solver::Solver, solution::Solution)
     end
 end
 
-# function randomInterShit10!(solver::Solver, sol::Solution)
+# function randomInterShift10!(solver::Solver, sol::Solution)
 #     routes = sol.routes
 #     r1 = rand(solver.seed, 1:length(routes))
 #     r2 = rand(solver.seed, 1:length(routes))
@@ -72,8 +54,8 @@ end
 #     return true
 # end
 
-function randomInterShit10!(solver::Solver, solution::Solution)
-    routes = getRoutes(solution)
+function randomInterShift10!(solver::Solver, solution::Solution)
+    routes = solution.routes
     r1 = rand(solver.seed, 1:length(routes))
     r2 = rand(solver.seed, 1:length(routes))
     counter = 0
@@ -87,21 +69,17 @@ function randomInterShit10!(solver::Solver, solution::Solution)
     end
     i = rand(solver.seed, 2:length(routes[r1])-1)
     j = rand(solver.seed, 2:length(routes[r2]))
-    # dist, cost, feasR1, feasR2, warpR1, warpR2 = evalInterShift10(solution.dist, solution, routes, solver, r1, r2, i, j)
-    dist, cost, infeasR1, infeasR2, warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 = evalInterShift10(solver, solution, Shift(r1, r2, i, j))
-
-    # infeasR1 = length(solution.routes[r1]) - 1 - feasR1 - 1
-    # infeasR2 = length(solution.routes[r2]) - 1 - feasR2 + 1
-    # cost = objectiveValue(solver, solution, r1, r2, dist, infeasR1, infeasR2, warpR1, warpR2)
-    # infeas = (infeasR1, infeasR2)
-    # warp = (warpR1, warpR2)
-    move = BestMove(cost, dist, r1, r2, i, j, (infeasR1, infeasR2), (warpR1Std1, warpR1Std2), (warpR2Std1, warpR2Std2))
-
-    applyMoveInterShift10!(solver, solution, move)
-    # computeLabels(solver, solution, r1, r2)
-    # solution.infeas[r1] = length(solution.routes[r1]) - max(solution.feasiblesF[r1], solution.feasiblesB[r1]) - 1
-    # solution.infeas[r2] = length(solution.routes[r2]) - max(solution.feasiblesF[r2], solution.feasiblesB[r2]) - 1
-    # solution.totalInfeas = sum(solution.infeas)
+    k = 1
+    dist = interShiftCost(solution.dist, solver.data.costMatrix, routes[r1], routes[r2], i, j, k)
+    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, solution, r1, i, k)
+    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, solution, r2, routes[r1][i:i], j)
+    violInfo = computeViolInterShiftK(solver, solution, r1, r2, i, j, k)
+    cost = objectiveValue(solver, solution,
+        Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
+    move = BestMove(cost, dist, r1, r2, i, j,
+        (violInfo.firstRouteInfeas, violInfo.secondRouteInfeas),
+        (warpR1s1, warpR1s2), (warpR2s1, warpR2s2))
+    apply!(InterShift{1}(), solver, solution, move)
     return true
 end
 

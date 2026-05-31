@@ -2,21 +2,26 @@ using Random, JuMP, HiGHS, Printf
 import Base: push!
 import Base: hash
 import Base: split
+include("Solution.jl")
+include("Parameters.jl")
+include("Diversification.jl")
+include("Solver.jl")
+include("Construct.jl")
+# include("evalMoves.jl")
+# include("applyMoves.jl")
 
-include("structs.jl")
-include("construct.jl")
-include("evalMoves.jl")
-include("neighborhood.jl")
-include("applyMoves.jl")
+include("SetPartitioning.jl")
+include("Subsequences.jl")
+include("Infeasibility.jl")
+include("AcceptCriteria.jl")
+# include("costFunctions.jl")
+include("utils.jl")
+include("Algorithms.jl")
 
-include("setPartitioning.jl")
-include("subsequences.jl")
-include("computeViolation.jl")
-include("acceptCriteria.jl")
-include("algorithms.jl")
-
-include("costFunctions.jl")
-
-include("localSearch.jl")
-
-include("perturb.jl")
+include("neighborhoods/IntraShift.jl")
+include("neighborhoods/TwoOptStar.jl")
+include("neighborhoods/InterShift.jl")
+include("neighborhoods/InterSwap.jl")
+include("Neighborhoods.jl")
+include("LocalSearch.jl")
+include("Perturb.jl")
