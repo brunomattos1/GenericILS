@@ -59,16 +59,16 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     end
     R = length(solver.outerCurrSol.routes)
     nVizinhas = length(NEIGHBORHOODS)
-
+    solver.outerCurrSol.timeStamp = 0
     solver.outerCurrSol.lastEval = zeros(Int, nVizinhas, R, R)
 
     for r in 1:R
-        solver.outerCurrSol.lastEval[1, r, r] = solver.timeStamp
+        solver.outerCurrSol.lastEval[1, r, r] = 0
     end
     for move = 2:nVizinhas
         for r1 in 1:R-1
             for r2 in r1+1:R
-                solver.outerCurrSol.lastEval[move, r1, r2] = solver.timeStamp
+                solver.outerCurrSol.lastEval[move, r1, r2] = 0
             end
         end
     end

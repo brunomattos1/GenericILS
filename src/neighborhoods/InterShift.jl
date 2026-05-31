@@ -13,7 +13,7 @@ end
 
 function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int)
     infeasR1, lc1 = infeasArcsRemovalK(solver, sol, r1, i, k)
-    customers = sol.routes[r1][i:i+k-1]
+    customers = @view sol.routes[r1][i:i+k-1]
     infeasR2, lc2 = infeasArcsInsertionK(solver, sol, r2, customers, j)
     return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
 end
@@ -41,7 +41,7 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
             len2   = length(route2)
 
             for i = 2:(len1 - k)
-                customers = route1[i:i+k-1]
+                customers = @view route1[i:i+k-1]
                 for j = 2:len2
                     dist     = interShiftCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k)
                     warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k)
@@ -56,8 +56,8 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
                     end
                 end
             end
-            # solver.timeStamp += 1
-            # sol.lastEval[neighborhoodId, r1, r2] = sol.timeStamp
+            sol.timeStamp += 1
+            sol.lastEval[neighborhoodId, r1, r2] = sol.timeStamp
         end
 
         if bestMove.firstIdx > 0
@@ -115,8 +115,6 @@ function apply!(::InterShift{k}, solver::Solver, sol::Solution, bestMove::BestMo
     sol.totalLabelCost += sol.labelCosts[r1] + sol.labelCosts[r2]
 
     sol.cost = objectiveValue(solver, sol)
-    solver.timeStamp += 1
-    sol.lastModif[r1] = solver.timeStamp
-    sol.lastModif[r2] = solver.timeStamp
-    sol.lastEval[neigh_index(InterShift{k}), r1, r2] = solver.timeStamp
+    sol.lastModif[r1] = sol.timeStamp
+    sol.lastModif[r2] = sol.timeStamp
 end

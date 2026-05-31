@@ -59,7 +59,11 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
     improved = false
     copy_solution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
+    neighborhoodId = neigh_index(typeof(neigh))
     for r = 1:length(sol.routes)
+        if sol.lastEval[neighborhoodId, r, r] > sol.lastModif[r]
+            continue
+        end
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
         if sol.feasiblesF[r] >= length(sol.routes[r]) - 1
             for i = 2:length(sol.routes[r])-1
@@ -81,6 +85,8 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
                 end
             end
         end
+        sol.timeStamp += 1
+        sol.lastEval[neighborhoodId, r, r] = sol.timeStamp
         if bestMove.firstIdx > 0
             prevCost = oldSol.cost
             apply!(neigh, solver, sol, bestMove)
@@ -143,7 +149,5 @@ function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove
     solution.totalLabelCost += solution.labelCosts[r]
 
     solution.cost = objectiveValue(solver, solution)
-    solver.timeStamp += 1
-    solution.lastModif[r] = solver.timeStamp
-    solution.lastEval[neigh_index(IntraShift), r, r] = solver.timeStamp
+    solution.lastModif[r] = solution.timeStamp
 end

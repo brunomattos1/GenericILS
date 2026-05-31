@@ -14,8 +14,8 @@ function interSwapCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::V
 end
 
 function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k1::Int, k2::Int)
-    block1 = sol.routes[r1][i:i+k1-1]
-    block2 = sol.routes[r2][j:j+k2-1]
+    block1 = @view sol.routes[r1][i:i+k1-1]
+    block2 = @view sol.routes[r2][j:j+k2-1]
     infeasR1, lc1 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, block2)
     infeasR2, lc2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, block1)
     return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
@@ -60,8 +60,8 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
                     end
                 end
             end
-            # sol.timeStamp += 1
-            # sol.lastEval[neighborhoodId, r1, r2] = sol.timeStamp
+            sol.timeStamp += 1
+            sol.lastEval[neighborhoodId, r1, r2] = sol.timeStamp
         end
 
         if bestMove.firstIdx > 0
@@ -118,8 +118,6 @@ function apply!(::InterSwap{k1,k2}, solver::Solver, sol::Solution, bestMove::Bes
     sol.totalLabelCost += sol.labelCosts[r1] + sol.labelCosts[r2]
 
     sol.cost = objectiveValue(solver, sol)
-    solver.timeStamp += 1
-    sol.lastModif[r1] = solver.timeStamp
-    sol.lastModif[r2] = solver.timeStamp
-    sol.lastEval[neigh_index(InterSwap{k1,k2}), r1, r2] = solver.timeStamp
+    sol.lastModif[r1] = sol.timeStamp
+    sol.lastModif[r2] = sol.timeStamp
 end

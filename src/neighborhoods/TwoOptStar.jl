@@ -30,13 +30,14 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.buffer)
     routesIdx = solver.buffer
+    neighborhoodId = neigh_index(typeof(neigh))
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
         for r2 in routesIdx
             r1 == r2 && continue
-            lastEval = sol.lastEval[neigh_index(TwoOptStar), r1, r2]
-            lastEval >= max(sol.lastModif[r1], sol.lastModif[r2]) && continue
+            lastEval = sol.lastEval[neighborhoodId, r1, r2]
+            lastEval > max(sol.lastModif[r1], sol.lastModif[r2]) && continue
             for i = 1:length(sol.routes[r1]) - 2
                 for j = 1:length(sol.routes[r2]) - 2
                     dist, cost, infeasR1, infeasR2, warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 = evalTwoOptStar!(solver, sol, OptStar(r1, r2, i, j))
@@ -45,6 +46,8 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
                     end
                 end
             end
+            sol.timeStamp += 1
+            sol.lastEval[neighborhoodId, r1, r2] = sol.timeStamp
         end
         if bestMove.firstIdx > 0
             prevCost = oldSol.cost
@@ -60,7 +63,7 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     return improved
 end
 
-function apply!(::TwoOptStar, solver::Solver, solution::Solution, move::BestMove)
+function apply!(neigh::TwoOptStar, solver::Solver, solution::Solution, move::BestMove)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
 
@@ -108,8 +111,6 @@ function apply!(::TwoOptStar, solver::Solver, solution::Solution, move::BestMove
     solution.totalLabelCost += solution.labelCosts[r1] + solution.labelCosts[r2]
 
     solution.cost = objectiveValue(solver, solution)
-    solver.timeStamp += 1
-    solution.lastModif[r1] = solver.timeStamp
-    solution.lastModif[r2] = solver.timeStamp
-    solution.lastEval[neigh_index(TwoOptStar), r1, r2] = solver.timeStamp
+    solution.lastModif[r1] = solution.timeStamp
+    solution.lastModif[r2] = solution.timeStamp
 end

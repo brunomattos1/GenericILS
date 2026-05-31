@@ -1,5 +1,7 @@
 include("resourcesVRPTW.jl")
 include("../../src/Include.jl")
+Random.seed!(0)
+
 # using PlotlyJS
 # using CPLEX
 
@@ -219,14 +221,16 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         neighborhoods = NEIGHBORHOODS
     )
     println("Solving...")
-    NILS(solver)
+    @time NILS(solver)
+    @time RVND!(solver, solver.bestFeasSol)
+    @code_warntype search!(InterSwap{2,1}(), solver, solver.bestFeasSol)
     sol = getBestSol(solver)
     return sol.cost
 end
 
-instance     = "Solomon/R101.txt"
+instance     = "Solomon/R102.txt"
 restarts     = 1
-outerIterMax = 100
+outerIterMax = 50
 innerIterMax = 5
 seed         = 1
 

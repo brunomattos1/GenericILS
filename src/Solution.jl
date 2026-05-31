@@ -23,6 +23,7 @@ mutable struct Solution
     backwardLabels::Vector{Vector{BackwardLabel}}
     lastEval::Array{Int, 3}#Vector{Vector{Vector{Int}}}#Dict{Tuple{Symbol, Int, Int}, Int}
     lastModif::Vector{Int}
+    timeStamp::Int
 end
 
 mutable struct UserSolution
@@ -53,7 +54,8 @@ Solution() = Solution(Vector{Vector{Int}}(),
                 Vector{ForwardLabel}[], 
                 Vector{BackwardLabel}[], 
                 Array{Int,3}(undef, 5, 10, 10),
-                Vector{Int}())
+                Vector{Int}(),
+                0)
 
 
 function copy_solution!(dest::Solution, src::Solution)
@@ -131,6 +133,7 @@ function copy_solution!(dest::Solution, src::Solution)
     resize!(dest.lastModif, length(src.lastModif))
     copyto!(dest.lastModif, src.lastModif)
 
+    dest.timeStamp = src.timeStamp
     # Copy nested vectors of labels (forwardLabels, backwardLabels)
     # resize!(dest.forwardLabels, length(src.forwardLabels))
     # resize!(dest.backwardLabels, length(src.backwardLabels))
