@@ -216,6 +216,10 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         seed = seed,
         parameters = parameters,
         diversification = diversif,
+        acceptCriteria = MetropolisTimed(100.0, 100.0, 15.0, 2.0),
+        stopCriteria = ByTemperature(0.1),
+        # acceptCriteria = AcceptBest(),
+        # stopCriteria = ByIterMax(50),
         res = res,
         data = data,
         neighborhoods = NEIGHBORHOODS
@@ -226,7 +230,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     return sol.cost
 end
 
-instance     = "Solomon/C101.txt"
+instance     = "Solomon/R101.txt"
 restarts     = 1
 outerIterMax = 50
 innerIterMax = 5

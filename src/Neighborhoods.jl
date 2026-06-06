@@ -5,8 +5,7 @@
     InterShift{2}(),
     InterSwap{1, 1}(),
     InterSwap{2, 1}(),
-    InterSwap{2, 2}(),
-
+    InterSwap{2, 2}()
 )
 const NUM_NEIGHBORHOODS = length(NEIGHBORHOODS)
 

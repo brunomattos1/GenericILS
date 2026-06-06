@@ -1,4 +1,48 @@
 abstract type Move end
+abstract type AcceptCriteria end
+abstract type StoppingCriteria end
+
+mutable struct Metropolis <: AcceptCriteria
+    temperature::Float64
+    alpha::Float64
+end
+
+mutable struct MetropolisTimed <: AcceptCriteria
+    initialTemperature::Float64
+    temperature::Float64
+    maxTime::Float64
+    p::Float64
+end
+
+mutable struct MetropolisTimedIter <: AcceptCriteria
+    initialTemperature::Float64
+    temperature::Float64
+    maxTime::Float64
+    p::Float64
+    iter::Int
+end
+
+struct AcceptBest <: AcceptCriteria
+end
+
+struct RandomWalk <: AcceptCriteria
+end
+
+struct ByTime <: StoppingCriteria
+    maxTime::Float64
+end
+
+struct ByTemperature <: StoppingCriteria
+    minTemp::Float64
+end
+
+struct ByTemperatureIter <: StoppingCriteria
+    minTemp::Float64
+end
+
+struct ByIterMax <: StoppingCriteria
+    maxIter::Int
+end
 
 struct BestInsertion
     cost::Float64
@@ -105,16 +149,22 @@ ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
 
 
-mutable struct Solver{N}
+mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria}
     seed::Random.MersenneTwister
     parameters::Parameters
     data::ProblemData
+    outerCandidateSol::Solution
     outerCurrSol::Solution
     outerBestSol::Solution
     bestFeasSol::Solution
     currSol::Solution
     bestSol::Solution
     diversification::Diversification
+    acceptCriteria::AC
+    stopCriteria::SC
+    iter::Int
+    innerIter::Int
+    startTime::Float64
     neighborhoods::N
     active_neighs::Vector{Int}
     res::Resources
@@ -149,12 +199,18 @@ function Solver(;
         penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
     ),
     data = ProblemData(),
+    outerCandidateSol = Solution(),
     outerCurrSol = Solution(),
     bestCurrSol = Solution(),
     bestFeasSol = Solution(),
     currSol = Solution(),
     bestSol = Solution(),
     diversification = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
+    acceptCriteria = Metropolis(100.0, 0.995),
+    stopCriteria = ByTemperature(1.0),
+    iter = 0,
+    innerIter = 0,
+    startTime = 0.0,
     neighborhoods = (),
     active_neighs = Int[],
     res = Resources(CustomResource(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), 0.0),
@@ -182,8 +238,8 @@ function Solver(;
     route_lookup = Dict{Vector{Int}, Int}()
     
     Solver(
-        Random.MersenneTwister(seed), parameters, data, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
-        diversification, neighborhoods, active_neighs, res, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
+        Random.MersenneTwister(seed), parameters, data, outerCandidateSol, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
+        diversification, acceptCriteria, stopCriteria, iter, innerIter, startTime, neighborhoods, active_neighs, res, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
         buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp, timeLimitILS, timeLimitSP,
         aggressivePool)
 end
