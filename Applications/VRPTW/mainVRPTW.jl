@@ -222,13 +222,11 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     )
     println("Solving...")
     @time NILS(solver)
-    @time RVND!(solver, solver.bestFeasSol)
-    @code_warntype search!(InterSwap{2,1}(), solver, solver.bestFeasSol)
     sol = getBestSol(solver)
     return sol.cost
 end
 
-instance     = "Solomon/R102.txt"
+instance     = "Solomon/C101.txt"
 restarts     = 1
 outerIterMax = 50
 innerIterMax = 5
