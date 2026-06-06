@@ -1,10 +1,5 @@
 
-_is_feasible(sol::Solution) =
-    sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd2 <= 1e-6
-
-function NILS(solver::Solver,
-              stopCrit   = IterationLimit(solver.parameters.outerIterMax),
-              acceptCrit = BestOnly())
+function NILS(solver::Solver)
     solver.outerBestSol.cost = Inf
     solver.bestSol = Solution()
     total_algorithm_time = 0.0 # Podemos capturar o tempo de brinde
@@ -33,59 +28,63 @@ function NILS(solver::Solver,
         push!(solver, solver.outerCurrSol)
         ILS(solver, solver.outerCurrSol)
 
-        if accept!(acceptCrit, solver.outerCurrSol, solver.outerBestSol, solver.seed)
+        if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
             copy_solution!(solver.outerBestSol, solver.outerCurrSol)
-            if _is_feasible(solver.outerBestSol)
+            if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarpStd1 <= 1e-6) && (solver.outerBestSol.totalWarpStd2 <= 1e-6)
                 copy_solution!(solver.bestFeasSol, solver.outerBestSol)
             end
         end
-
-        reset!(stopCrit)
-        reset!(acceptCrit)
-
-        while !stop!(stopCrit) && !stop!(acceptCrit)
-            tick!(stopCrit)
+        outerIter = 0
+        while outerIter < solver.parameters.outerIterMax
+            outerIter += 1
             outerPerturb!(solver, solver.outerCurrSol)
             ILS(solver, solver.outerCurrSol)
             push!(solver, solver.outerCurrSol)
-
-            if accept!(acceptCrit, solver.outerCurrSol, solver.outerBestSol, solver.seed)
+            if acceptSol(solver, solver.outerCurrSol, solver.outerBestSol)
                 copy_solution!(solver.outerBestSol, solver.outerCurrSol)
-                if _is_feasible(solver.outerBestSol)
+                if (solver.outerBestSol.totalInfeas == 0) && (solver.outerBestSol.totalWarpStd1 <= 1e-6) && (solver.outerBestSol.totalWarpStd2 <= 1e-6)
                     copy_solution!(solver.bestFeasSol, solver.outerBestSol)
-                    improved!(stopCrit)
-                    improved!(acceptCrit)
+                    outerIter = 0
                 end
-            elseif _is_feasible(solver.outerCurrSol) &&
-                   solver.outerCurrSol.cost < solver.bestFeasSol.cost - 1e-6
+            elseif (solver.outerCurrSol.cost < solver.bestFeasSol.cost - 1e-6) && (solver.outerCurrSol.totalInfeas == 0 && solver.outerCurrSol.totalWarpStd1 <= 1e-6 && solver.outerCurrSol.totalWarpStd2 <= 1e-6)
                 copy_solution!(solver.bestFeasSol, solver.outerCurrSol)
-                improved!(stopCrit)
-                improved!(acceptCrit)
+                outerIter = 0
             end
-
-            revert!(acceptCrit, solver.outerCurrSol, solver.outerBestSol)
-            update!(acceptCrit)
-
             total_algorithm_time = time() - ts
 
             if total_algorithm_time >= header_time
                 println("-"^135)
+
                 @printf("| %7s | %6s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
-                    "Restart", "Iter.", "Best Feas", "Best", "Curr",
-                    "Pen. Custom", "Pen. Standard 1", "Pen. Standard 2", "Pool", "Time (s)")
+                    "Restart",
+                    "Iter.",
+                    "Best Feas",
+                    "Best",
+                    "Curr",
+                    "Pen. Custom",
+                    "Pen. Standard 1",
+                    "Pen. Standard 2",
+                    "Pool",
+                    "Time (s)"
+                )
+
                 println("-"^135)
                 header_time += 20.0
             end
 
-            iter_display = stopCrit isa IterationLimit ? stopCrit.iter :
-                           acceptCrit isa SimulatedAnnealing ? round(Int, acceptCrit.T) : 0
             @printf("| %7d | %6d | %10.2f | %12.2f | %12.2f | %11.2f | %15.2f | %15.2f | %6d | %10.4f |\n",
-                r, iter_display,
-                solver.bestFeasSol.cost, solver.outerBestSol.cost, solver.outerCurrSol.cost,
+                r,
+                outerIter,
+                solver.bestFeasSol.cost,
+                solver.outerBestSol.cost,
+                solver.outerCurrSol.cost,
                 solver.parameters.penaltyCustom,
-                solver.parameters.penaltyStandard1, solver.parameters.penaltyStandard2,
-                length(solver.route_storage), total_algorithm_time)
-
+                solver.parameters.penaltyStandard1,
+                solver.parameters.penaltyStandard2,
+                length(solver.route_storage),
+                total_algorithm_time
+            )
+            copy_solution!(solver.outerCurrSol, solver.outerBestSol)
             if total_algorithm_time >= solver.timeLimitILS
                 @goto SP
             end

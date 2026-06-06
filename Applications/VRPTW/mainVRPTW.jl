@@ -221,8 +221,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         neighborhoods = NEIGHBORHOODS
     )
     println("Solving...")
-    sa = SimulatedAnnealing(100.0, 100.0, 0.001, 0.995)
-    @time NILS(solver, sa, sa)
+    @time NILS(solver)
     @time RVND!(solver, solver.bestFeasSol)
     @code_warntype search!(InterSwap{2,1}(), solver, solver.bestFeasSol)
     sol = getBestSol(solver)
