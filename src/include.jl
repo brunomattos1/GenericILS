@@ -2,6 +2,7 @@ using Random, JuMP, HiGHS, Printf
 import Base: push!
 import Base: hash
 import Base: split
+include("LabelsFunctions.jl")
 include("Solution.jl")
 include("Parameters.jl")
 include("Diversification.jl")
@@ -13,7 +14,7 @@ include("Construct.jl")
 # include("applyMoves.jl")
 
 include("SetPartitioning.jl")
-include("Subsequences.jl")
+include("Labels.jl")
 include("Infeasibility.jl")
 include("AcceptCriteria.jl")
 # include("costFunctions.jl")

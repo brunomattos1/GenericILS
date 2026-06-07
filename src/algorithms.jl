@@ -21,7 +21,7 @@ function NILS(solver::Solver)
     constructSol!(solver)
     push!(solver, solver.outerCurrSol)
     ILS(solver, solver.outerCurrSol)
-    accept!(AcceptBest(), solver, solver.outerCurrSol, solver.outerBestSol)
+    accept!(AcceptBest(), solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
     while !(stop(solver.stopCriteria, solver))
         solver.iter += 1
         copy_solution!(solver.outerCandidateSol, solver.outerCurrSol)

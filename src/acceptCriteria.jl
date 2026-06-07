@@ -67,7 +67,7 @@ function accept!(criteria::Metropolis, solver::Solver, bestSol::Solution, currSo
 end
 
 function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
-    Δ = currSol.cost - candidateSol.cost
+    Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
     if candidateSol.cost < bestSol.cost - 1e-6
         copy_solution!(bestSol, candidateSol)
