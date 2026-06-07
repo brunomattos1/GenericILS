@@ -1,5 +1,6 @@
-include("resourcesVRPTW.jl")
 include("../../src/Include.jl")
+
+include("resourcesVRPTW.jl")
 Random.seed!(0)
 
 # using PlotlyJS
@@ -203,7 +204,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     stdRes2 = StandardResource{2}(dmat, Float64[0.0 for i = 1:length(customers)+1], Float64[capacity for i = 1:length(customers)+1])
     
     # res = Resources(customRes, stdRes1, stdRes2)
-    res = Resources()
+    res = Resources{CustomResource}()
     addResource!(res, customRes)
     addResource!(res, stdRes1)
     addResource!(res, stdRes2)

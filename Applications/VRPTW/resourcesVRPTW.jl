@@ -1,5 +1,5 @@
 ################ user-defined ################
-struct CustomResource
+struct CustomResource <: AbstractResource
     d::Matrix{Float64}
     Q::Float64
 end
@@ -18,39 +18,6 @@ end
 
 struct BackwardState
     q::Float64
-end
-
-struct StandardResource{ID}
-    d::Matrix{Float64}
-    lb::Vector{Float64}
-    ub::Vector{Float64}
-end
-
-struct StandardState
-    q::Float64
-    stdWarp::Float64
-end
-
-mutable struct Resources
-    customResource::Union{CustomResource, Nothing}
-    stdResource1::Union{StandardResource{1}, Nothing}
-    stdResource2::Union{StandardResource{2}, Nothing}
-end
-
-struct ForwardLabel
-    state::ForwardState
-    cost::Float64
-    std1State::StandardState
-    std2State::StandardState
-    last::Int
-end
-
-struct BackwardLabel
-    state::BackwardState
-    cost::Float64
-    std1State::StandardState
-    std2State::StandardState
-    last::Int
 end
 
 function initStateForward(res::CustomResource)
@@ -88,3 +55,4 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
         return newState
     end
 end
+

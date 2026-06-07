@@ -1,16 +1,36 @@
-Resources() = Resources(nothing, nothing, nothing)
+abstract type AbstractResource end
+abstract type AbstractResources end
+abstract type Label end
 
-function addResource!(res::Resources, custom::CustomResource)
-    res.customResource = custom
+struct StandardResource{ID}
+    d::Matrix{Float64}
+    lb::Vector{Float64}
+    ub::Vector{Float64}
 end
 
-function addResource!(res::Resources, standard::StandardResource{1})
-    res.stdResource1 = standard
+struct StandardState
+    q::Float64
+    stdWarp::Float64
 end
 
-function addResource!(res::Resources, standard::StandardResource{2})
-    res.stdResource2 = standard
+struct ForwardLabel{S}
+    state::S
+    cost::Float64
+    std1State::StandardState
+    std2State::StandardState
+    last::Int
 end
+
+struct BackwardLabel{S}
+    state::S
+    cost::Float64
+    std1State::StandardState
+    std2State::StandardState
+    last::Int
+end
+
+initStateForward(res::AbstractResource) = error("not implemented")
+initStateBackward(res::AbstractResource) = error("not implemented")
 
 @inline function get_state(label::ForwardLabel, ::Val{1})
     return label.std1State
@@ -57,34 +77,34 @@ function concatenationCost(res::StandardResource{ID}, v::Int, forwardLabel::Forw
     return StandardState(q_std, q_warp)
 end
 
-function myInitStateForward(res::CustomResource)
+function myInitStateForward(res::AbstractResource)
     return ForwardLabel(initStateForward(res)..., StandardState(0.0, 0.0), StandardState(0.0, 0.0), 0)
 end
 
-function myInitStateBackward(res::CustomResource)
+function myInitStateBackward(res::AbstractResource)
     return BackwardLabel(initStateBackward(res)..., StandardState(Inf, 0.0), StandardState(Inf, 0.0), 0)
 end
 
-function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
+function myExtendAlongArc(res::AbstractResource, label::ForwardLabel, a::Tuple{Int, Int})
     return ForwardLabel(extendAlongArc(res, label, a)..., label.std1State, label.std2State, a[2] - 1)
 end
 
-function myExtendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
+function myExtendAlongArc(res::AbstractResource, label::BackwardLabel, a::Tuple{Int, Int})
     return BackwardLabel(extendAlongArc(res, label, a)..., label.std1State, label.std2State, a[2] - 1)
 end
 
-function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+function myConcatenationCost(res::AbstractResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std1State, forwardLabel.std2State, backwardLabel.last)
 end
 
-function myExtendAlongArc(res::Resources, label::ForwardLabel, a::Tuple{Int, Int})
+function myExtendAlongArc(res::AbstractResources, label::ForwardLabel, a::Tuple{Int, Int})
     return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource1, label, a), extendAlongArc(res.stdResource2, label, a), a[2] - 1)
 end
 
-function myExtendAlongArc(res::Resources, label::BackwardLabel, a::Tuple{Int, Int})
+function myExtendAlongArc(res::AbstractResources, label::BackwardLabel, a::Tuple{Int, Int})
     return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource1, label, a), extendAlongArc(res.stdResource2, label, a), a[2] - 1)
 end
 
-function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource1, v, forwardLabel, backwardLabel),concatenationCost(res.stdResource2, v, forwardLabel, backwardLabel),  backwardLabel.last)
+function myConcatenationCost(res::AbstractResources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
+    return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource1, v, forwardLabel, backwardLabel), concatenationCost(res.stdResource2, v, forwardLabel, backwardLabel), backwardLabel.last)
 end

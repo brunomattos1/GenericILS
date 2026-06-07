@@ -1,9 +1,9 @@
 
 function NILS(solver::Solver)
     solver.outerBestSol.cost = Inf
-    solver.bestSol = Solution()
+    solver.bestSol = new_solution(solver)
     solver.startTime = time()
-    solver.bestFeasSol = Solution()
+    solver.bestFeasSol = new_solution(solver)
     solver.bestFeasSol.cost = Inf
     println("-"^135)
     @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",

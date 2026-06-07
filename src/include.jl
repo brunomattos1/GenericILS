@@ -3,6 +3,7 @@ import Base: push!
 import Base: hash
 import Base: split
 include("LabelsFunctions.jl")
+include("Resources.jl")
 include("Solution.jl")
 include("Parameters.jl")
 include("Diversification.jl")

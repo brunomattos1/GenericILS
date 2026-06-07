@@ -199,17 +199,17 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
 end
 
 function createSolution(
-    solver::Solver,
+    solver::Solver{N, AC, SC, R, FL, BL},
     routes::Vector{Vector{Int}};
     dist::Union{Float64,Nothing}=nothing,
-    cost::Union{Float64,Nothing}=nothing)
+    cost::Union{Float64,Nothing}=nothing) where {N, AC, SC, R <: AbstractResources, FL, BL}
 
-    sol = UserSolution(
+    sol = UserSolution{FL, BL}(
         routes,
         0.0,
         0.0,
-        Vector{Vector{ForwardLabel}}(),
-        Vector{Vector{BackwardLabel}}(),
+        Vector{Vector{FL}}(),
+        Vector{Vector{BL}}(),
     )
 
     sol.dist = isnothing(dist) ? manualCost(sol, solver.data.costMatrix) : dist

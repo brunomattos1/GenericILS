@@ -56,7 +56,7 @@ struct BestInsertion
 end
 BestInsertion() = BestInsertion(Inf, Inf, 0, 0, 0, typemax(Int), Inf, Inf)
 
-struct BestMove 
+struct BestMove
     cost::Float64
     dist::Float64
     firstRoute::Int
@@ -67,7 +67,7 @@ struct BestMove
     warpsR1::Tuple{Float64, Float64}
     warpsR2::Tuple{Float64, Float64}
 end
-BestMove(; 
+BestMove(;
     cost::Float64 = Inf,
     dist::Float64 = Inf,
     firstRoute::Int = 0,
@@ -77,14 +77,7 @@ BestMove(;
     infeas::Tuple{Int,Int} = (typemax(Int), typemax(Int)),
     warpsR1::Tuple{Float64,Float64} = (Inf, Inf),
     warpsR2::Tuple{Float64,Float64} = (Inf, Inf)
-
 ) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx, infeas, warpsR1, warpsR2)
-
-# struct Insertion <: Move
-#     route::Int
-#     customer::Int
-#     pos::Int
-# end
 
 struct Shift <: Move
     routeFrom::Int
@@ -92,13 +85,6 @@ struct Shift <: Move
     fromIdx::Int
     toIdx::Int
 end
-
-# struct Swap <: Move
-#     firstRoute::Int
-#     secondRoute::Int
-#     firstIdx::Int
-#     secondIdx::Int
-# end
 
 struct OptStar <: Move
     firstRoute::Int
@@ -114,21 +100,13 @@ struct ViolationInfo
     secondRouteLabelCost::Float64
 end
 
-# struct Warps
-#     warpStd1FirstRoute::Float64
-#     warpStd1SecondRoute::Float64
-#     warpStd2FirstRoute::Float64
-#     warpStd2SecondRoute::Float64
-# end
-
-
 struct Cost
-    dist::Float64 # distance
-    route1::Int # route 1
-    route2::Int # route 2
-    violInfo::ViolationInfo # violation info for custom resource
-    warpStd1::Tuple{Float64, Float64} # warp for the first and second route (!)
-    warpStd2::Tuple{Float64, Float64} # warp for the first and second route (!)
+    dist::Float64
+    route1::Int
+    route2::Int
+    violInfo::ViolationInfo
+    warpStd1::Tuple{Float64, Float64}
+    warpStd2::Tuple{Float64, Float64}
 end
 
 mutable struct Vertex
@@ -139,7 +117,6 @@ end
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
 Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
 
-
 struct ProblemData
     vertices::Vector{Vertex}
     costMatrix::Matrix{Float64}
@@ -147,18 +124,16 @@ struct ProblemData
 end
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
-
-
-mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria}
+mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: AbstractResources, FL, BL}
     seed::Random.MersenneTwister
     parameters::Parameters
     data::ProblemData
-    outerCandidateSol::Solution
-    outerCurrSol::Solution
-    outerBestSol::Solution
-    bestFeasSol::Solution
-    currSol::Solution
-    bestSol::Solution
+    outerCandidateSol::Solution{FL, BL}
+    outerCurrSol::Solution{FL, BL}
+    outerBestSol::Solution{FL, BL}
+    bestFeasSol::Solution{FL, BL}
+    currSol::Solution{FL, BL}
+    bestSol::Solution{FL, BL}
     diversification::Diversification
     acceptCriteria::AC
     stopCriteria::SC
@@ -167,21 +142,18 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria}
     startTime::Float64
     neighborhoods::N
     active_neighs::Vector{Int}
-    res::Resources
+    res::R
 
-    forwardLabels::Vector{Vector{ForwardLabel}}
-    backwardLabels::Vector{Vector{BackwardLabel}}
-    prevLabelF::ForwardLabel
-    prevLabelStdF::ForwardLabel
-    prevLabelB::BackwardLabel
-    prevLabelStdB::BackwardLabel
+    forwardLabels::Vector{Vector{FL}}
+    backwardLabels::Vector{Vector{BL}}
+    prevLabelF::FL
+    prevLabelStdF::FL
+    prevLabelB::BL
+    prevLabelStdB::BL
     buffer::Vector{Int}
     buffer2opt::Vector{Int}
     bufferRoute::Vector{Int}
-    bufferSol::Solution
-    # pool::Vector{Vector{Int}}
-    # pool::Dict{Vector{Int}, Float64}
-    # hashes::Set{UInt64}
+    bufferSol::Solution{FL, BL}
     route_storage::Vector{Vector{Int}}
     cost_storage::Vector{Float64}
     route_lookup::Dict{Vector{Int}, Int}
@@ -191,20 +163,14 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria}
     aggressivePool::Bool
 end
 
-function Solver(; 
+function Solver(;
     seed = 1,
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
-        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
+        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
         penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
         penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
     ),
     data = ProblemData(),
-    outerCandidateSol = Solution(),
-    outerCurrSol = Solution(),
-    bestCurrSol = Solution(),
-    bestFeasSol = Solution(),
-    currSol = Solution(),
-    bestSol = Solution(),
     diversification = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
     acceptCriteria = Metropolis(100.0, 0.995),
     stopCriteria = ByTemperature(1.0),
@@ -213,37 +179,41 @@ function Solver(;
     startTime = 0.0,
     neighborhoods = (),
     active_neighs = Int[],
-    res = Resources(CustomResource(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), 0.0),
-        StandardResource{1}(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), Float64[0.0 for i = 1:length(data.vertices)+1], Float64[typemax(Float64) for i = 1:length(data.vertices)+1]), 
-        StandardResource{2}(zeros(Float64, length(data.vertices)+1, length(data.vertices)+1), Float64[0.0 for i = 1:length(data.vertices)+1], Float64[typemax(Float64) for i = 1:length(data.vertices)+1])),
-
-    forwardLabels = Vector{Vector{ForwardLabel}}(),
-    backwardLabels = Vector{Vector{BackwardLabel}}(),
-    buffer = Vector{Int}(),
-    buffer2opt = Vector{Int}(),
-    bufferRoute = Vector{Int}(),
-    bufferSol = Solution(),
+    res,
     timeStamp = 0,
     timeLimitILS = 3600.0,
     timeLimitSP = 3600.0,
     aggressivePool = false)
 
-    prevLabelF = myInitStateForward(res.customResource)
+    prevLabelF    = myInitStateForward(res.customResource)
     prevLabelStdF = myInitStateForward(res.customResource)
-    prevLabelB = myInitStateBackward(res.customResource)
+    prevLabelB    = myInitStateBackward(res.customResource)
     prevLabelStdB = myInitStateBackward(res.customResource)
-    
+
+    FL = typeof(prevLabelF)
+    BL = typeof(prevLabelB)
+    R  = typeof(res)
+
     route_storage = Vector{Vector{Int}}()
-    cost_storage = Vector{Float64}()
-    route_lookup = Dict{Vector{Int}, Int}()
-    
+    cost_storage  = Vector{Float64}()
+    route_lookup  = Dict{Vector{Int}, Int}()
+
     Solver(
-        Random.MersenneTwister(seed), parameters, data, outerCandidateSol, outerCurrSol, bestCurrSol, bestFeasSol, currSol, bestSol,
-        diversification, acceptCriteria, stopCriteria, iter, innerIter, startTime, neighborhoods, active_neighs, res, forwardLabels, backwardLabels, prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
-        buffer, buffer2opt, bufferRoute, bufferSol, route_storage, cost_storage, route_lookup, timeStamp, timeLimitILS, timeLimitSP,
-        aggressivePool)
+        Random.MersenneTwister(seed), parameters, data,
+        Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
+        Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
+        diversification, acceptCriteria, stopCriteria,
+        iter, innerIter, startTime, neighborhoods, active_neighs, res,
+        Vector{Vector{FL}}(), Vector{Vector{BL}}(),
+        prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
+        Vector{Int}(), Vector{Int}(), Vector{Int}(),
+        Solution{FL, BL}(),
+        route_storage, cost_storage, route_lookup,
+        timeStamp, timeLimitILS, timeLimitSP, aggressivePool
+    )
 end
 
+new_solution(::Solver{N, AC, SC, R, FL, BL}) where {N, AC, SC, R, FL, BL} = Solution{FL, BL}()
 
 function setTimeLimitILS(solver::Solver, time::Float64)
     solver.timeLimitILS = time
@@ -272,8 +242,4 @@ getCost(sol::Union{Solution, UserSolution}) = sol.cost
 
 getDistance(sol::Union{Solution, UserSolution}) = sol.dist
 
-
-
-
 getCostMatrix(solver::Solver) = solver.data.costMatrix
-
