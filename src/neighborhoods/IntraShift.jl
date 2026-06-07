@@ -52,7 +52,7 @@ function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
     resViol, labelCost = computeViolIntraShift10(solver, sol, r, i, j)
     warpStd1, warpStd2 = computeStdViolIntraShift10(solver, sol, r, i, j)
     cost = objectiveValue(solver, sol, r, dist, 0, labelCost, warpStd1, warpStd2)
-    return dist, cost, resViol, warpStd1, 0.0, warpStd2, 0.0
+    return dist, cost, resViol
 end
 
 function search!(neigh::IntraShift, solver::Solver, sol::Solution)
@@ -68,9 +68,9 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
         if sol.feasiblesF[r] >= length(sol.routes[r]) - 1
             for i = 2:length(sol.routes[r])-1
                 for j = i+1:length(sol.routes[r])-1
-                    dist, cost, resViol, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2 = evalIntraShift10(solver, sol, Shift(r, r, i, j))
+                    dist, cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j))
                     if resViol == 0 && cost < bestMove.cost - 1e-6
-                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (warpR1Std1, warpR1Std2), (warpR2Std1, warpR2Std2))
+                        bestMove = BestMove(cost, dist, r, 0, i, j)
                     end
                 end
             end
@@ -78,9 +78,9 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
         if sol.feasiblesB[r] >= length(sol.routes[r]) - 1
             for i = length(sol.routes[r])-1:-1:2
                 for j = i-1:-1:2
-                    dist, cost, resViol, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2 = evalIntraShift10(solver, sol, Shift(r, r, i, j))
+                    dist, cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j))
                     if resViol == 0 && cost < bestMove.cost - 1e-6
-                        bestMove = BestMove(cost, dist, r, 0, i, j, (0, 0), (warpR1Std1, warpR1Std2), (warpR2Std1, warpR2Std2))
+                        bestMove = BestMove(cost, dist, r, 0, i, j)
                     end
                 end
             end
@@ -105,46 +105,30 @@ function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove
     r = move.firstRoute
     i, j = move.firstIdx, move.secondIdx
 
-    solution.cost = move.cost
     solution.dist = move.dist
-    solution.totalInfeas -= solution.infeas[r]
-    solution.totalInfeas += move.infeas[1]
-    solution.infeas[r] = move.infeas[1]
-
+    solution.totalInfeas   -= solution.infeas[r]
     solution.totalWarpStd1 -= solution.warpsStd1[r]
-    solution.totalWarpStd1 += move.warpsR1[1]
-    solution.warpsStd1[r] = move.warpsR1[1]
     solution.totalWarpStd2 -= solution.warpsStd2[r]
-    solution.totalWarpStd2 += move.warpsR1[2]
-    solution.warpsStd2[r] = move.warpsR1[2]
+    solution.totalLabelCost -= solution.labelCosts[r]
 
-    customerI = solution.routes[r][i]
-    if i < j
-        if j == i + 1
-            deleteat!(solution.routes[r], i)
-            insert!(solution.routes[r], j, customerI)
-        else
-            deleteat!(solution.routes[r], i)
-            insert!(solution.routes[r], j-1, customerI)
-        end
+    route = solution.routes[r]
+    if i < j && j == i + 1
+        route[i], route[j] = route[j], route[i]
     else
-        deleteat!(solution.routes[r], i)
-        insert!(solution.routes[r], j, customerI)
+        move_blocks_intra!(route, i, 1, j, solver.bufferRoute)
     end
 
     computeLabels(solver, solution, r)
-    solution.totalInfeas -= solution.infeas[r]
+
     solution.infeas[r] = length(solution.routes[r]) - max(solution.feasiblesF[r], solution.feasiblesB[r]) - 1
     solution.totalInfeas += solution.infeas[r]
 
-    solution.totalWarpStd1 -= solution.warpsStd1[r]
     solution.warpsStd1[r] = solution.forwardLabels[r][end].std1State.stdWarp
     solution.totalWarpStd1 += solution.warpsStd1[r]
-    solution.totalWarpStd2 -= solution.warpsStd2[r]
+
     solution.warpsStd2[r] = solution.forwardLabels[r][end].std2State.stdWarp
     solution.totalWarpStd2 += solution.warpsStd2[r]
 
-    solution.totalLabelCost -= solution.labelCosts[r]
     solution.labelCosts[r] = min(solution.forwardLabels[r][end].cost, solution.backwardLabels[r][end].cost)
     solution.totalLabelCost += solution.labelCosts[r]
 

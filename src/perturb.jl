@@ -76,9 +76,7 @@ function randomInterShift10!(solver::Solver, solution::Solution)
     violInfo = computeViolInterShiftK(solver, solution, r1, r2, i, j, k)
     cost = objectiveValue(solver, solution,
         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
-    move = BestMove(cost, dist, r1, r2, i, j,
-        (violInfo.firstRouteInfeas, violInfo.secondRouteInfeas),
-        (warpR1s1, warpR1s2), (warpR2s1, warpR2s2))
+    move = BestMove(cost, dist, r1, r2, i, j)
     apply!(InterShift{1}(), solver, solution, move)
     return true
 end

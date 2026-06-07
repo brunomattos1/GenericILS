@@ -13,8 +13,8 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, B
         forwLabels[r]  = Vector{FL}(undef, length(sol.routes[r]))
         backwLabels[r] = Vector{BL}(undef, length(sol.routes[r]))
         lenR = length(sol.routes[r])
-        forwLabels[r][1]    = myInitStateForward(solver.res.customResource)
-        backwLabels[r][lenR] = myInitStateBackward(solver.res.customResource)
+        forwLabels[r][1] = myInitStateForward(solver.res.customResource)
+        backwLabels[r][1] = myInitStateBackward(solver.res.customResource)
     end
     for r = 1:nbRoutes
         lenR = length(sol.routes[r])
@@ -36,16 +36,16 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, B
     for r = 1:nbRoutes
         lenR = length(sol.routes[r])
         last = false
-        for i = lenR:-1:2
-            label = myExtendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+        for k = 2:lenR
+            pos = lenR - k + 1
+            label = myExtendAlongArc(solver.res, backwLabels[r][k-1], (sol.routes[r][pos+1]+1, sol.routes[r][pos]+1))
             if !last && label.cost == Inf
                 last = true
-                push!(sol.lastFeasibleB, lenR - i + 1)
-                sol.feasiblesB[r] = lenR - i
+                push!(sol.lastFeasibleB, k - 1)
+                sol.feasiblesB[r] = k - 2
             end
-            backwLabels[r][i-1] = label
+            backwLabels[r][k] = label
         end
-        reverse!(backwLabels[r])
         if !last
             push!(sol.lastFeasibleB, lenR)
             sol.feasiblesB[r] = lenR - 1
@@ -67,8 +67,8 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, B
         sol.lastFeasibleB[r] = -1
         sol.feasiblesF[r] = -1
         sol.feasiblesB[r] = -1
-        sol.forwardLabels[r][1]    = myInitStateForward(solver.res.customResource)
-        sol.backwardLabels[r][lenR] = myInitStateBackward(solver.res.customResource)
+        sol.forwardLabels[r][1] = myInitStateForward(solver.res.customResource)
+        sol.backwardLabels[r][1] = myInitStateBackward(solver.res.customResource)
     end
     for r in routes
         lenR = length(sol.routes[r])
@@ -90,16 +90,16 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, B
     for r in routes
         lenR = length(sol.routes[r])
         last = false
-        for i = lenR:-1:2
-            label = myExtendAlongArc(solver.res, sol.backwardLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+        for k = 2:lenR
+            pos = lenR - k + 1
+            label = myExtendAlongArc(solver.res, sol.backwardLabels[r][k-1], (sol.routes[r][pos+1]+1, sol.routes[r][pos]+1))
             if !last && label.cost == Inf
                 last = true
-                sol.lastFeasibleB[r] = lenR - i + 1
-                sol.feasiblesB[r] = lenR - i
+                sol.lastFeasibleB[r] = k - 1
+                sol.feasiblesB[r] = k - 2
             end
-            sol.backwardLabels[r][i-1] = label
+            sol.backwardLabels[r][k] = label
         end
-        reverse!(sol.backwardLabels[r])
         if !last
             sol.lastFeasibleB[r] = lenR
             sol.feasiblesB[r] = lenR - 1
@@ -123,8 +123,8 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::UserSolution{F
         forwLabels[r]  = Vector{FL}(undef, length(sol.routes[r]))
         backwLabels[r] = Vector{BL}(undef, length(sol.routes[r]))
         lenR = length(sol.routes[r])
-        forwLabels[r][1]    = myInitStateForward(solver.res.customResource)
-        backwLabels[r][lenR] = myInitStateBackward(solver.res.customResource)
+        forwLabels[r][1] = myInitStateForward(solver.res.customResource)
+        backwLabels[r][1] = myInitStateBackward(solver.res.customResource)
     end
     for r = 1:nbRoutes
         lenR = length(sol.routes[r])
@@ -134,10 +134,10 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::UserSolution{F
     end
     for r = 1:nbRoutes
         lenR = length(sol.routes[r])
-        for i = lenR:-1:2
-            backwLabels[r][i-1] = myExtendAlongArc(solver.res, backwLabels[r][i], (sol.routes[r][i]+1, sol.routes[r][i-1]+1))
+        for k = 2:lenR
+            pos = lenR - k + 1
+            backwLabels[r][k] = myExtendAlongArc(solver.res, backwLabels[r][k-1], (sol.routes[r][pos+1]+1, sol.routes[r][pos]+1))
         end
-        reverse!(backwLabels[r])
     end
     sol.forwardLabels  = forwLabels
     sol.backwardLabels = backwLabels

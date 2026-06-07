@@ -42,7 +42,7 @@ function NILS(solver::Solver)
         println("Search finished! Executing Set Partitioning model...")
     end
     println("-"^144)
-    setPartitioning(solver, solver.bestFeasSol.cost)
+    # setPartitioning(solver, solver.bestFeasSol.cost)
     solver.outerBestSol = deepcopy(solver.bestFeasSol)
 end
 

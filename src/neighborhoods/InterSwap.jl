@@ -14,10 +14,14 @@ function interSwapCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::V
 end
 
 function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k1::Int, k2::Int)
-    block1 = @view sol.routes[r1][i:i+k1-1]
-    block2 = @view sol.routes[r2][j:j+k2-1]
-    infeasR1, lc1 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, block2)
-    infeasR2, lc2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, block1)
+    buf1 = solver.bufferRoute
+    buf2 = solver.buffer2opt
+    resize!(buf1, k1)
+    resize!(buf2, k2)
+    copyto!(buf1, 1, sol.routes[r1], i, k1)
+    copyto!(buf2, 1, sol.routes[r2], j, k2)
+    infeasR1, lc1 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, buf2)
+    infeasR2, lc2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, buf1)
     return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
 end
 
@@ -54,9 +58,7 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6
-                        bestMove = BestMove(cost, dist, r1, r2, i, j,
-                            (violInfo.firstRouteInfeas, violInfo.secondRouteInfeas),
-                            (warpR1s1, warpR1s2), (warpR2s1, warpR2s2))
+                        bestMove = BestMove(cost, dist, r1, r2, i, j)
                     end
                 end
             end
@@ -83,36 +85,27 @@ function apply!(::InterSwap{k1,k2}, solver::Solver, sol::Solution, bestMove::Bes
     i,  j  = bestMove.firstIdx,   bestMove.secondIdx
 
     sol.dist = bestMove.dist
-    sol.cost = bestMove.cost
+    sol.totalInfeas   -= sol.infeas[r1]    + sol.infeas[r2]
+    sol.totalWarpStd1 -= sol.warpsStd1[r1] + sol.warpsStd1[r2]
+    sol.totalWarpStd2 -= sol.warpsStd2[r1] + sol.warpsStd2[r2]
+    sol.totalLabelCost -= sol.labelCosts[r1] + sol.labelCosts[r2]
 
-    sol.totalInfeas -= sol.infeas[r1] + sol.infeas[r2]
-    sol.totalInfeas += bestMove.infeas[1] + bestMove.infeas[2]
-    sol.infeas[r1] = bestMove.infeas[1]
-    sol.infeas[r2] = bestMove.infeas[2]
-
-    block1 = sol.routes[r1][i:i+k1-1]
-    block2 = sol.routes[r2][j:j+k2-1]
-    splice!(sol.routes[r1], i:i+k1-1, block2)
-    splice!(sol.routes[r2], j:j+k2-1, block1)
+    move_blocks!(sol.routes[r1], i, k1, sol.routes[r2], j, k2, solver.bufferRoute)
 
     computeLabels(solver, sol, r1, r2)
 
-    sol.totalInfeas -= sol.infeas[r1] + sol.infeas[r2]
     sol.infeas[r1] = length(sol.routes[r1]) - max(sol.feasiblesF[r1], sol.feasiblesB[r1]) - 1
     sol.infeas[r2] = length(sol.routes[r2]) - max(sol.feasiblesF[r2], sol.feasiblesB[r2]) - 1
     sol.totalInfeas += sol.infeas[r1] + sol.infeas[r2]
 
-    sol.totalWarpStd1 -= sol.warpsStd1[r1] + sol.warpsStd1[r2]
     sol.warpsStd1[r1] = sol.forwardLabels[r1][end].std1State.stdWarp
     sol.warpsStd1[r2] = sol.forwardLabels[r2][end].std1State.stdWarp
     sol.totalWarpStd1 += sol.warpsStd1[r1] + sol.warpsStd1[r2]
 
-    sol.totalWarpStd2 -= sol.warpsStd2[r1] + sol.warpsStd2[r2]
     sol.warpsStd2[r1] = sol.forwardLabels[r1][end].std2State.stdWarp
     sol.warpsStd2[r2] = sol.forwardLabels[r2][end].std2State.stdWarp
     sol.totalWarpStd2 += sol.warpsStd2[r1] + sol.warpsStd2[r2]
 
-    sol.totalLabelCost -= sol.labelCosts[r1] + sol.labelCosts[r2]
     sol.labelCosts[r1] = min(sol.forwardLabels[r1][end].cost, sol.backwardLabels[r1][end].cost)
     sol.labelCosts[r2] = min(sol.forwardLabels[r2][end].cost, sol.backwardLabels[r2][end].cost)
     sol.totalLabelCost += sol.labelCosts[r1] + sol.labelCosts[r2]

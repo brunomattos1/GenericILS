@@ -229,6 +229,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     println("Solving...")
     @time NILS(solver)
     sol = getBestSol(solver)
+    # @code_warntype search!(InterShift{1}(), solver, sol)
     return sol.cost
 end
 

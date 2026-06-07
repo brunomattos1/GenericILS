@@ -63,9 +63,6 @@ struct BestMove
     secondRoute::Int
     firstIdx::Int
     secondIdx::Int
-    infeas::Tuple{Int, Int}
-    warpsR1::Tuple{Float64, Float64}
-    warpsR2::Tuple{Float64, Float64}
 end
 BestMove(;
     cost::Float64 = Inf,
@@ -73,11 +70,8 @@ BestMove(;
     firstRoute::Int = 0,
     secondRoute::Int = 0,
     firstIdx::Int = 0,
-    secondIdx::Int = 0,
-    infeas::Tuple{Int,Int} = (typemax(Int), typemax(Int)),
-    warpsR1::Tuple{Float64,Float64} = (Inf, Inf),
-    warpsR2::Tuple{Float64,Float64} = (Inf, Inf)
-) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx, infeas, warpsR1, warpsR2)
+    secondIdx::Int = 0
+) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx)
 
 struct Shift <: Move
     routeFrom::Int

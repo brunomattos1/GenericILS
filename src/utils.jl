@@ -1,4 +1,60 @@
-﻿totalTime(solver::Solver) = time() - solver.startTime
+﻿function move_blocks!(route1::Vector{Int}, i::Int, k1::Int,
+                      route2::Vector{Int}, j::Int, k2::Int,
+                      buffer::Vector{Int})
+    n1 = length(route1)
+    n2 = length(route2)
+
+    if k1 > 0
+        copyto!(buffer, 1, route1, i, k1)
+    end
+
+    if k2 > k1
+        resize!(route1, n1 + k2 - k1)
+        copyto!(route1, i + k2, route1, i + k1, n1 - i - k1 + 1)
+    elseif k2 < k1
+        copyto!(route1, i + k2, route1, i + k1, n1 - i - k1 + 1)
+        resize!(route1, n1 + k2 - k1)
+    end
+
+    if k2 > 0
+        copyto!(route1, i, route2, j, k2)
+    end
+
+    if k1 > k2
+        resize!(route2, n2 + k1 - k2)
+        copyto!(route2, j + k1, route2, j + k2, n2 - j - k2 + 1)
+    elseif k1 < k2
+        copyto!(route2, j + k1, route2, j + k2, n2 - j - k2 + 1)
+        resize!(route2, n2 + k1 - k2)
+    end
+
+    if k1 > 0
+        copyto!(route2, j, buffer, 1, k1)
+    end
+end
+
+function move_blocks_intra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::Vector{Int})
+    if i == j || k == 0
+        return nothing
+    end
+    copyto!(buffer, 1, route, i, k)
+    if i < j
+        shift_len = j - i - k
+        if shift_len > 0
+            copyto!(route, i, route, i + k, shift_len)
+        end
+        copyto!(route, j - k, buffer, 1, k)
+    else
+        shift_len = i - j
+        if shift_len > 0
+            copyto!(route, j + k, route, j, shift_len)
+        end
+        copyto!(route, j, buffer, 1, k)
+    end
+    return nothing
+end
+
+totalTime(solver::Solver) = time() - solver.startTime
 get_stop_info(solver::Solver, ::Any) = NaN  # default (não tem temperatura)
 
 get_stop_info(solver::Solver, c::ByIterMax) = solver.iter  # default (não tem temperatura)
