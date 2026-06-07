@@ -1,6 +1,7 @@
 include("../../src/Include.jl")
 
 include("resourcesVRPTW.jl")
+ENV["JULIA_HASH_SEED"] = "0"
 Random.seed!(0)
 
 # using PlotlyJS
@@ -203,11 +204,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     # Capacity also as standard resource
     stdRes2 = StandardResource{2}(dmat, Float64[0.0 for i = 1:length(customers)+1], Float64[capacity for i = 1:length(customers)+1])
     
-    # res = Resources(customRes, stdRes1, stdRes2)
-    res = Resources{CustomResource}()
-    addResource!(res, customRes)
-    addResource!(res, stdRes1)
-    addResource!(res, stdRes2)
+    res = Resources(customRes, stdRes1, stdRes2)
 
     parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
         penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
@@ -224,7 +221,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         # acceptCriteria = Metropolis(100.0, 0.99),
         # stopCriteria = ByTemperature(0.1),
         acceptCriteria = AcceptBest(),
-        stopCriteria = ByIterMax(50),
+        stopCriteria = ByIterMax(30),
         res = res,
         data = data,
         neighborhoods = NEIGHBORHOODS
@@ -235,9 +232,9 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     return sol.cost
 end
 
-instance     = "Solomon/C101.txt"
+instance     = "Solomon/R101.txt"
 restarts     = 1
-outerIterMax = 50
+outerIterMax = 30
 innerIterMax = 5
 seed         = 1
 

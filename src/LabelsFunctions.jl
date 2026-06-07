@@ -78,33 +78,47 @@ function concatenationCost(res::StandardResource{ID}, v::Int, forwardLabel::Forw
 end
 
 function myInitStateForward(res::AbstractResource)
-    return ForwardLabel(initStateForward(res)..., StandardState(0.0, 0.0), StandardState(0.0, 0.0), 0)
+    state, cost = initStateForward(res)
+    return ForwardLabel(state, cost, StandardState(0.0, 0.0), StandardState(0.0, 0.0), 0)
 end
 
 function myInitStateBackward(res::AbstractResource)
-    return BackwardLabel(initStateBackward(res)..., StandardState(Inf, 0.0), StandardState(Inf, 0.0), 0)
+    state, cost = initStateBackward(res)
+    return BackwardLabel(state, cost, StandardState(Inf, 0.0), StandardState(Inf, 0.0), 0)
 end
 
 function myExtendAlongArc(res::AbstractResource, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res, label, a)..., label.std1State, label.std2State, a[2] - 1)
+    state, cost = extendAlongArc(res, label, a)
+    return ForwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1)
 end
 
 function myExtendAlongArc(res::AbstractResource, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res, label, a)..., label.std1State, label.std2State, a[2] - 1)
+    state, cost = extendAlongArc(res, label, a)
+    return BackwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1)
 end
 
 function myConcatenationCost(res::AbstractResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std1State, forwardLabel.std2State, backwardLabel.last)
+    state, cost = concatenationCost(res, v, forwardLabel, backwardLabel)
+    return ForwardLabel(state, cost, forwardLabel.std1State, forwardLabel.std2State, backwardLabel.last)
 end
 
 function myExtendAlongArc(res::AbstractResources, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource1, label, a), extendAlongArc(res.stdResource2, label, a), a[2] - 1)
+    state, cost = extendAlongArc(res.customResource, label, a)
+    std1 = extendAlongArc(res.stdResource1, label, a)
+    std2 = extendAlongArc(res.stdResource2, label, a)
+    return ForwardLabel(state, cost, std1, std2, a[2] - 1)
 end
 
 function myExtendAlongArc(res::AbstractResources, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource1, label, a), extendAlongArc(res.stdResource2, label, a), a[2] - 1)
+    state, cost = extendAlongArc(res.customResource, label, a)
+    std1 = extendAlongArc(res.stdResource1, label, a)
+    std2 = extendAlongArc(res.stdResource2, label, a)
+    return BackwardLabel(state, cost, std1, std2, a[2] - 1)
 end
 
 function myConcatenationCost(res::AbstractResources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource1, v, forwardLabel, backwardLabel), concatenationCost(res.stdResource2, v, forwardLabel, backwardLabel), backwardLabel.last)
+    state, cost = concatenationCost(res.customResource, v, forwardLabel, backwardLabel)
+    std1 = concatenationCost(res.stdResource1, v, forwardLabel, backwardLabel)
+    std2 = concatenationCost(res.stdResource2, v, forwardLabel, backwardLabel)
+    return ForwardLabel(state, cost, std1, std2, backwardLabel.last)
 end
