@@ -1,16 +1,18 @@
+include("../../src/Include.jl")
 include("resourcesCVRP.jl")
-include("../../src/include.jl")
-using CVRPLIB#, PlotlyJS
-using CPLEX
-Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
 ENV["JULIA_HASH_SEED"] = "0"
+Random.seed!(0)
+
+using CVRPLIB
+# using PlotlyJS
+# using CPLEX
+
 function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solution.html")
     coords = [(cvrp.coordinates[i, 1], cvrp.coordinates[i, 2]) for i = 2:cvrp.dimension]
     depot_coord = (cvrp.coordinates[1, 1], cvrp.coordinates[1, 2])
     routes = solution.routes
     traces = GenericTrace{Dict{Symbol, Any}}[]
 
-    # Depósito
     push!(traces, PlotlyJS.scatter(
         x=[depot_coord[1]], y=[depot_coord[2]],
         mode="markers+text",
@@ -20,13 +22,11 @@ function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solut
         name="Depot"
     ))
 
-    # Rotas
     for route in routes
         route_coords = vcat([depot_coord], [coords[route[i]] for i = 2:length(route)-1], [depot_coord])
         xs, ys = first.(route_coords), last.(route_coords)
         push!(traces, PlotlyJS.scatter(x=xs, y=ys, mode="lines", line=attr(width=2), showlegend=false))
 
-        # Pontos clientes com tooltip
         for i in 2:length(route)-1
             cliente = route[i]
             coord = coords[cliente]
@@ -67,10 +67,10 @@ function printCVRP(solver::Solver, sol::Solution)
             if i == 1
                 print("0 (0) -> ")
             elseif i == length(sol.routes[r])
-                time += solver.res.stdResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
+                time += solver.res.stdResource1.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
                 print("0 ($demand)")
             else
-                time += solver.res.stdResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
+                time += solver.res.stdResource1.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
                 demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
                 print("$(sol.routes[r][i]) ($demand) -> ")
             end
@@ -78,13 +78,12 @@ function printCVRP(solver::Solver, sol::Solution)
         println()
     end
     println("\nCost: $(sol.dist)")
-    # println("Violation: $(sol.resViolation)")
 end
 
 function checkCVRP(solver::Solver, sol::Solution)
     visits = zeros(Int, length(solver.data.vertices))
     cost = 0.
-    demands = solver.res.d[1,:][2:end-1]      
+    demands = solver.res.d[1,:][2:end-1]
     resViol = Int[]
     for r = 1:length(sol.routes)
         load = 0.
@@ -93,7 +92,6 @@ function checkCVRP(solver::Solver, sol::Solution)
             if sol.routes[r][i] > 0
                 load += demands[sol.routes[r][i]]
             end
-            # load -= solver.res.d[sol.routes[r][end-1]+1, sol.routes[r][end]+1]
             if sol.routes[r][i] > 0
                 visits[sol.routes[r][i]] += 1
             end
@@ -134,12 +132,11 @@ end
 function createArcDemands(demands)
     n = length(demands)
     d = zeros(Float64, n, n)
-
     for i in 1:n
         for j in 1:n
             if i != j
                 if j == 1
-                    d[i, j] = 0#demands[i]
+                    d[i, j] = 0
                 else
                     d[i, j] = demands[j]
                 end
@@ -165,46 +162,53 @@ end
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instName = instance[1:end-4]
     instance = joinpath(normpath(joinpath(@__DIR__, "data")), string(instance[1]), instance)
-    # instance = joinpath(normpath(joinpath(@__DIR__, "..")), "PilsCvrp-main","PilsCvrp-main","data", "Golden", "Golden_1.vrp")
 
     cvrp = CVRPLIB.readCVRP(instance)
     dist = Float64.(cvrp.weights)
     customers = Vector{Vertex}()
-    nbCustomer = size(dist)[1]-1
+    nbCustomer = size(dist)[1] - 1
     for i = 1:nbCustomer
         push!(customers, Vertex(i, [(0, 0)]))
     end
-    maxNbRoute = ceil(Int, sum(cvrp.demand)/cvrp.capacity) + 3
+    maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
     data = ProblemData(customers, dist, maxNbRoute)
 
     demands = push!(Float64.(cvrp.demand), 0.0)
     d = createArcDemands(demands)
 
-    # cvrp.capacity = 20
     customRes = CustomResource(d, cvrp.capacity)
-    stdRes = StandardResource(d, Float64[0.0 for i = 1:length(customers)+1], Float64[cvrp.capacity for i = 1:length(customers)+1])
 
-    res = Resources(customRes, stdRes)
-    
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
-        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
-        penaltyStandard = 1.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
+    # Capacity as standard resource 1
+    n = length(customers) + 1
+    stdRes1 = StandardResource{1}(d, zeros(Float64, n), Float64[cvrp.capacity for _ in 1:n])
+    # Loose second standard resource (no constraint)
+    stdRes2 = StandardResource{2}(zeros(Float64, n, n), zeros(Float64, n), fill(Inf, n))
+
+    res = Resources(customRes, stdRes1, stdRes2)
+
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
+        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
+        penaltyStandard1 = 1.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
+        penaltyStandard2 = 0.0, penaltyStandard2Increase = 0.0, penaltyStandard2Decrease = 0.0
     )
 
     diversif = Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0)
+
     solver = Solver(
         seed = seed,
-        res = res,
-        stdResource = stdRes,
-        params = parameters, 
+        parameters = parameters,
         diversification = diversif,
-        data = data, 
-        neighborhoods = Int[1, 2, 3, 4]
+        acceptCriteria = AcceptBest(),
+        stopCriteria = ByIterMax(outerIterMax),
+        res = res,
+        data = data,
+        neighborhoods = NEIGHBORHOODS
     )
     @time NILS(solver)
+    sol = getBestSol(solver)
     printCVRP(solver, solver.outerBestSol)
-    plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
-    return
+    # plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
+    return sol.cost
 end
 
 set = "M"
