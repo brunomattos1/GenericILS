@@ -168,7 +168,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     customers = Vector{Vertex}()
     nbCustomer = size(dist)[1] - 1
     for i = 1:nbCustomer
-        push!(customers, Vertex(i, [(0, 0)]))
+        push!(customers, Vertex(i))
     end
     maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
     data = ProblemData(customers, dist, maxNbRoute)

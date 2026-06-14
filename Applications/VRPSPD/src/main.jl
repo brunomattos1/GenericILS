@@ -19,7 +19,7 @@ function main(data::DataVRPSPD, restarts::Int, outerIterMax::Int, innerIterMax::
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i, [(0, 0)]))
+        push!(customers, Vertex(i))
     end
     dataHeuristic = ProblemData(customers, buildDistMatrix(data), 10)
 

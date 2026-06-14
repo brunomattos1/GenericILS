@@ -69,7 +69,7 @@ function main(data::DataMDVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i, [(0, 0)]))
+        push!(customers, Vertex(i))
     end
     dataHeuristic = ProblemData(customers, zeros(Float64, n+1, n+1), n)
 

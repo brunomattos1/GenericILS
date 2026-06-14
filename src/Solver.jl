@@ -105,7 +105,6 @@ end
 
 mutable struct Vertex
     id::Int
-    resInterval::Vector{Tuple{Float64, Float64}}
 end
 
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
@@ -155,6 +154,7 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: Abst
     timeLimitILS::Float64
     timeLimitSP::Float64
     aggressivePool::Bool
+    MIPSolver::Any
 end
 
 function Solver(;
@@ -177,7 +177,8 @@ function Solver(;
     timeStamp = 0,
     timeLimitILS = 3600.0,
     timeLimitSP = 3600.0,
-    aggressivePool = false)
+    aggressivePool = false,
+    MIPSolver = HiGHS.Optimizer)
 
     prevLabelF    = myInitStateForward(res.customResource)
     prevLabelStdF = myInitStateForward(res.customResource)
@@ -203,7 +204,7 @@ function Solver(;
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
         Solution{FL, BL}(),
         route_storage, cost_storage, route_lookup,
-        timeStamp, timeLimitILS, timeLimitSP, aggressivePool
+        timeStamp, timeLimitILS, timeLimitSP, aggressivePool, MIPSolver
     )
 end
 

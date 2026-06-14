@@ -19,7 +19,7 @@ function main(data::DataCCVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i, [(0, 0)]))
+        push!(customers, Vertex(i))
     end
     maxNbRoute    = ceil(Int, sum(data.demand) / data.capacity)
     dataHeuristic = ProblemData(customers, zeros(Float64, n+1, n+1), maxNbRoute)
