@@ -1,9 +1,8 @@
-################ user-defined ################
 struct CustomResource <: AbstractResource
     w::Vector{Float64}   # node weights
     t::Matrix{Float64}   # travel time matrix
-    Wmax::Float64        # max weight
-    Tmax::Float64        # max time
+    Wmax::Float64
+    Tmax::Float64
 end
 
 function isSymmetric()
