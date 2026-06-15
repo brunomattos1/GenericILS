@@ -1,62 +1,63 @@
 abstract type AbstractSolution
 end
 
-mutable struct Solution{FL, BL}
-    routes::Vector{Vector{Int}}
-    dist::Float64
-    cost::Float64
-    totalLabelCost::Float64
-    labelCosts::Vector{Float64}
-    totalInfeas::Int
-    infeas::Vector{Int}
-
-    totalWarpStd1::Float64
-    warpsStd1::Vector{Float64}
-    totalWarpStd2::Float64
-    warpsStd2::Vector{Float64}
-
-    feasiblesF::Vector{Int}
-    feasiblesB::Vector{Int}
-    lastFeasibleF::Vector{Int}
-    lastFeasibleB::Vector{Int}
-    forwardLabels::Vector{Vector{FL}}
-    backwardLabels::Vector{Vector{BL}}
-    lastEval::Array{Int, 3}
-    lastModif::Vector{Int}
-    timeStamp::Int
+mutable struct Route{FL, BL}
+    visits::Vector{Int}
+    infeas::Int
+    warpStd1::Float64
+    warpStd2::Float64
+    labelCost::Float64
+    forwardLabels::Vector{FL}
+    backwardLabels::Vector{BL}
+    feasibleF::Int
+    feasibleB::Int
+    lastFeasibleF::Int
+    lastFeasibleB::Int
+    lastModif::Int
 end
 
-mutable struct UserSolution{FL, BL}
-    routes::Vector{Vector{Int}}
+function Route{FL, BL}() where {FL, BL}
+    Route{FL, BL}(Int[], 0, 0.0, 0.0, 0.0, FL[], BL[], -1, -1, -1, -1, 0)
+end
+
+function Route{FL, BL}(visits::Vector{Int}) where {FL, BL}
+    Route{FL, BL}(visits, 0, 0.0, 0.0, 0.0, FL[], BL[], -1, -1, -1, -1, 0)
+end
+
+mutable struct Solution{FL, BL}
+    routes::Vector{Route{FL, BL}}
     dist::Float64
     cost::Float64
-    forwardLabels::Vector{Vector{FL}}
-    backwardLabels::Vector{Vector{BL}}
+    totalInfeas::Int
+    totalWarpStd1::Float64
+    totalWarpStd2::Float64
+    totalLabelCost::Float64
+    lastEval::Array{Int, 3}
+    timeStamp::Int
 end
 
 function Solution{FL, BL}() where {FL, BL}
     Solution{FL, BL}(
-        Vector{Vector{Int}}(),
+        Vector{Route{FL, BL}}(),
         0.0,
         0.0,
-        0.0,
-        Vector{Float64}(),
         0,
-        Vector{Int}(),
         0.0,
-        Vector{Float64}(),
         0.0,
-        Vector{Float64}(),
-        Vector{Int}(),
-        Vector{Int}(),
-        Vector{Int}(),
-        Vector{Int}(),
-        Vector{Vector{FL}}(),
-        Vector{Vector{BL}}(),
+        0.0,
         Array{Int,3}(undef, 5, 10, 10),
-        Vector{Int}(),
         0
     )
+end
+
+mutable struct UserSolution{FL, BL}
+    routes::Vector{Route{FL, BL}}
+    dist::Float64
+    cost::Float64
+end
+
+function UserSolution{FL, BL}(raw_routes::Vector{Vector{Int}}, dist::Float64, cost::Float64) where {FL, BL}
+    UserSolution{FL, BL}([Route{FL, BL}(r) for r in raw_routes], dist, cost)
 end
 
 function copy_solution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL, BL}
@@ -67,60 +68,38 @@ function copy_solution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL
     dest.totalWarpStd2 = src.totalWarpStd2
     dest.totalLabelCost = src.totalLabelCost
 
-    resize!(dest.infeas, length(src.infeas))
-    copyto!(dest.infeas, src.infeas)
-
-    resize!(dest.warpsStd1, length(src.warpsStd1))
-    copyto!(dest.warpsStd1, src.warpsStd1)
-
-    resize!(dest.warpsStd2, length(src.warpsStd2))
-    copyto!(dest.warpsStd2, src.warpsStd2)
-
-    resize!(dest.labelCosts, length(src.infeas))
-    copyto!(dest.labelCosts, src.labelCosts)
-
-    resize!(dest.feasiblesF, length(src.feasiblesF))
-    copyto!(dest.feasiblesF, src.feasiblesF)
-
-    resize!(dest.feasiblesB, length(src.feasiblesB))
-    copyto!(dest.feasiblesB, src.feasiblesB)
-
-    resize!(dest.lastFeasibleF, length(src.lastFeasibleF))
-    copyto!(dest.lastFeasibleF, src.lastFeasibleF)
-
-    resize!(dest.lastFeasibleB, length(src.lastFeasibleB))
-    copyto!(dest.lastFeasibleB, src.lastFeasibleB)
-
     resize!(dest.routes, length(src.routes))
-    resize!(dest.forwardLabels, length(src.forwardLabels))
-    resize!(dest.backwardLabels, length(src.backwardLabels))
     for i in 1:length(src.routes)
         if !isassigned(dest.routes, i)
-            dest.routes[i] = similar(src.routes[i])
+            dest.routes[i] = Route{FL, BL}()
         end
-        resize!(dest.routes[i], length(src.routes[i]))
-        copyto!(dest.routes[i], src.routes[i])
+        rs = src.routes[i]
+        rd = dest.routes[i]
 
-        if !isassigned(dest.forwardLabels, i)
-            dest.forwardLabels[i] = similar(src.forwardLabels[i])
-        end
-        resize!(dest.forwardLabels[i], length(src.forwardLabels[i]))
-        copyto!(dest.forwardLabels[i], src.forwardLabels[i])
+        resize!(rd.visits, length(rs.visits))
+        copyto!(rd.visits, rs.visits)
 
-        if !isassigned(dest.backwardLabels, i)
-            dest.backwardLabels[i] = similar(src.backwardLabels[i])
-        end
-        resize!(dest.backwardLabels[i], length(src.backwardLabels[i]))
-        copyto!(dest.backwardLabels[i], src.backwardLabels[i])
+        rd.infeas        = rs.infeas
+        rd.warpStd1      = rs.warpStd1
+        rd.warpStd2      = rs.warpStd2
+        rd.labelCost     = rs.labelCost
+        rd.feasibleF     = rs.feasibleF
+        rd.feasibleB     = rs.feasibleB
+        rd.lastFeasibleF = rs.lastFeasibleF
+        rd.lastFeasibleB = rs.lastFeasibleB
+        rd.lastModif     = rs.lastModif
+
+        resize!(rd.forwardLabels, length(rs.forwardLabels))
+        copyto!(rd.forwardLabels, rs.forwardLabels)
+
+        resize!(rd.backwardLabels, length(rs.backwardLabels))
+        copyto!(rd.backwardLabels, rs.backwardLabels)
     end
 
-    if dest.lastEval === nothing || size(dest.lastEval) != size(src.lastEval)
+    if size(dest.lastEval) != size(src.lastEval)
         dest.lastEval = similar(src.lastEval)
     end
     copyto!(dest.lastEval, src.lastEval)
-
-    resize!(dest.lastModif, length(src.lastModif))
-    copyto!(dest.lastModif, src.lastModif)
 
     dest.timeStamp = src.timeStamp
 end

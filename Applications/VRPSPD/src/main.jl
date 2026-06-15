@@ -1,4 +1,4 @@
-include("../../../src/Include.jl")
+﻿include("../../../src/Include.jl")
 include("resources.jl")
 include("data.jl")
 
@@ -63,3 +63,4 @@ seed         = 1
 
 data = readData(instance)
 main(data, restarts, outerIterMax, innerIterMax, seed)
+

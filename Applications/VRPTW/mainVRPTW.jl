@@ -1,4 +1,4 @@
-include("../../src/Include.jl")
+﻿include("../../src/Include.jl")
 
 include("resourcesVRPTW.jl")
 ENV["JULIA_HASH_SEED"] = "0"
@@ -137,25 +137,25 @@ function printVRPTW(solver::Solver, sol::Solution)
     cont = 0
     dist = 0.0
     for r = 1:length(sol.routes)
-        if length(sol.routes[r]) <= 2
+        if length(sol.routes[r].visits) <= 2
             continue
         end
         cont += 1
         time = 0.0
         demand = 0.
         print("#$cont: ")
-        for i = 1:length(sol.routes[r])
+        for i = 1:length(sol.routes[r].visits)
             if i == 1
                 print("0 ", " -> ")
             else
-                dist += solver.data.costMatrix[sol.routes[r][i-1]+1, sol.routes[r][i]+1]
-                time += round(solver.res.stdResource1.d[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
-                if time < solver.res.stdResource1.lb[sol.routes[r][i] + 1]
-                    time = solver.res.stdResource1.lb[sol.routes[r][i] + 1]
+                dist += solver.data.costMatrix[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1]
+                time += round(solver.res.stdResource1.d[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1], digits = 1)
+                if time < solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]
+                    time = solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]
                 end
-                demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource1.lb[sol.routes[r][i] + 1]), $(solver.res.stdResource1.ub[sol.routes[r][i] + 1])]")
-                if i < length(sol.routes[r]) print(" -> ") end
+                demand += solver.res.customResource.d[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
+                print("$(sol.routes[r].visits[i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]), $(solver.res.stdResource1.ub[sol.routes[r].visits[i] + 1])]")
+                if i < length(sol.routes[r].visits) print(" -> ") end
             end
         end
         println()
@@ -168,14 +168,14 @@ function checkVRPTW(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
         time = 0.0
         demand = 0
-        for i = 1:length(sol.routes[r])-1
-            time += round(solver.res.stdResource.d[sol.routes[r][i]+1, sol.routes[r][i+1]+1], digits = 1)
-            demand += solver.res.customResource.d[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
-            if time < solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
-                time = solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
+        for i = 1:length(sol.routes[r].visits)-1
+            time += round(solver.res.stdResource.d[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1], digits = 1)
+            demand += solver.res.customResource.d[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
+            if time < solver.res.stdResource.lb[sol.routes[r].visits[i+1] + 1]
+                time = solver.res.stdResource.lb[sol.routes[r].visits[i+1] + 1]
             end
-            if time > solver.res.stdResource.ub[sol.routes[r][i+1] + 1] + 1e-6
-                throw("violou janela do cliente $(sol.routes[r][i+1]) na rota $r")
+            if time > solver.res.stdResource.ub[sol.routes[r].visits[i+1] + 1] + 1e-6
+                throw("violou janela do cliente $(sol.routes[r].visits[i+1]) na rota $r")
             end
             if demand > solver.res.customResource.Q + 1e-6
                 throw("rota $r viola capacidade do veiculo")
@@ -240,4 +240,5 @@ innerIterMax = 5
 seed         = 1
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
+
 

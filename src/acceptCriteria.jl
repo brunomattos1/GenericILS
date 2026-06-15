@@ -1,11 +1,13 @@
 function acceptSol(solver::Solver)
     currInfeas = 0
     for r = 1:length(solver.currSol.routes)
-        currInfeas += length(solver.currSol.routes[r]) -2 - max(solver.currSol.feasiblesF[r], solver.currSol.feasiblesB[r])
+        rt = solver.currSol.routes[r]
+        currInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
     end
     bestInfeas = 0
     for r = 1:length(solver.bestSol.routes)
-        bestInfeas += length(solver.bestSol.routes[r]) -2 - max(solver.bestSol.feasiblesF[r], solver.bestSol.feasiblesB[r])
+        rt = solver.bestSol.routes[r]
+        bestInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
     end
     if currInfeas < bestInfeas
         return true

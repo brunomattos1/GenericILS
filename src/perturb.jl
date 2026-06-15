@@ -59,7 +59,7 @@ function randomInterShift10!(solver::Solver, solution::Solution)
     r1 = rand(solver.seed, 1:length(routes))
     r2 = rand(solver.seed, 1:length(routes))
     counter = 0
-    while r1 == r2 || length(routes[r1]) <= 2
+    while r1 == r2 || length(routes[r1].visits) <= 2
         r1 = rand(solver.seed, 1:length(routes))
         r2 = rand(solver.seed, 1:length(routes))
         if counter > 20
@@ -67,12 +67,12 @@ function randomInterShift10!(solver::Solver, solution::Solution)
         end
         counter += 1
     end
-    i = rand(solver.seed, 2:length(routes[r1])-1)
-    j = rand(solver.seed, 2:length(routes[r2]))
+    i = rand(solver.seed, 2:length(routes[r1].visits)-1)
+    j = rand(solver.seed, 2:length(routes[r2].visits))
     k = 1
-    dist = interShiftCost(solution.dist, solver.data.costMatrix, routes[r1], routes[r2], i, j, k)
+    dist = interShiftCost(solution.dist, solver.data.costMatrix, routes[r1].visits, routes[r2].visits, i, j, k)
     warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, solution, r1, i, k)
-    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, solution, r2, routes[r1][i:i], j)
+    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, solution, r2, routes[r1].visits[i:i], j)
     violInfo = computeViolInterShiftK(solver, solution, r1, r2, i, j, k)
     cost = objectiveValue(solver, solution,
         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))

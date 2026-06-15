@@ -210,6 +210,8 @@ end
 
 new_solution(::Solver{N, AC, SC, R, FL, BL}) where {N, AC, SC, R, FL, BL} = Solution{FL, BL}()
 
+new_route(::Solver{N, AC, SC, R, FL, BL}, visits::Vector{Int}) where {N, AC, SC, R, FL, BL} = Route{FL, BL}(visits)
+
 function setTimeLimitILS(solver::Solver, time::Float64)
     solver.timeLimitILS = time
 end

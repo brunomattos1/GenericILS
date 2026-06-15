@@ -37,6 +37,7 @@ function move_blocks_intra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::
     if i == j || k == 0
         return nothing
     end
+    resize!(buffer, k)
     copyto!(buffer, 1, route, i, k)
     if i < j
         shift_len = j - i - k
@@ -87,8 +88,9 @@ end
 function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float64})
     cost = 0.
     for r = 1:length(sol.routes)
-        for i = 1:length(sol.routes[r])-1
-            cost += costMatrix[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
+        visits = sol.routes[r].visits
+        for i = 1:length(visits)-1
+            cost += costMatrix[visits[i]+1, visits[i+1]+1]
         end
     end
     return cost
@@ -107,25 +109,28 @@ function objectiveValue(solver::Solver, sol::Solution)
 end
 
 function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, labelCost::Float64, warpStd1::Float64, warpStd2::Float64)
+    rt = sol.routes[r]
     objVal = dist
     if isCostResource()
-        objVal += sol.totalLabelCost - sol.labelCosts[r] + labelCost
+        objVal += sol.totalLabelCost - rt.labelCost + labelCost
     end
-    objVal += solver.parameters.penaltyCustom * (sol.totalInfeas - sol.infeas[r] + infeas)
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - sol.warpsStd1[r] + warpStd1)
-    objVal += solver.parameters.penaltyStandard2 * (sol.totalWarpStd2 - sol.warpsStd2[r] + warpStd2)
+    objVal += solver.parameters.penaltyCustom    * (sol.totalInfeas   - rt.infeas   + infeas)
+    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - rt.warpStd1 + warpStd1)
+    objVal += solver.parameters.penaltyStandard2 * (sol.totalWarpStd2 - rt.warpStd2 + warpStd2)
 
     return objVal
 end
 
 function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
+    rt1 = sol.routes[costing.route1]
+    rt2 = sol.routes[costing.route2]
     objVal = costing.dist
     if isCostResource()
-        objVal += sol.totalLabelCost - sol.labelCosts[costing.route1] + costing.violInfo.firstRouteLabelCost - sol.labelCosts[costing.route2] + costing.violInfo.secondRouteLabelCost
+        objVal += sol.totalLabelCost - rt1.labelCost + costing.violInfo.firstRouteLabelCost - rt2.labelCost + costing.violInfo.secondRouteLabelCost
     end
-    objVal += solver.parameters.penaltyCustom * (sol.totalInfeas - sol.infeas[costing.route1]  + costing.violInfo.firstRouteInfeas - sol.infeas[costing.route2] + costing.violInfo.secondRouteInfeas)
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - sol.warpsStd1[costing.route1] + costing.warpStd1[1] - sol.warpsStd1[costing.route2] + costing.warpStd1[2])
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd2 - sol.warpsStd2[costing.route1] + costing.warpStd2[1] - sol.warpsStd2[costing.route2] + costing.warpStd2[2])
+    objVal += solver.parameters.penaltyCustom    * (sol.totalInfeas   - rt1.infeas   + costing.violInfo.firstRouteInfeas  - rt2.infeas   + costing.violInfo.secondRouteInfeas)
+    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - rt1.warpStd1 + costing.warpStd1[1]               - rt2.warpStd1 + costing.warpStd1[2])
+    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd2 - rt1.warpStd2 + costing.warpStd2[1]               - rt2.warpStd2 + costing.warpStd2[2])
     return objVal
 end
 
@@ -205,13 +210,14 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
 
     # -------- Seu loop --------
     for r = 1:length(sol.routes)
+        rt = sol.routes[r]
         println("-"^100)
-        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("Route $r: $(join(rt.visits, " -> "))")
         println("-"^100)
 
-        for i = 1:length(sol.routes[r])
-            route_prefix = sol.routes[r][1:i]
-            label = sol.forwardLabels[r][i]
+        for i = 1:length(rt.visits)
+            route_prefix = rt.visits[1:i]
+            label = rt.forwardLabels[i]
             print_label(route_prefix, label)
         end
     end
@@ -220,14 +226,15 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
     println("#"^100)
 
     for r = 1:length(sol.routes)
+        rt = sol.routes[r]
         println("-"^100)
-        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("Route $r: $(join(rt.visits, " -> "))")
         println("-"^100)
-        n = length(sol.routes[r])
+        n = length(rt.visits)
         for i = 1:n
             start = n - i + 1
-            route_prefix = sol.routes[r][start:n]
-            label = sol.backwardLabels[r][i]
+            route_prefix = rt.visits[start:n]
+            label = rt.backwardLabels[i]
             print_label(route_prefix, label)
         end
     end
@@ -235,18 +242,19 @@ end
 
 function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
     for r = 1:length(sol.routes)
+        rt = sol.routes[r]
         println("-"^100)
-        println("Route $r: $(join(sol.routes[r], " -> "))")
+        println("Route $r: $(join(rt.visits, " -> "))")
         println("-"^100)
-        lenR = length(sol.routes[r])
+        lenR = length(rt.visits)
         for i in 1:lenR
-            prefix = sol.routes[r][1:i]
-            suffix = sol.routes[r][i:end]
+            prefix = rt.visits[1:i]
+            suffix = rt.visits[i:end]
             concat = myConcatenationCost(
                 solver.res,
                 1,
-                sol.forwardLabels[r][i],
-                sol.backwardLabels[r][lenR - i + 1]
+                rt.forwardLabels[i],
+                rt.backwardLabels[lenR - i + 1]
             )
             println("Concatenating $(join(prefix, " -> ")) with $(join(suffix, " -> "))")
             print_label(concat)
@@ -260,19 +268,13 @@ function createSolution(
     dist::Union{Float64,Nothing}=nothing,
     cost::Union{Float64,Nothing}=nothing) where {N, AC, SC, R <: AbstractResources, FL, BL}
 
-    sol = UserSolution{FL, BL}(
-        routes,
-        0.0,
-        0.0,
-        Vector{Vector{FL}}(),
-        Vector{Vector{BL}}(),
-    )
+    sol = UserSolution{FL, BL}(routes, 0.0, 0.0)
 
     sol.dist = isnothing(dist) ? manualCost(sol, solver.data.costMatrix) : dist
 
     computeLabels(solver, sol)
 
-    sol.cost = isnothing(cost) ? sol.dist + sum(min(sol.forwardLabels[r][end].cost,sol.backwardLabels[r][end].cost) for r in 1:length(sol.routes)) : cost
+    sol.cost = isnothing(cost) ? sol.dist + sum(min(sol.routes[r].forwardLabels[end].cost, sol.routes[r].backwardLabels[end].cost) for r in 1:length(sol.routes)) : cost
 
     return sol
 end

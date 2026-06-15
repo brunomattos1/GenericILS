@@ -1,4 +1,4 @@
-include("../../src/Include.jl")
+﻿include("../../src/Include.jl")
 include("resourcesCVRP.jl")
 ENV["JULIA_HASH_SEED"] = "0"
 Random.seed!(0)
@@ -63,16 +63,16 @@ function printCVRP(solver::Solver, sol::Solution)
         demand = 0.
         time = 0.
         print("#$r: ")
-        for i = 1:length(sol.routes[r])
+        for i = 1:length(sol.routes[r].visits)
             if i == 1
                 print("0 (0) -> ")
-            elseif i == length(sol.routes[r])
-                time += solver.res.stdResource1.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
+            elseif i == length(sol.routes[r].visits)
+                time += solver.res.stdResource1.d[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
                 print("0 ($demand)")
             else
-                time += solver.res.stdResource1.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                demand += solver.res.customResource.d[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) -> ")
+                time += solver.res.stdResource1.d[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
+                demand += solver.res.customResource.d[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
+                print("$(sol.routes[r].visits[i]) ($demand) -> ")
             end
         end
         println()
@@ -87,13 +87,13 @@ function checkCVRP(solver::Solver, sol::Solution)
     resViol = Int[]
     for r = 1:length(sol.routes)
         load = 0.
-        for i = 1:length(sol.routes[r])-1
-            cost += solver.data.costMatrix[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
-            if sol.routes[r][i] > 0
-                load += demands[sol.routes[r][i]]
+        for i = 1:length(sol.routes[r].visits)-1
+            cost += solver.data.costMatrix[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
+            if sol.routes[r].visits[i] > 0
+                load += demands[sol.routes[r].visits[i]]
             end
-            if sol.routes[r][i] > 0
-                visits[sol.routes[r][i]] += 1
+            if sol.routes[r].visits[i] > 0
+                visits[sol.routes[r].visits[i]] += 1
             end
         end
     end
@@ -101,8 +101,8 @@ function checkCVRP(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
         load = 0
         feasibles = 0
-        for i = 1:length(sol.routes[r])-2
-            load += solver.res.d[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
+        for i = 1:length(sol.routes[r].visits)-2
+            load += solver.res.d[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
             if load <= solver.res.Q
                 feasibles += 1
             end
@@ -211,13 +211,14 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     return sol.cost
 end
 
-set = "M"
-n = 151
-k = 12
+set = "A"
+n = 37
+k = 5
 instance = "$set-n$n-k$k.vrp"
 seed = 2
 restarts = 1
-outerIterMax = 500
+outerIterMax = 200
 innerIterMax = 5
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
+
