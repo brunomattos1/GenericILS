@@ -52,6 +52,7 @@ function ILS(solver::Solver, sol::Solution)
     while it < solver.parameters.innerIterMax
         it += 1
         RVND!(solver, sol)
+        updatePenalty(solver.penaltyManager, sol)
         if solver.aggressivePool
             push!(solver, sol)
         end

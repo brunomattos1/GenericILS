@@ -117,9 +117,10 @@ struct ProblemData
 end
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
-mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: AbstractResources, FL, BL}
+mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: AbstractResources, PM <: PenaltyManager, FL, BL}
     seed::Random.MersenneTwister
     parameters::Parameters
+    penaltyManager::PM
     data::ProblemData
     outerCandidateSol::Solution{FL, BL}
     outerCurrSol::Solution{FL, BL}
@@ -159,7 +160,8 @@ end
 
 function Solver(;
     seed = 1,
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax),
+    penaltyManager = StandardPenaltyManager(
         penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
         penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
         penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
@@ -194,7 +196,7 @@ function Solver(;
     route_lookup  = Dict{Vector{Int}, Int}()
 
     Solver(
-        Random.MersenneTwister(seed), parameters, data,
+        Random.MersenneTwister(seed), parameters, penaltyManager, data,
         Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
         Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
         diversification, acceptCriteria, stopCriteria,
@@ -208,9 +210,9 @@ function Solver(;
     )
 end
 
-new_solution(::Solver{N, AC, SC, R, FL, BL}) where {N, AC, SC, R, FL, BL} = Solution{FL, BL}()
+new_solution(::Solver{N, AC, SC, R, PM, FL, BL}) where {N, AC, SC, R, PM, FL, BL} = Solution{FL, BL}()
 
-new_route(::Solver{N, AC, SC, R, FL, BL}, visits::Vector{Int}) where {N, AC, SC, R, FL, BL} = Route{FL, BL}(visits)
+new_route(::Solver{N, AC, SC, R, PM, FL, BL}, visits::Vector{Int}) where {N, AC, SC, R, PM, FL, BL} = Route{FL, BL}(visits)
 
 function setTimeLimitILS(solver::Solver, time::Float64)
     solver.timeLimitILS = time

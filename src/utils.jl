@@ -77,8 +77,8 @@ function printInfo(solver::Solver)
     @printf("| %10.6f | %10.2f | %12.2f | %12.2f | %11.2f | %15.2f | %15.2f | %6d | %10.4f |\n",
         stopInfo,
         solver.bestFeasSol.cost, solver.outerBestSol.cost, solver.outerCandidateSol.cost,
-        solver.parameters.penaltyCustom,
-        solver.parameters.penaltyStandard1, solver.parameters.penaltyStandard2,
+        solver.penaltyManager.penaltyCustom,
+        solver.penaltyManager.penaltyStandard1, solver.penaltyManager.penaltyStandard2,
         length(solver.route_storage), total_algorithm_time)
 
 end
@@ -101,9 +101,9 @@ function objectiveValue(solver::Solver, sol::Solution)
     if isCostResource()
         objVal += sol.totalLabelCost
     end
-    objVal += solver.parameters.penaltyCustom * (sol.totalInfeas)
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1)
-    objVal += solver.parameters.penaltyStandard2 * (sol.totalWarpStd2)
+    objVal += solver.penaltyManager.penaltyCustom * (sol.totalInfeas)
+    objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd1)
+    objVal += solver.penaltyManager.penaltyStandard2 * (sol.totalWarpStd2)
 
     return objVal
 end
@@ -114,9 +114,9 @@ function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, in
     if isCostResource()
         objVal += sol.totalLabelCost - rt.labelCost + labelCost
     end
-    objVal += solver.parameters.penaltyCustom    * (sol.totalInfeas   - rt.infeas   + infeas)
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - rt.warpStd1 + warpStd1)
-    objVal += solver.parameters.penaltyStandard2 * (sol.totalWarpStd2 - rt.warpStd2 + warpStd2)
+    objVal += solver.penaltyManager.penaltyCustom    * (sol.totalInfeas   - rt.infeas   + infeas)
+    objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd1 - rt.warpStd1 + warpStd1)
+    objVal += solver.penaltyManager.penaltyStandard2 * (sol.totalWarpStd2 - rt.warpStd2 + warpStd2)
 
     return objVal
 end
@@ -128,9 +128,9 @@ function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     if isCostResource()
         objVal += sol.totalLabelCost - rt1.labelCost + costing.violInfo.firstRouteLabelCost - rt2.labelCost + costing.violInfo.secondRouteLabelCost
     end
-    objVal += solver.parameters.penaltyCustom    * (sol.totalInfeas   - rt1.infeas   + costing.violInfo.firstRouteInfeas  - rt2.infeas   + costing.violInfo.secondRouteInfeas)
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd1 - rt1.warpStd1 + costing.warpStd1[1]               - rt2.warpStd1 + costing.warpStd1[2])
-    objVal += solver.parameters.penaltyStandard1 * (sol.totalWarpStd2 - rt1.warpStd2 + costing.warpStd2[1]               - rt2.warpStd2 + costing.warpStd2[2])
+    objVal += solver.penaltyManager.penaltyCustom    * (sol.totalInfeas   - rt1.infeas   + costing.violInfo.firstRouteInfeas  - rt2.infeas   + costing.violInfo.secondRouteInfeas)
+    objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd1 - rt1.warpStd1 + costing.warpStd1[1]               - rt2.warpStd1 + costing.warpStd1[2])
+    objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd2 - rt1.warpStd2 + costing.warpStd2[1]               - rt2.warpStd2 + costing.warpStd2[2])
     return objVal
 end
 
@@ -263,10 +263,10 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
 end
 
 function createSolution(
-    solver::Solver{N, AC, SC, R, FL, BL},
+    solver::Solver{N, AC, SC, R, PM, FL, BL},
     routes::Vector{Vector{Int}};
     dist::Union{Float64,Nothing}=nothing,
-    cost::Union{Float64,Nothing}=nothing) where {N, AC, SC, R <: AbstractResources, FL, BL}
+    cost::Union{Float64,Nothing}=nothing) where {N, AC, SC, R <: AbstractResources, PM, FL, BL}
 
     sol = UserSolution{FL, BL}(routes, 0.0, 0.0)
 

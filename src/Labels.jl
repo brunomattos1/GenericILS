@@ -1,5 +1,5 @@
 
-function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, BL}) where {N, AC, SC, R <: AbstractResources, FL, BL}
+function computeLabels(solver::Solver{N, AC, SC, R, PM, FL, BL}, sol::Solution{FL, BL}) where {N, AC, SC, R <: AbstractResources, PM, FL, BL}
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
         lenR = length(rt.visits)
@@ -51,7 +51,7 @@ function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, B
     end
 end
 
-function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::Solution{FL, BL}, routes::Int...) where {N, AC, SC, R <: AbstractResources, FL, BL}
+function computeLabels(solver::Solver{N, AC, SC, R, PM, FL, BL}, sol::Solution{FL, BL}, routes::Int...) where {N, AC, SC, R <: AbstractResources, PM, FL, BL}
     for r in routes
         rt = sol.routes[r]
         lenR = length(rt.visits)
@@ -113,7 +113,7 @@ function computeRouteLabelCost(solver::Solver, route::Vector{Int})
     return label.cost
 end
 
-function computeLabels(solver::Solver{N, AC, SC, R, FL, BL}, sol::UserSolution{FL, BL}) where {N, AC, SC, R <: AbstractResources, FL, BL}
+function computeLabels(solver::Solver{N, AC, SC, R, PM, FL, BL}, sol::UserSolution{FL, BL}) where {N, AC, SC, R <: AbstractResources, PM, FL, BL}
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
         lenR = length(rt.visits)
