@@ -20,9 +20,10 @@ function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     resize!(buf2, k2)
     copyto!(buf1, 1, sol.routes[r1].visits, i, k1)
     copyto!(buf2, 1, sol.routes[r2].visits, j, k2)
-    infeasR1, lc1 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, buf2)
-    infeasR2, lc2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, buf1)
-    return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    infeasR1, lc1, warpR1s1, warpR1s2 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, buf2)
+    infeasR2, lc2, warpR2s1, warpR2s2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, buf1)
+    violInfo = ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
 function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {k1,k2}
@@ -56,9 +57,8 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue
                     end
-                    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k1)
-                    warpR2s1, warpR2s2 = computeStdViolRemoveK(solver, sol, r2, j, k2)
-                    violInfo = computeViolInterSwapK(solver, sol, r1, r2, i, j, k1, k2)
+                    violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
+                        computeViolInterSwapK(solver, sol, r1, r2, i, j, k1, k2)
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6

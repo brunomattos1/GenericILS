@@ -107,8 +107,7 @@ function evalBestInsertion(solver::Solver, sol::Solution, insertion::Insertion)
     customer = insertion.customer
     j        = insertion.pos
     dist = bestInsertionCost(currCost, solver.data.costMatrix, sol.routes[r].visits, customer, j)
-    warpStd1, warpStd2 = computeStdViolInsertionK(solver, sol, r, [customer], j)
-    infeas, labelCost = infeasArcsInsertionK(solver, sol, r, [customer], j)
+    infeas, labelCost, warpStd1, warpStd2 = infeasArcsInsertionK(solver, sol, r, [customer], j)
     cost = objectiveValue(solver, sol, r, dist, infeas, labelCost, warpStd1, warpStd2)
     return dist, cost, infeas, warpStd1, warpStd2
 end

@@ -141,9 +141,7 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: Abst
     forwardLabels::Vector{Vector{FL}}
     backwardLabels::Vector{Vector{BL}}
     prevLabelF::FL
-    prevLabelStdF::FL
     prevLabelB::BL
-    prevLabelStdB::BL
     buffer::Vector{Int}
     buffer2opt::Vector{Int}
     bufferRoute::Vector{Int}
@@ -183,9 +181,7 @@ function Solver(;
     MIPSolver = HiGHS.Optimizer)
 
     prevLabelF    = myInitStateForward(res.customResource)
-    prevLabelStdF = myInitStateForward(res.customResource)
     prevLabelB    = myInitStateBackward(res.customResource)
-    prevLabelStdB = myInitStateBackward(res.customResource)
 
     FL = typeof(prevLabelF)
     BL = typeof(prevLabelB)
@@ -202,7 +198,7 @@ function Solver(;
         diversification, acceptCriteria, stopCriteria,
         iter, innerIter, startTime, neighborhoods, active_neighs, res,
         Vector{Vector{FL}}(), Vector{Vector{BL}}(),
-        prevLabelF, prevLabelStdF, prevLabelB, prevLabelStdB,
+        prevLabelF, prevLabelB,
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
         Solution{FL, BL}(),
         route_storage, cost_storage, route_lookup,

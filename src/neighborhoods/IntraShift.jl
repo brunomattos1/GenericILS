@@ -15,33 +15,34 @@ function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, 
     rt = sol.routes[r]
     if i < j
         if j == i+1
-            solver.prevLabelF = myExtendAlongArc(solver.res.customResource, rt.forwardLabels[i-1], (rt.visits[i-1]+1, rt.visits[i+1] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
-            res = myConcatenationCost(solver.res.customResource, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
+            solver.prevLabelF = myExtendAlongArc(solver.res, rt.forwardLabels[i-1], (rt.visits[i-1]+1, rt.visits[i+1] + 1))
+            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
+            auxLabel = myExtendAlongArc(solver.res, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
+            res = myConcatenationCost(solver.res, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
         else
-            solver.prevLabelF = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (solver.prevLabelF.last + 1, rt.visits[j] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
-            res = myConcatenationCost(solver.res.customResource, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
+            solver.prevLabelF = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last + 1, rt.visits[j] + 1))
+            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
+            auxLabel = myExtendAlongArc(solver.res, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
+            res = myConcatenationCost(solver.res, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
         end
     else
         if j == i-1
-            solver.prevLabelB = myExtendAlongArc(solver.res.customResource, rt.backwardLabels[length(rt.visits) - i], (rt.visits[i+1]+1, rt.visits[i-1] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (rt.visits[i-1]+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
-            res = myConcatenationCost(solver.res.customResource, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
+            solver.prevLabelB = myExtendAlongArc(solver.res, rt.backwardLabels[length(rt.visits) - i], (rt.visits[i+1]+1, rt.visits[i-1] + 1))
+            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (rt.visits[i-1]+1, rt.visits[i] + 1))
+            auxLabel = myExtendAlongArc(solver.res, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
+            res = myConcatenationCost(solver.res, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
         else
-            solver.prevLabelB = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (solver.prevLabelB.last+1, rt.visits[j] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, solver.prevLabelB, (rt.visits[j]+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res.customResource, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
-            res = myConcatenationCost(solver.res.customResource, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
+            solver.prevLabelB = myExtendAlongArc(solver.res, solver.prevLabelB, (solver.prevLabelB.last+1, rt.visits[j] + 1))
+            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (rt.visits[j]+1, rt.visits[i] + 1))
+            auxLabel = myExtendAlongArc(solver.res, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
+            res = myConcatenationCost(solver.res, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
         end
     end
+    warpStd1, warpStd2 = res.std1State.stdWarp, res.std2State.stdWarp
     if res.cost >= Inf
-        return 1, res.cost
+        return 1, res.cost, warpStd1, warpStd2
     else
-        return 0, res.cost
+        return 0, res.cost, warpStd1, warpStd2
     end
 end
 
@@ -49,8 +50,7 @@ function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift, dist::Flo
     r = shift.routeFrom
     i = shift.fromIdx
     j = shift.toIdx
-    resViol, labelCost = computeViolIntraShift10(solver, sol, r, i, j)
-    warpStd1, warpStd2 = computeStdViolIntraShift10(solver, sol, r, i, j)
+    resViol, labelCost, warpStd1, warpStd2 = computeViolIntraShift10(solver, sol, r, i, j)
     cost = objectiveValue(solver, sol, r, dist, 0, labelCost, warpStd1, warpStd2)
     return cost, resViol
 end

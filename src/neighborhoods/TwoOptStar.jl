@@ -7,16 +7,16 @@ function twoOptStarCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::
 end
 
 function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int)
-    infeasR1, labelCostR1 = infeasArcs2optStar(solver, sol, r1, r2, i, j)
-    infeasR2, labelCostR2 = infeasArcs2optStar(solver, sol, r2, r1, j, i)
-    return ViolationInfo(infeasR1, infeasR2, labelCostR1, labelCostR2)
+    infeasR1, labelCostR1, warpR1Std1, warpR1Std2 = infeasArcs2optStar(solver, sol, r1, r2, i, j)
+    infeasR2, labelCostR2, warpR2Std1, warpR2Std2 = infeasArcs2optStar(solver, sol, r2, r1, j, i)
+    violInfo = ViolationInfo(infeasR1, infeasR2, labelCostR1, labelCostR2)
+    return violInfo, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2
 end
 
 function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Float64)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
-    warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 = computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
-    violInfo = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
+    violInfo, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2 = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
     cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1Std1, warpR2Std1), (warpR1Std2, warpR2Std2)))
     return cost
 end

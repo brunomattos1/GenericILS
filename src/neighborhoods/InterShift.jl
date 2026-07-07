@@ -12,9 +12,10 @@ function interShiftCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::
 end
 
 function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int, block::Vector{Int})
-    infeasR1, lc1 = infeasArcsRemovalK(solver, sol, r1, i, k)
-    infeasR2, lc2 = infeasArcsInsertionK(solver, sol, r2, block, j)
-    return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    infeasR1, lc1, warpR1s1, warpR1s2 = infeasArcsRemovalK(solver, sol, r1, i, k)
+    infeasR2, lc2, warpR2s1, warpR2s2 = infeasArcsInsertionK(solver, sol, r2, block, j)
+    violInfo = ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
 function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
@@ -47,9 +48,8 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue
                     end
-                    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k)
-                    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, sol, r2, solver.bufferRoute, j)
-                    violInfo = computeViolInterShiftK(solver, sol, r1, r2, i, j, k, solver.bufferRoute)
+                    violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
+                        computeViolInterShiftK(solver, sol, r1, r2, i, j, k, solver.bufferRoute)
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6
