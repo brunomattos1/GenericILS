@@ -71,9 +71,9 @@ function randomInterShift10!(solver::Solver, solution::Solution)
     j = rand(solver.seed, 2:length(routes[r2].visits))
     k = 1
     dist = interShiftCost(solution.dist, solver.data.costMatrix, routes[r1].visits, routes[r2].visits, i, j, k)
-    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, solution, r1, i, k)
-    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, solution, r2, routes[r1].visits[i:i], j)
-    violInfo = computeViolInterShiftK(solver, solution, r1, r2, i, j, k)
+    block = routes[r1].visits[i:i]
+    violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
+        computeViolInterShiftK(solver, solution, r1, r2, i, j, k, block)
     cost = objectiveValue(solver, solution,
         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
     move = BestMove(cost, dist, r1, r2, i, j)

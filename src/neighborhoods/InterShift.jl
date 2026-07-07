@@ -11,13 +11,11 @@ function interShiftCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::
     return newCost
 end
 
-function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int)
-    infeasR1, lc1 = infeasArcsRemovalK(solver, sol, r1, i, k)
-    buf = solver.bufferRoute
-    resize!(buf, k)
-    copyto!(buf, 1, sol.routes[r1].visits, i, k)
-    infeasR2, lc2 = infeasArcsInsertionK(solver, sol, r2, buf, j)
-    return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int, block::Vector{Int})
+    infeasR1, lc1, warpR1s1, warpR1s2 = infeasArcsRemovalK(solver, sol, r1, i, k)
+    infeasR2, lc2, warpR2s1, warpR2s2 = infeasArcsInsertionK(solver, sol, r2, block, j)
+    violInfo = ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
 function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
@@ -35,21 +33,23 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
         route1 = sol.routes[r1].visits
         len1   = length(route1)
         len1 <= k + 1 && continue
-
         for r2 in routesIdx
             r2 == r1 && continue
             sol.lastEval[neighborhoodId, r1, r2] > max(sol.routes[r1].lastModif, sol.routes[r2].lastModif) && continue
             route2 = sol.routes[r2].visits
             len2   = length(route2)
-
+            canPrune = canPruneByDist(solver)
+            fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
             for i = 2:(len1 - k)
                 resize!(solver.bufferRoute, k)
                 copyto!(solver.bufferRoute, 1, route1, i, k)
                 for j = 2:len2
-                    dist     = interShiftCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k)
-                    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k)
-                    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, sol, r2, solver.bufferRoute, j)
-                    violInfo = computeViolInterShiftK(solver, sol, r1, r2, i, j, k)
+                    dist = interShiftCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k)
+                    if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
+                        continue
+                    end
+                    violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
+                        computeViolInterShiftK(solver, sol, r1, r2, i, j, k, solver.bufferRoute)
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6

@@ -96,6 +96,31 @@ function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float
     return cost
 end
 
+# Custo fixo do resto da solucao (tudo exceto dist e as violacoes das rotas envolvidas),
+# assumindo o melhor caso possivel (violacoes novas = 0). Usado para podar um movimento
+# sem calcular suas violacoes: se dist + fixedPenalty >= bestCost, o movimento nao pode
+# melhorar. So valido quando isCostResource() == false (labelCost sem sinal garantido).
+function pruningFixedPenalty(solver::Solver, sol::Solution, r1::Int, r2::Int)
+    rt1 = sol.routes[r1]
+    rt2 = sol.routes[r2]
+    fixedPenalty = sol.cost - sol.dist
+    fixedPenalty -= solver.penaltyManager.penaltyCustom    * (rt1.infeas   + rt2.infeas)
+    fixedPenalty -= solver.penaltyManager.penaltyStandard1 * (rt1.warpStd1 + rt2.warpStd1)
+    fixedPenalty -= solver.penaltyManager.penaltyStandard2 * (rt1.warpStd2 + rt2.warpStd2)
+    return fixedPenalty
+end
+
+function pruningFixedPenalty(solver::Solver, sol::Solution, r::Int)
+    rt = sol.routes[r]
+    fixedPenalty = sol.cost - sol.dist
+    fixedPenalty -= solver.penaltyManager.penaltyCustom    * rt.infeas
+    fixedPenalty -= solver.penaltyManager.penaltyStandard1 * rt.warpStd1
+    fixedPenalty -= solver.penaltyManager.penaltyStandard2 * rt.warpStd2
+    return fixedPenalty
+end
+
+canPruneByDist(solver::Solver) = !isCostResource()
+
 function objectiveValue(solver::Solver, sol::Solution)
     objVal = sol.dist
     if isCostResource()
@@ -130,7 +155,7 @@ function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     end
     objVal += solver.penaltyManager.penaltyCustom    * (sol.totalInfeas   - rt1.infeas   + costing.violInfo.firstRouteInfeas  - rt2.infeas   + costing.violInfo.secondRouteInfeas)
     objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd1 - rt1.warpStd1 + costing.warpStd1[1]               - rt2.warpStd1 + costing.warpStd1[2])
-    objVal += solver.penaltyManager.penaltyStandard1 * (sol.totalWarpStd2 - rt1.warpStd2 + costing.warpStd2[1]               - rt2.warpStd2 + costing.warpStd2[2])
+    objVal += solver.penaltyManager.penaltyStandard2 * (sol.totalWarpStd2 - rt1.warpStd2 + costing.warpStd2[1]               - rt2.warpStd2 + costing.warpStd2[2])
     return objVal
 end
 

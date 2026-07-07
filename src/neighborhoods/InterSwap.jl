@@ -20,9 +20,10 @@ function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     resize!(buf2, k2)
     copyto!(buf1, 1, sol.routes[r1].visits, i, k1)
     copyto!(buf2, 1, sol.routes[r2].visits, j, k2)
-    infeasR1, lc1 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, buf2)
-    infeasR2, lc2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, buf1)
-    return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    infeasR1, lc1, warpR1s1, warpR1s2 = infeasArcsReplaceBlockK(solver, sol, r1, i, k1, buf2)
+    infeasR2, lc2, warpR2s1, warpR2s2 = infeasArcsReplaceBlockK(solver, sol, r2, j, k2, buf1)
+    violInfo = ViolationInfo(infeasR1, infeasR2, lc1, lc2)
+    return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
 function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {k1,k2}
@@ -40,7 +41,6 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
         route1 = sol.routes[r1].visits
         len1   = length(route1)
         len1 <= k1 + 1 && continue
-
         for r2 in routesIdx
             r2 == r1 && continue
             k1 == k2 && r1 >= r2 && continue
@@ -48,13 +48,17 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
             len2   = length(route2)
             len2 <= k2 + 1 && continue
             sol.lastEval[neighborhoodId, r1, r2] > max(sol.routes[r1].lastModif, sol.routes[r2].lastModif) && continue
+            canPrune = canPruneByDist(solver)
+            fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
 
             for i = 2:(len1 - k1)
                 for j = 2:(len2 - k2)
-                    dist     = interSwapCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k1, k2)
-                    warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k1)
-                    warpR2s1, warpR2s2 = computeStdViolRemoveK(solver, sol, r2, j, k2)
-                    violInfo = computeViolInterSwapK(solver, sol, r1, r2, i, j, k1, k2)
+                    dist = interSwapCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k1, k2)
+                    if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
+                        continue
+                    end
+                    violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
+                        computeViolInterSwapK(solver, sol, r1, r2, i, j, k1, k2)
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6
