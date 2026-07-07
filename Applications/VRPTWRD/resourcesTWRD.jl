@@ -1,20 +1,10 @@
-struct CustomResource
+################ user-defined ################
+struct CustomResource <: AbstractResource
     t::Matrix{Float64} # time cost
-    u::Vector{Int} # upper window
-    r::Vector{Int} # release dates
-    q::Matrix{Int} # demands
-    Q::Float64 # capacity
-end
-
-struct StandardResource
-    d::Matrix{Float64}
-    lb::Vector{Float64}
-    ub::Vector{Float64}
-end
-
-struct Resources
-    customResource::CustomResource
-    stdResource::StandardResource
+    u::Vector{Int}     # upper window (due dates)
+    r::Vector{Int}     # release dates
+    q::Matrix{Int}     # demands
+    Q::Float64         # capacity
 end
 
 function isSymmetric()
@@ -24,7 +14,6 @@ end
 function isCostResource()
     return false
 end
-
 
 struct ForwardState
     T::Float64
@@ -40,71 +29,11 @@ struct BackwardState
     cap::Float64
 end
 
-struct StandardState
-    q::Float64
-    stdWarp::Float64
-end
-
-struct ForwardLabel
-    state::ForwardState
-    cost::Float64
-    std_res::StandardState
-    last::Int
-end
-
-struct BackwardLabel
-    state::BackwardState
-    cost::Float64
-    std_res::StandardState
-    last::Int
-end
-function myInitStateForward(res::CustomResource)
-    return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
-end
-
-function myInitStateBackward(res::CustomResource)
-    return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
-end
-
-function myExtendAlongArc(res::Resources, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
-end
-
-function myExtendAlongArc(res::Resources, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
-end
-
-function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
-end
-
-function myInitStateForward(res::CustomResource)
-    return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
-end
-
-function myInitStateBackward(res::CustomResource)
-    return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
-end
-
-function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
-end
-
-function myExtendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
-end
-
-function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std_res, backwardLabel.last)
-end
-
-# CUSTOM, user-dependent
-
-function initStateForward()
+function initStateForward(res::CustomResource)
     return (ForwardState(0.0, Inf, 0.0, 0.0), 0.0)
 end
 
-function initStateBackward()
+function initStateBackward(res::CustomResource)
     return (BackwardState(0.0, Inf, 0.0, 0.0), 0.0)
 end
 
@@ -127,7 +56,7 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     RD′ = max(label.state.RD, res.r[a[2]])
     cap′ = label.state.cap + res.q[1, a[1]]
     state = BackwardState(T′, U′, RD′, cap′)
-    
+
     if U′ < RD′ - 1e-6 || cap′ > res.Q + 1e-6
         return (state, Inf)
     end
@@ -140,41 +69,4 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
     else
         return (ForwardState(0.0, 0.0, 0.0, 0.0), Inf)
     end
-end
-
-# STANDARD, user-independent
-
-
-function extendAlongArc(res::StandardResource, label::ForwardLabel, a::Tuple{Int, Int})
-    q_std = max(label.std_res.q + res.d[a...], res.lb[a[2]])
-    if q_std > res.ub[a[2]] + 1e-12
-        q_std = res.ub[a[2]]
-    end
-    q_warp = label.std_res.stdWarp
-    if label.std_res.q + res.d[a...] > res.ub[a[2]] + 1e-12
-        q_warp += label.std_res.q + res.d[a...] - res.ub[a[2]] - 1e-12
-    end
-    # q_std = max(min(label.std_res.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
-    # q_warp = label.std_res.stdWarp + max(label.std_res.q + res.d[a...] - res.ub[a[2]] - 1e-12, 0.0)
-    return (StandardState(q_std, q_warp))
-end
-
-function extendAlongArc(res::StandardResource, label::BackwardLabel, a::Tuple{Int, Int})
-    a = (a[2], a[1])
-
-    q_std = min(label.std_res.q - res.d[a...], res.ub[a[1]])
-    q_warp = label.std_res.stdWarp
-    if q_std < res.lb[a[1]] - 1e-12
-        q_warp += res.lb[a[1]] - q_std
-    end
-    if q_std < res.lb[a[1]] - 1e-12
-        q_std = res.lb[a[1]]
-    end
-    return (StandardState(q_std, q_warp))
-end
-
-function concatenationCost(res::StandardResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    q_std = min(forwardLabel.std_res.q, backwardLabel.std_res.q)
-    q_warp = max(forwardLabel.std_res.q - backwardLabel.std_res.q, 0) + (forwardLabel.std_res.stdWarp + backwardLabel.std_res.stdWarp)
-    return StandardState(q_std, q_warp)
 end

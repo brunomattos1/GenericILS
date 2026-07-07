@@ -41,7 +41,7 @@ function RVND!(solver::Solver, sol::Solution)
         idx = neighs[pos]
 
         neigh = src[idx]
-        updatePenalty(solver.parameters, sol)
+        # updatePenalty(solver.penaltyManager, sol)
         improv = search!(neigh, solver, sol)
 
         if improv

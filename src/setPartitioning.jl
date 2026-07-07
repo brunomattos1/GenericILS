@@ -17,44 +17,35 @@ end
 function push!(solver::Solver, solution::Solution)
     if isSymmetric()
         for r = 1:length(solution.routes)
-            if length(solution.routes[r]) <= 2
+            rt = solution.routes[r]
+            if length(rt.visits) <= 2
                 continue
             end
-            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) || (solution.feasiblesB[r] == length(solution.routes[r]) - 1)
-                routeHash = hash(solution.routes[r])
-                if !haskey(solver.pool, solution.routes[r])#(!(routeHash in solver.hashes))
+            if (rt.feasibleF == length(rt.visits) - 1) || (rt.feasibleB == length(rt.visits) - 1)
+                routeHash = hash(rt.visits)
+                if !haskey(solver.pool, rt.visits)
                     push!(solver.hashes, routeHash)
-                    solver.pool[copy(solution.routes[r])] = solution.cost
+                    solver.pool[copy(rt.visits)] = solution.cost
                 else
-                    solver.pool[copy(solution.routes[r])] = min(solver.pool[solution.routes[r]], solution.cost)
+                    solver.pool[copy(rt.visits)] = min(solver.pool[rt.visits], solution.cost)
                 end
             end
         end
     else
         for r = 1:length(solution.routes)
-            if length(solution.routes[r]) <= 2
+            rt = solution.routes[r]
+            if length(rt.visits) <= 2
                 continue
             end
-            # check if the route is feasible in the forward sense
-            # if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std_res.stdWarp <= 1e-6)# || (solution.feasiblesB[r] == length(solution.routes[r]) - 2)
-            #     routeHash = hash(solution.routes[r])
-            #     if !haskey(solver.pool, solution.routes[r])#(!(routeHash in solver.hashes))
-            #         push!(solver.hashes, routeHash)
-            #         # push!(solver.pool, copy(solution.routes[r]))
-            #         solver.pool[copy(solution.routes[r])] = solution.cost
-            #     else
-            #         solver.pool[copy(solution.routes[r])] = min(solver.pool[solution.routes[r]], solution.cost)
-            #     end
-            # end
-            if (solution.feasiblesF[r] == length(solution.routes[r]) - 1) && (solution.forwardLabels[r][end].std1State.stdWarp <= 1e-6) && (solution.forwardLabels[r][end].std2State.stdWarp <= 1e-6)
-                route_id = get(solver.route_lookup, solution.routes[r], 0)
+            if (rt.feasibleF == length(rt.visits) - 1) && (rt.forwardLabels[end].std1State.stdWarp <= 1e-6) && (rt.forwardLabels[end].std2State.stdWarp <= 1e-6)
+                route_id = get(solver.route_lookup, rt.visits, 0)
 
                 if route_id > 0
                     if solution.cost < solver.cost_storage[route_id]
                         solver.cost_storage[route_id] = solution.cost
                     end
                 else
-                    persistent_route_copy = copy(solution.routes[r])
+                    persistent_route_copy = copy(rt.visits)
                     push!(solver.route_storage, persistent_route_copy)
                     push!(solver.cost_storage, solution.cost)
                     new_id = length(solver.route_storage)
@@ -115,8 +106,8 @@ function c(solver::Solver, r::Vector{Int})
 end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
-    sp = Model(HiGHS.Optimizer)
-    # set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    sp = Model(solver.MIPSolver)
+    set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
     set_time_limit_sec(sp, solver.timeLimitSP)
     routes = solver.route_storage#collect(keys(solver.pool))
     
@@ -133,7 +124,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         println("Set Partitioning optimally solved!")
         println("-"^144)
 
-        solver.bestFeasSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
+        solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
         solver.bestFeasSol.cost = objective_value(sp)
         solver.bestFeasSol.dist = 0#objective_value(sp)
 
@@ -151,7 +142,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         println("-"^144)
         if result_count(sp) >= 1
             if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
-                solver.bestFeasSol.routes = [routes[r] for r = 1:length(routes) if value(λ[r]) >= 0.9]
+                solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
                 solver.bestFeasSol.cost = objective_value(sp)
                 solver.bestFeasSol.dist = 0#objective_value(sp)
                 computeLabels(solver, solver.bestFeasSol)

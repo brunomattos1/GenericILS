@@ -13,8 +13,10 @@ end
 
 function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int)
     infeasR1, lc1 = infeasArcsRemovalK(solver, sol, r1, i, k)
-    customers = @view sol.routes[r1][i:i+k-1]
-    infeasR2, lc2 = infeasArcsInsertionK(solver, sol, r2, customers, j)
+    buf = solver.bufferRoute
+    resize!(buf, k)
+    copyto!(buf, 1, sol.routes[r1].visits, i, k)
+    infeasR2, lc2 = infeasArcsInsertionK(solver, sol, r2, buf, j)
     return ViolationInfo(infeasR1, infeasR2, lc1, lc2)
 end
 
@@ -30,29 +32,28 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
 
     for r1 in routesIdx
         bestMove = BestMove(dist = sol.dist, cost = sol.cost)
-        route1 = sol.routes[r1]
+        route1 = sol.routes[r1].visits
         len1   = length(route1)
         len1 <= k + 1 && continue
 
         for r2 in routesIdx
             r2 == r1 && continue
-            sol.lastEval[neighborhoodId, r1, r2] > max(sol.lastModif[r1], sol.lastModif[r2]) && continue
-            route2 = sol.routes[r2]
+            sol.lastEval[neighborhoodId, r1, r2] > max(sol.routes[r1].lastModif, sol.routes[r2].lastModif) && continue
+            route2 = sol.routes[r2].visits
             len2   = length(route2)
 
             for i = 2:(len1 - k)
-                customers = @view route1[i:i+k-1]
+                resize!(solver.bufferRoute, k)
+                copyto!(solver.bufferRoute, 1, route1, i, k)
                 for j = 2:len2
                     dist     = interShiftCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k)
                     warpR1s1, warpR1s2 = computeStdViolRemoveK(solver, sol, r1, i, k)
-                    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, sol, r2, customers, j)
+                    warpR2s1, warpR2s2 = computeStdViolInsertionK(solver, sol, r2, solver.bufferRoute, j)
                     violInfo = computeViolInterShiftK(solver, sol, r1, r2, i, j, k)
                     cost = objectiveValue(solver, sol,
                         Cost(dist, r1, r2, violInfo, (warpR1s1, warpR2s1), (warpR1s2, warpR2s2)))
                     if cost < bestMove.cost - 1e-6
-                        bestMove = BestMove(cost, dist, r1, r2, i, j,
-                            (violInfo.firstRouteInfeas, violInfo.secondRouteInfeas),
-                            (warpR1s1, warpR1s2), (warpR2s1, warpR2s2))
+                        bestMove = BestMove(cost, dist, r1, r2, i, j)
                     end
                 end
             end
@@ -77,44 +78,36 @@ end
 function apply!(::InterShift{k}, solver::Solver, sol::Solution, bestMove::BestMove) where {k}
     r1, r2 = bestMove.firstRoute, bestMove.secondRoute
     i,  j  = bestMove.firstIdx,   bestMove.secondIdx
+    rt1 = sol.routes[r1]
+    rt2 = sol.routes[r2]
 
-    sol.dist = bestMove.dist
-    sol.cost = bestMove.cost
+    sol.dist             = bestMove.dist
+    sol.totalInfeas     -= rt1.infeas    + rt2.infeas
+    sol.totalWarpStd1   -= rt1.warpStd1 + rt2.warpStd1
+    sol.totalWarpStd2   -= rt1.warpStd2 + rt2.warpStd2
+    sol.totalLabelCost  -= rt1.labelCost + rt2.labelCost
 
-    sol.totalInfeas -= sol.infeas[r1] + sol.infeas[r2]
-    sol.totalInfeas += bestMove.infeas[1] + bestMove.infeas[2]
-    sol.infeas[r1] = bestMove.infeas[1]
-    sol.infeas[r2] = bestMove.infeas[2]
-
-    block = sol.routes[r1][i:i+k-1]
-    deleteat!(sol.routes[r1], i:i+k-1)
-    for (offset, c) in enumerate(block)
-        insert!(sol.routes[r2], j + offset - 1, c)
-    end
+    move_blocks!(rt1.visits, i, k, rt2.visits, j, 0, solver.bufferRoute)
 
     computeLabels(solver, sol, r1, r2)
 
-    sol.totalInfeas -= sol.infeas[r1] + sol.infeas[r2]
-    sol.infeas[r1] = length(sol.routes[r1]) - max(sol.feasiblesF[r1], sol.feasiblesB[r1]) - 1
-    sol.infeas[r2] = length(sol.routes[r2]) - max(sol.feasiblesF[r2], sol.feasiblesB[r2]) - 1
-    sol.totalInfeas += sol.infeas[r1] + sol.infeas[r2]
+    rt1.infeas = length(rt1.visits) - max(rt1.feasibleF, rt1.feasibleB) - 1
+    rt2.infeas = length(rt2.visits) - max(rt2.feasibleF, rt2.feasibleB) - 1
+    sol.totalInfeas += rt1.infeas + rt2.infeas
 
-    sol.totalWarpStd1 -= sol.warpsStd1[r1] + sol.warpsStd1[r2]
-    sol.warpsStd1[r1] = sol.forwardLabels[r1][end].std1State.stdWarp
-    sol.warpsStd1[r2] = sol.forwardLabels[r2][end].std1State.stdWarp
-    sol.totalWarpStd1 += sol.warpsStd1[r1] + sol.warpsStd1[r2]
+    rt1.warpStd1 = rt1.forwardLabels[end].std1State.stdWarp
+    rt2.warpStd1 = rt2.forwardLabels[end].std1State.stdWarp
+    sol.totalWarpStd1 += rt1.warpStd1 + rt2.warpStd1
 
-    sol.totalWarpStd2 -= sol.warpsStd2[r1] + sol.warpsStd2[r2]
-    sol.warpsStd2[r1] = sol.forwardLabels[r1][end].std2State.stdWarp
-    sol.warpsStd2[r2] = sol.forwardLabels[r2][end].std2State.stdWarp
-    sol.totalWarpStd2 += sol.warpsStd2[r1] + sol.warpsStd2[r2]
+    rt1.warpStd2 = rt1.forwardLabels[end].std2State.stdWarp
+    rt2.warpStd2 = rt2.forwardLabels[end].std2State.stdWarp
+    sol.totalWarpStd2 += rt1.warpStd2 + rt2.warpStd2
 
-    sol.totalLabelCost -= sol.labelCosts[r1] + sol.labelCosts[r2]
-    sol.labelCosts[r1] = min(sol.forwardLabels[r1][end].cost, sol.backwardLabels[r1][end].cost)
-    sol.labelCosts[r2] = min(sol.forwardLabels[r2][end].cost, sol.backwardLabels[r2][end].cost)
-    sol.totalLabelCost += sol.labelCosts[r1] + sol.labelCosts[r2]
+    rt1.labelCost = min(rt1.forwardLabels[end].cost, rt1.backwardLabels[end].cost)
+    rt2.labelCost = min(rt2.forwardLabels[end].cost, rt2.backwardLabels[end].cost)
+    sol.totalLabelCost += rt1.labelCost + rt2.labelCost
 
     sol.cost = objectiveValue(solver, sol)
-    sol.lastModif[r1] = sol.timeStamp
-    sol.lastModif[r2] = sol.timeStamp
+    rt1.lastModif = sol.timeStamp
+    rt2.lastModif = sol.timeStamp
 end

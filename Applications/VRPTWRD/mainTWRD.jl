@@ -1,9 +1,10 @@
+﻿include("../../src/Include.jl")
 include("resourcesTWRD.jl")
-include("../../src/include.jl")
-# using PlotlyJS
-using CPLEX
-Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
 ENV["JULIA_HASH_SEED"] = "0"
+Random.seed!(0)
+
+# using PlotlyJS
+# using CPLEX
 
 function read_solomon(filename::String)
     open(filename, "r") do io
@@ -11,7 +12,7 @@ function read_solomon(filename::String)
         text = open(filename, "r") do io
             read(io, String)
         end
-        tokens = split(strip(text))     # vetor de strings limpas        
+        tokens = split(strip(text))     # vetor de strings limpas
         vehicles = parse(Int, tokens[5])
         capacity = parse(Int, tokens[6])
         id = Int[]
@@ -39,14 +40,12 @@ function read_solomon(filename::String)
             idIdx += 1
         end
         n = length(customers)
-        
+
         # Matrizes
         dist  = zeros(Float64, n, n)
         time  = zeros(Float64, n, n)
-        ready = zeros(Int, n, n)
-        due   = zeros(Int, n, n)
         dmat  = zeros(Float64, n, n)  # matriz de demandas
-        
+
         for i in 1:n, j in 1:n
             if i != j
                 # distância
@@ -54,14 +53,10 @@ function read_solomon(filename::String)
                 xj, yj = x[j], y[j]
                 d = floor(10*sqrt((xi-xj)^2 + (yi-yj)^2)) / 10
                 dist[i,j] = d
-                
+
                 # tempo = serviço no i + viagem até j
                 time[i,j] = d + service_time[i]
-                
-                # janelas de tempo em função do destino j
-                ready[i,j] = ready_time[j]
-                due[i,j]   = due_date[j]
-                
+
                 # demanda associada ao destino j (0 se retorno ao depósito)
                 if id[j] == 0
                     dmat[i,j] = 0
@@ -70,11 +65,6 @@ function read_solomon(filename::String)
                 end
             end
         end
-        # for i = 1:n
-        #     for j = 1:n
-        #         println("vertex $i to vertex $j ready = $(ready[i,j]) due = $(due[i,j])")
-        #     end
-        # end
         return x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready_time, due_date, release
     end
 end
@@ -137,45 +127,44 @@ function printVRPTW(solver::Solver, sol::Solution)
     cont = 0
     dist = 0.0
     for r = 1:length(sol.routes)
-        if length(sol.routes[r]) <= 2
+        if length(sol.routes[r].visits) <= 2
             continue
         end
         cont += 1
         time = sol.forwardLabels[r][end].state.RD
         demand = 0.
         print("#$cont: ")
-        for i = 1:length(sol.routes[r])
+        for i = 1:length(sol.routes[r].visits)
             if i == 1
                 print("0 (0.0) {$(round(time, digits = 2))}", " -> ")
             else
-                dist += solver.data.costMatrix[sol.routes[r][i-1]+1, sol.routes[r][i]+1]
-                time += round(solver.res.customResource.t[sol.routes[r][i-1]+1, sol.routes[r][i]+1], digits = 1)
-                if time < solver.res.stdResource.lb[sol.routes[r][i] + 1]
-                    time = solver.res.stdResource.lb[sol.routes[r][i] + 1]
+                dist += solver.data.costMatrix[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1]
+                time += round(solver.res.customResource.t[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1], digits = 1)
+                if time < solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]
+                    time = solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]
                 end
-                demand += solver.res.customResource.q[sol.routes[r][i-1] + 1, sol.routes[r][i] + 1]
-                print("$(sol.routes[r][i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource.lb[sol.routes[r][i] + 1]), $(solver.res.stdResource.ub[sol.routes[r][i] + 1])]")
-                if i < length(sol.routes[r]) print(" -> ") end
+                demand += solver.res.customResource.q[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
+                print("$(sol.routes[r].visits[i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource1.lb[sol.routes[r].visits[i] + 1]), $(solver.res.stdResource1.ub[sol.routes[r].visits[i] + 1])]")
+                if i < length(sol.routes[r].visits) print(" -> ") end
             end
         end
         println()
     end
     println("\nDist: $(sol.dist). Cost: $(sol.cost)")
-    # println("Violation: $(sol.resViolation)")
 end
 
 function checkVRPTW(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
         time = sol.forwardLabels[r][end].state.RD
         demand = 0
-        for i = 1:length(sol.routes[r])-1
-            time += round(solver.res.customResource.t[sol.routes[r][i]+1, sol.routes[r][i+1]+1], digits = 1)
-            demand += solver.res.customResource.q[sol.routes[r][i]+1, sol.routes[r][i+1]+1]
-            if time < solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
-                time = solver.res.stdResource.lb[sol.routes[r][i+1] + 1]
+        for i = 1:length(sol.routes[r].visits)-1
+            time += round(solver.res.customResource.t[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1], digits = 1)
+            demand += solver.res.customResource.q[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
+            if time < solver.res.stdResource1.lb[sol.routes[r].visits[i+1] + 1]
+                time = solver.res.stdResource1.lb[sol.routes[r].visits[i+1] + 1]
             end
-            if time > solver.res.stdResource.ub[sol.routes[r][i+1] + 1] + 1e-6
-                throw("violou janela do cliente $(sol.routes[r][i+1]) na rota $r")
+            if time > solver.res.stdResource1.ub[sol.routes[r].visits[i+1] + 1] + 1e-6
+                throw("violou janela do cliente $(sol.routes[r].visits[i+1]) na rota $r")
             end
             if demand > solver.res.customResource.Q + 1e-6
                 throw("rota $r viola capacidade do veiculo")
@@ -184,14 +173,13 @@ function checkVRPTW(solver::Solver, sol::Solution)
     end
 end
 
-
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     basepath = normpath(joinpath(@__DIR__, ".."), "VRPTWRD")
     instance = joinpath(basepath, splitpath(instance)...)
     x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release = read_solomon(instance)
     deleteat!(customers, 1)
 
-    maxNbRoute = vehicles#3*ceil(Int, sum(dmat[1, i] for i = 1:length(customers)+1)/capacity)#vehicles
+    maxNbRoute = vehicles
     data = ProblemData(customers, dist, maxNbRoute)
 
     for i = 1:length(release)
@@ -200,42 +188,49 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
             release[i] = 0
         end
     end
-    # release = zeros(Int, size(time)[1])
-    customRes = CustomResource(time, due, release, dmat, capacity)
-    # stdRes = StandardResource(zeros(Float64, size(time)[1], size(time)[1]), ready, due)
-    stdRes = StandardResource(time, ready, due)
-    
-    res = Resources(customRes, stdRes)
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
-        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
-        penaltyStandard = 100.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
+
+    customRes = CustomResource(time, due, release, Int.(dmat), capacity)
+
+    # Time windows as standard resource 1
+    stdRes1 = StandardResource{1}(time, Float64.(ready), Float64.(due))
+    # Capacity as standard resource 2
+    n = length(customers) + 1
+    stdRes2 = StandardResource{2}(dmat, zeros(Float64, n), Float64[capacity for _ in 1:n])
+
+    res = Resources(customRes, stdRes1, stdRes2)
+
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
+        penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
+        penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
+        penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
     )
 
     diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
 
     solver = Solver(
         seed = seed,
-        res = res,
-        stdResource = stdRes,
-        params = parameters,
+        parameters = parameters,
         diversification = diversif,
-        data = data, 
-        neighborhoods = [1,2,3,4]
+        acceptCriteria = AcceptBest(),
+        stopCriteria = ByIterMax(outerIterMax),
+        res = res,
+        data = data,
+        neighborhoods = NEIGHBORHOODS
     )
     println("Solving instance $instance...")
     @time NILS(solver)
+    sol = getBestSol(solver)
     printVRPTW(solver, solver.outerBestSol)
     checkVRPTW(solver, solver.outerBestSol)
-    # plot_vrptw(x, y, demands, solver.outerBestSol, filename = instName)
-
-    return solver.outerBestSol.cost
+    return sol.cost
 end
 
 # instance     = ARGS[1]
 restarts     = 1
 outerIterMax = 500
 innerIterMax = 5
-seed         = 2
-instance = "TWRD/100/C104_100_015.vrptwrd"
+seed         = 1
+instance = "TWRD/100/C103_100_015.vrptwrd"
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
+

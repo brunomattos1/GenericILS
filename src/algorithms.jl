@@ -1,9 +1,9 @@
 
 function NILS(solver::Solver)
     solver.outerBestSol.cost = Inf
-    solver.bestSol = Solution()
+    solver.bestSol = new_solution(solver)
     solver.startTime = time()
-    solver.bestFeasSol = Solution()
+    solver.bestFeasSol = new_solution(solver)
     solver.bestFeasSol.cost = Inf
     println("-"^135)
     @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
@@ -21,7 +21,7 @@ function NILS(solver::Solver)
     constructSol!(solver)
     push!(solver, solver.outerCurrSol)
     ILS(solver, solver.outerCurrSol)
-    accept!(AcceptBest(), solver, solver.outerCurrSol, solver.outerBestSol)
+    accept!(AcceptBest(), solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
     while !(stop(solver.stopCriteria, solver))
         solver.iter += 1
         copy_solution!(solver.outerCandidateSol, solver.outerCurrSol)
@@ -52,6 +52,7 @@ function ILS(solver::Solver, sol::Solution)
     while it < solver.parameters.innerIterMax
         it += 1
         RVND!(solver, sol)
+        updatePenalty(solver.penaltyManager, sol)
         if solver.aggressivePool
             push!(solver, sol)
         end
