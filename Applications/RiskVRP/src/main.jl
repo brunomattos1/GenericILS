@@ -108,6 +108,6 @@ function runAll()
     end
 end
 
-runAll()
-# data = readData(raw"C:\Users\Administrador\Documents\GitHub\GenericILS\Applications\RiskVRP\data\O\O103.rctvrp")
-# cost, t = main(data, 1, 1, 5, 1)
+# runAll()
+data = readData(raw"C:\Users\Administrador\Documents\GitHub\GenericILS\Applications\RiskVRP\data\O\O209.rctvrp")
+cost, t = main(data, 1, 1, 5, 1)

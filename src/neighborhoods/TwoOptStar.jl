@@ -12,14 +12,13 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     return ViolationInfo(infeasR1, infeasR2, labelCostR1, labelCostR2)
 end
 
-function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar)
+function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Float64)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
-    dist     = twoOptStarCost(sol.dist, solver.data.costMatrix, sol.routes[r1].visits, sol.routes[r2].visits, i, j)
     warpR1Std1, warpR1Std2, warpR2Std1, warpR2Std2 = computeStdViolTwoOptStar(solver, sol, r1, r2, i, j)
     violInfo = computeViolTwoOptStar(solver, sol, r1, r2, i, j)
     cost = objectiveValue(solver, sol, Cost(dist, r1, r2, violInfo, (warpR1Std1, warpR2Std1), (warpR1Std2, warpR2Std2)))
-    return dist, cost
+    return cost
 end
 
 function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
@@ -28,7 +27,7 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     oldSol = solver.bufferSol
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
-    shuffle!(solver.buffer)
+    shuffle!(solver.seed, solver.buffer)
     routesIdx = solver.buffer
     neighborhoodId = neigh_index(typeof(neigh))
 
@@ -38,9 +37,15 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
             r1 == r2 && continue
             lastEval = sol.lastEval[neighborhoodId, r1, r2]
             lastEval > max(sol.routes[r1].lastModif, sol.routes[r2].lastModif) && continue
+            canPrune = canPruneByDist(solver)
+            fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
             for i = 1:length(sol.routes[r1].visits) - 2
                 for j = 1:length(sol.routes[r2].visits) - 2
-                    dist, cost = evalTwoOptStar!(solver, sol, OptStar(r1, r2, i, j))
+                    dist = twoOptStarCost(sol.dist, solver.data.costMatrix, sol.routes[r1].visits, sol.routes[r2].visits, i, j)
+                    if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
+                        continue
+                    end
+                    cost = evalTwoOptStar!(solver, sol, OptStar(r1, r2, i, j), dist)
                     if cost < bestMove.cost - 1e-6
                         bestMove = BestMove(cost, dist, r1, r2, i, j)
                     end

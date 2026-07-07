@@ -45,15 +45,14 @@ function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, 
     end
 end
 
-function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift)
+function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift, dist::Float64)
     r = shift.routeFrom
     i = shift.fromIdx
     j = shift.toIdx
-    dist     = intraShift10Cost(sol.dist, solver.data.costMatrix, sol.routes[r].visits, i, j)
     resViol, labelCost = computeViolIntraShift10(solver, sol, r, i, j)
     warpStd1, warpStd2 = computeStdViolIntraShift10(solver, sol, r, i, j)
     cost = objectiveValue(solver, sol, r, dist, 0, labelCost, warpStd1, warpStd2)
-    return dist, cost, resViol
+    return cost, resViol
 end
 
 function search!(neigh::IntraShift, solver::Solver, sol::Solution)
@@ -67,10 +66,16 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
             continue
         end
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
+        canPrune = canPruneByDist(solver)
+        fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r) : 0.0
         if rt.feasibleF >= length(rt.visits) - 1
             for i = 2:length(rt.visits)-1
                 for j = i+1:length(rt.visits)-1
-                    dist, cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j))
+                    dist = intraShift10Cost(sol.dist, solver.data.costMatrix, rt.visits, i, j)
+                    if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
+                        continue
+                    end
+                    cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j), dist)
                     if resViol == 0 && cost < bestMove.cost - 1e-6
                         bestMove = BestMove(cost, dist, r, 0, i, j)
                     end
@@ -80,7 +85,11 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
         if rt.feasibleB >= length(rt.visits) - 1
             for i = length(rt.visits)-1:-1:2
                 for j = i-1:-1:2
-                    dist, cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j))
+                    dist = intraShift10Cost(sol.dist, solver.data.costMatrix, rt.visits, i, j)
+                    if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
+                        continue
+                    end
+                    cost, resViol = evalIntraShift10(solver, sol, Shift(r, r, i, j), dist)
                     if resViol == 0 && cost < bestMove.cost - 1e-6
                         bestMove = BestMove(cost, dist, r, 0, i, j)
                     end
