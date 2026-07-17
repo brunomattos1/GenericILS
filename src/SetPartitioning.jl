@@ -107,7 +107,10 @@ end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
+    set_silent(sp)
     set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    # set_optimizer_attribute(sp, "CPXPARAM_Threads", 1)
+
     set_time_limit_sec(sp, solver.timeLimitSP)
     routes = solver.route_storage#collect(keys(solver.pool))
     
@@ -120,9 +123,9 @@ function setPartitioning(solver::Solver, cutOff::Float64)
     optimize!(sp)
 
     if termination_status(sp) == OPTIMAL
-        println("-"^144)
-        println("Set Partitioning optimally solved!")
-        println("-"^144)
+        # println("-"^144)
+        # println("Set Partitioning optimally solved!")
+        # println("-"^144)
 
         solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
         solver.bestFeasSol.cost = objective_value(sp)
@@ -131,15 +134,15 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         computeLabels(solver, solver.bestFeasSol)
     end
     if termination_status(sp) == INFEASIBLE
-        println("-"^144)
-        println("Set Partitioning is infeasible!")
-        println("-"^144)
+        # println("-"^144)
+        # println("Set Partitioning is infeasible!")
+        # println("-"^144)
         return solver.bestFeasSol
     end
     if termination_status(sp) == TIME_LIMIT
-        println("-"^144)
-        println("Set Partitioning reached time limit!")
-        println("-"^144)
+        # println("-"^144)
+        # println("Set Partitioning reached time limit!")
+        # println("-"^144)
         if result_count(sp) >= 1
             if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
                 solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]

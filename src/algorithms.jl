@@ -5,19 +5,19 @@ function NILS(solver::Solver)
     solver.startTime = time()
     solver.bestFeasSol = new_solution(solver)
     solver.bestFeasSol.cost = Inf
-    println("-"^135)
-    @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
-        "Temp.",
-        "Best Feas",
-        "Best",
-        "Curr",
-        "Pen. Custom",
-        "Pen. Standard 1",
-        "Pen. Standard 2",
-        "Pool",
-        "Time (s)"
-    )
-    println("-"^135)
+    # println("-"^135)
+    # @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
+    #     "Temp.",
+    #     "Best Feas",
+    #     "Best",
+    #     "Curr",
+    #     "Pen. Custom",
+    #     "Pen. Standard 1",
+    #     "Pen. Standard 2",
+    #     "Pool",
+    #     "Time (s)"
+    # )
+    # println("-"^135)
     constructSol!(solver)
     push!(solver, solver.outerCurrSol)
     ILS(solver, solver.outerCurrSol)
@@ -27,21 +27,23 @@ function NILS(solver::Solver)
         copy_solution!(solver.outerCandidateSol, solver.outerCurrSol)
         outerPerturb!(solver, solver.outerCandidateSol)
         ILS(solver, solver.outerCandidateSol)
+        # updatePenalty(solver.penaltyManager, solver.outerCandidateSol)
+
         push!(solver, solver.outerCandidateSol)
         accept!(solver.acceptCriteria, solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
-        printInfo(solver)
+        # printInfo(solver)
         if totalTime(solver) >= solver.timeLimitILS
             @goto SP
         end
     end
     @label SP
-    println("-"^144)
+    # println("-"^144)
     if totalTime(solver) >= solver.timeLimitILS
-        println("Search finished due to time limit! Executing Set Partitioning model...")
+        # println("Search finished due to time limit! Executing Set Partitioning model...")
     else
-        println("Search finished! Executing Set Partitioning model...")
+        # println("Search finished! Executing Set Partitioning model...")
     end
-    println("-"^144)
+    # println("-"^144)
     setPartitioning(solver, solver.bestFeasSol.cost)
     solver.outerBestSol = deepcopy(solver.bestFeasSol)
 end
