@@ -5,7 +5,7 @@ include("data.jl")
 function printSol(sol::Solution)
     for r = 1:length(sol.routes)
         print("route $r: ")
-        for v in sol.routes[r]
+        for v in sol.routes[r].visits
             print("$v ")
         end
         println()
@@ -23,50 +23,90 @@ function main(data::DataCCVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
     end
     maxNbRoute    = ceil(Int, sum(data.demand) / data.capacity)
     dataHeuristic = ProblemData(customers, zeros(Float64, n+1, n+1), maxNbRoute)
-
     demands   = push!(copy(data.demand), 0.0)
+    weights   = vcat(0.0, ones(Float64, n), 0.0)
     d         = buildArcDemands(demands)
-    customRes = CustomResource(demands, dist, 1000.0, 1000.0)
+    customRes = CustomResource(weights, dist, Inf, Inf)
 
     nv     = n + 1
     stdRes1 = StandardResource{1}(d, zeros(Float64, nv), Float64[data.capacity for _ in 1:nv])
     stdRes2 = StandardResource{2}(zeros(Float64, nv, nv), zeros(Float64, nv), fill(Inf, nv))
     res     = Resources(customRes, stdRes1, stdRes2)
 
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
-        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
-        penaltyStandard1 = 1.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
-        penaltyStandard2 = 0.0, penaltyStandard2Increase = 0.0, penaltyStandard2Decrease = 0.0
-    )
-    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
+    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax)
+    diversif = Diversification(outerShift = 3, outerSwap = 0, innerShift = 1, innerSwap = 0)
     solver = Solver(
         seed = seed,
         parameters = parameters,
+        penaltyManager = TargetRatePenaltyManager(),
         diversification = diversif,
-        acceptCriteria = AcceptBest(),
-        stopCriteria = ByIterMax(outerIterMax),
+        acceptCriteria = Metropolis(100.0, 0.997),
+        stopCriteria = ByTemperature(0.1),
+        # acceptCriteria = AcceptBest(),
+        # stopCriteria = ByIterMax(500),
         res = res,
         data = dataHeuristic,
-        neighborhoods = NEIGHBORHOODS
+        neighborhoods = NEIGHBORHOODS,
+        MIPSolver = CPLEX.Optimizer,
+        timeLimitSP = 30.0
     )
-    setTimeLimitILS(solver, 30.0)
-    setTimeLimitSP(solver, 50.0)
-    aggressivePool(solver, false)
 
     t   = @elapsed NILS(solver)
     sol = getBestSol(solver)
 
-    println("$(data.name) $(round(t, digits=2)) $(round(sol.cost, digits=2))")
-    printSol(sol)
-    return sol.cost
+    # println("$(data.name) $(round(t, digits=2)) $(round(sol.cost, digits=2))")
+    # printSol(sol)
+    # printLabels(solver, sol)
+    return sol.cost, t
 end
 
-instance     = "P-n19-k2.vrp"
-restarts     = 1
-outerIterMax = 500
-innerIterMax = 30
-seed         = 1
+function collectInstances(dataDir::String)
+    instances = String[]
+    for folder in ("Golden", "CMT", "Li")
+        folderPath = joinpath(dataDir, folder)
+        for file in readdir(folderPath)
+            endswith(file, ".vrp") && push!(instances, joinpath(folderPath, file))
+        end
+    end
+    return instances
+end
 
-data = readData(instance)
-main(data, restarts, outerIterMax, innerIterMax, seed)
+function runAll()
+    restarts     = 1
+    outerIterMax = 500
+    innerIterMax = 5
+    seeds        = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    baseDir = @__DIR__
+    dataDir = joinpath(baseDir, "..", "data")
+    outCsv  = joinpath(baseDir, "..", "results.csv")
+
+    instances = collectInstances(dataDir)
+
+    open(outCsv, "w") do io
+        println(io, "instance,seed,cost,time")
+        flush(io)
+
+        for instancePath in instances
+            for seed in seeds
+                instanceName = splitext(basename(instancePath))[1]
+                cost = 99999
+                t    = 99999
+                try
+                    data = readData(instancePath)
+                    cost, t = main(data, restarts, outerIterMax, innerIterMax, seed)
+                catch e
+                    println("ERROR on $instanceName (seed=$seed): $e")
+                    cost = 99999
+                    t    = 99999
+                end
+                println(io, "$instanceName,$seed,$cost,$t")
+                flush(io)
+                println("$instanceName $seed $cost $t")
+            end
+        end
+    end
+end
+
+runAll()
 

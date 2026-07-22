@@ -44,19 +44,20 @@ function main(data::DataVRPSPD, restarts::Int, outerIterMax::Int, innerIterMax::
         penaltyStandard2Decrease = 0.2,
         targetFeasRate = 0.7,
         feasRateTolerance = 0.05,
-        updatePeriod = 30
+        updatePeriod = 50
     )
     solver = Solver(
         seed = seed,
         parameters = parameters,
         diversification = diversif,
         penaltyManager = pm,
-        acceptCriteria = Metropolis(100.0, 0.997),
+        acceptCriteria = Metropolis(100.0, 0.995),
         stopCriteria = ByTemperature(0.1),
         res = res,
         data = dataHeuristic,
         neighborhoods = NEIGHBORHOODS,
-        MIPSolver = CPLEX.Optimizer
+        MIPSolver = CPLEX.Optimizer,
+        timeLimitSP = 30.0
     )
 
     t        = @elapsed NILS(solver)
@@ -67,56 +68,58 @@ function main(data::DataVRPSPD, restarts::Int, outerIterMax::Int, innerIterMax::
     # printSol(sol)
     return sol.cost, t, poolSize
 end
+instance = raw"C:\Users\Administrador\Documents\GitHub\GenericILS\Applications\VRPSPD\data\MG\C1_2_1"
+data = readData(instance)
+main(data, 1, 1, 5, 1)
+# function collectInstances(dataDir::String)
+#     instances = String[]
+#     for folder in ("D", "MG", "SN")
+#         folderPath = joinpath(dataDir, folder)
+#         for file in readdir(folderPath)
+#             push!(instances, joinpath(folderPath, file))
+#         end
+#     end
+#     return instances
+# end
 
-function collectInstances(dataDir::String)
-    instances = String[]
-    for folder in ("D", "MG", "SN")
-        folderPath = joinpath(dataDir, folder)
-        for file in readdir(folderPath)
-            push!(instances, joinpath(folderPath, file))
-        end
-    end
-    return instances
-end
+# function runAll()
+#     restarts     = 1
+#     outerIterMax = 500
+#     innerIterMax = 5
+#     seeds        = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-function runAll()
-    restarts     = 1
-    outerIterMax = 500
-    innerIterMax = 5
-    seeds        = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+#     baseDir = @__DIR__
+#     dataDir = joinpath(baseDir, "..", "data")
+#     outCsv  = joinpath(baseDir, "..", "results.csv")
 
-    baseDir = @__DIR__
-    dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+#     instances = collectInstances(dataDir)
 
-    instances = collectInstances(dataDir)
+#     open(outCsv, "w") do io
+#         println(io, "instance,seed,cost,time,pool")
+#         flush(io)
 
-    open(outCsv, "w") do io
-        println(io, "instance,seed,cost,time,pool")
-        flush(io)
+#         for instancePath in instances
+#             for seed in seeds
+#                 instanceName = splitext(basename(instancePath))[1]
+#                 cost = 99999
+#                 t    = 99999
+#                 pool = 99999
+#                 try
+#                     data = readData(instancePath)
+#                     cost, t, pool = main(data, restarts, outerIterMax, innerIterMax, seed)
+#                 catch e
+#                     println("ERROR on $instanceName (seed=$seed): $e")
+#                     cost = 99999
+#                     t    = 99999
+#                     pool = 99999
+#                 end
+#                 println(io, "$instanceName,$seed,$cost,$t,$pool")
+#                 flush(io)
+#                 println("$instanceName $seed $cost $t $pool")
+#             end
+#         end
+#     end
+# end
 
-        for instancePath in instances
-            for seed in seeds
-                instanceName = splitext(basename(instancePath))[1]
-                cost = 99999
-                t    = 99999
-                pool = 99999
-                try
-                    data = readData(instancePath)
-                    cost, t, pool = main(data, restarts, outerIterMax, innerIterMax, seed)
-                catch e
-                    println("ERROR on $instanceName (seed=$seed): $e")
-                    cost = 99999
-                    t    = 99999
-                    pool = 99999
-                end
-                println(io, "$instanceName,$seed,$cost,$t,$pool")
-                flush(io)
-                println("$instanceName $seed $cost $t $pool")
-            end
-        end
-    end
-end
-
-runAll()
+# runAll()
 

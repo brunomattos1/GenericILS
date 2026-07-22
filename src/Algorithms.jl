@@ -31,7 +31,7 @@ function NILS(solver::Solver)
 
         push!(solver, solver.outerCandidateSol)
         accept!(solver.acceptCriteria, solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
-        # printInfo(solver)
+        printInfo(solver)
         if totalTime(solver) >= solver.timeLimitILS
             @goto SP
         end

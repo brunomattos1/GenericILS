@@ -105,19 +105,19 @@ function updatePenalty(pm::TargetRatePenaltyManager, sol::Solution)
     if ρ_custom < pm.targetFeasRate - pm.feasRateTolerance
         pm.penaltyCustom = min(10000.0, pm.penaltyCustom * (1.0 + pm.penaltyCustomIncrease))
     elseif ρ_custom > pm.targetFeasRate + pm.feasRateTolerance
-        pm.penaltyCustom = max(0.001,   pm.penaltyCustom / (1.0 + pm.penaltyCustomDecrease))
+        pm.penaltyCustom = max(0.01,   pm.penaltyCustom / (1.0 + pm.penaltyCustomDecrease))
     end
 
     if ρ_standard1 < pm.targetFeasRate - pm.feasRateTolerance
         pm.penaltyStandard1 = min(10000.0, pm.penaltyStandard1 * (1.0 + pm.penaltyStandard1Increase))
     elseif ρ_standard1 > pm.targetFeasRate + pm.feasRateTolerance
-        pm.penaltyStandard1 = max(0.001,   pm.penaltyStandard1 / (1.0 + pm.penaltyStandard1Decrease))
+        pm.penaltyStandard1 = max(0.01,   pm.penaltyStandard1 / (1.0 + pm.penaltyStandard1Decrease))
     end
 
     if ρ_standard2 < pm.targetFeasRate - pm.feasRateTolerance
         pm.penaltyStandard2 = min(10000.0, pm.penaltyStandard2 * (1.0 + pm.penaltyStandard2Increase))
     elseif ρ_standard2 > pm.targetFeasRate + pm.feasRateTolerance
-        pm.penaltyStandard2 = max(0.001,   pm.penaltyStandard2 / (1.0 + pm.penaltyStandard2Decrease))
+        pm.penaltyStandard2 = max(0.01,   pm.penaltyStandard2 / (1.0 + pm.penaltyStandard2Decrease))
     end
 
     # Reseta a janela: "encher e zerar" (igual ao HGS), nao e buffer circular.

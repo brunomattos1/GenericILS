@@ -107,7 +107,7 @@ end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
-    set_silent(sp)
+    # set_silent(sp)
     set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
     # set_optimizer_attribute(sp, "CPXPARAM_Threads", 1)
 
@@ -120,6 +120,15 @@ function setPartitioning(solver::Solver, cutOff::Float64)
 
     @constraint(sp, [i = 1:length(solver.data.vertices)], sum(α(i, routes[r])λ[r] for r = 1:length(routes)) == 1)
     @constraint(sp, sum(λ[r] for r = 1:length(routes)) <= solver.data.maxNbRoutes)
+
+    nonEmptyRoutes = filter(rt -> length(rt.visits) > 2, solver.bestFeasSol.routes)
+    warmStartIds = [get(solver.route_lookup, rt.visits, 0) for rt in nonEmptyRoutes]
+    if !isempty(warmStartIds) && all(id -> id > 0, warmStartIds)
+        for id in warmStartIds
+            set_start_value(λ[id], 1.0)
+        end
+    end
+
     optimize!(sp)
 
     if termination_status(sp) == OPTIMAL
