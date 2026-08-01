@@ -1,2 +1,13 @@
 *.md
 *.mem
+*.pdf
+*.tex
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.bib
+*.pyc
+*.bst
+*.cls
