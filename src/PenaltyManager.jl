@@ -67,13 +67,13 @@ mutable struct TargetRatePenaltyManager <: PenaltyManager
     windowCount::Int
 end
 function TargetRatePenaltyManager(;
-    penaltyCustom = 1000.0,
+    penaltyCustom = 100.0,
     penaltyCustomIncrease = 0.4,
     penaltyCustomDecrease = 0.2,
-    penaltyStandard1 = 1000.0,
+    penaltyStandard1 = 100.0,
     penaltyStandard1Increase = 0.4,
     penaltyStandard1Decrease = 0.2,
-    penaltyStandard2 = 1000.0,
+    penaltyStandard2 = 100.0,
     penaltyStandard2Increase = 0.4,
     penaltyStandard2Decrease = 0.2,
     targetFeasRate = 0.7,

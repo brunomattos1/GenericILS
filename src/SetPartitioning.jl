@@ -107,7 +107,7 @@ end
 
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
-    # set_silent(sp)
+    set_silent(sp)
     set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
     # set_optimizer_attribute(sp, "CPXPARAM_Threads", 1)
 
@@ -136,11 +136,14 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         # println("Set Partitioning optimally solved!")
         # println("-"^144)
 
-        solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
-        solver.bestFeasSol.cost = objective_value(sp)
-        solver.bestFeasSol.dist = 0#objective_value(sp)
+        if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
+            solver.bestFeasSol.routes = [new_route(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
+            solver.bestFeasSol.cost = objective_value(sp)
+            solver.bestFeasSol.dist = 0#objective_value(sp)
 
-        computeLabels(solver, solver.bestFeasSol)
+            computeLabels(solver, solver.bestFeasSol)
+            registerBestFeasible!(solver, solver.bestFeasSol)
+        end
     end
     if termination_status(sp) == INFEASIBLE
         # println("-"^144)
@@ -158,6 +161,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
                 solver.bestFeasSol.cost = objective_value(sp)
                 solver.bestFeasSol.dist = 0#objective_value(sp)
                 computeLabels(solver, solver.bestFeasSol)
+                registerBestFeasible!(solver, solver.bestFeasSol)
             end
         end
         return solver.bestFeasSol

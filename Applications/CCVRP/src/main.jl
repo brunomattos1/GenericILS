@@ -40,7 +40,7 @@ function main(data::DataCCVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
         parameters = parameters,
         penaltyManager = TargetRatePenaltyManager(),
         diversification = diversif,
-        acceptCriteria = Metropolis(100.0, 0.997),
+        acceptCriteria = Metropolis(100.0, 0.9),
         stopCriteria = ByTemperature(0.1),
         # acceptCriteria = AcceptBest(),
         # stopCriteria = ByIterMax(500),
@@ -59,54 +59,57 @@ function main(data::DataCCVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
     # printLabels(solver, sol)
     return sol.cost, t
 end
+instance = raw"C:\Users\Administrador\Documents\GitHub\GenericILS\Applications\CCVRP\data\Golden\Golden_1.vrp"
+data = readData(instance)
+main(data, 1, 1, 3, 1)
 
-function collectInstances(dataDir::String)
-    instances = String[]
-    for folder in ("Golden", "CMT", "Li")
-        folderPath = joinpath(dataDir, folder)
-        for file in readdir(folderPath)
-            endswith(file, ".vrp") && push!(instances, joinpath(folderPath, file))
-        end
-    end
-    return instances
-end
+# function collectInstances(dataDir::String)
+#     instances = String[]
+#     for folder in ("Golden", "CMT", "Li")
+#         folderPath = joinpath(dataDir, folder)
+#         for file in readdir(folderPath)
+#             endswith(file, ".vrp") && push!(instances, joinpath(folderPath, file))
+#         end
+#     end
+#     return instances
+# end
 
-function runAll()
-    restarts     = 1
-    outerIterMax = 500
-    innerIterMax = 5
-    seeds        = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+# function runAll()
+#     restarts     = 1
+#     outerIterMax = 500
+#     innerIterMax = 5
+#     seeds        = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-    baseDir = @__DIR__
-    dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+#     baseDir = @__DIR__
+#     dataDir = joinpath(baseDir, "..", "data")
+#     outCsv  = joinpath(baseDir, "..", "results.csv")
 
-    instances = collectInstances(dataDir)
+#     instances = collectInstances(dataDir)
 
-    open(outCsv, "w") do io
-        println(io, "instance,seed,cost,time")
-        flush(io)
+#     open(outCsv, "w") do io
+#         println(io, "instance,seed,cost,time")
+#         flush(io)
 
-        for instancePath in instances
-            for seed in seeds
-                instanceName = splitext(basename(instancePath))[1]
-                cost = 99999
-                t    = 99999
-                try
-                    data = readData(instancePath)
-                    cost, t = main(data, restarts, outerIterMax, innerIterMax, seed)
-                catch e
-                    println("ERROR on $instanceName (seed=$seed): $e")
-                    cost = 99999
-                    t    = 99999
-                end
-                println(io, "$instanceName,$seed,$cost,$t")
-                flush(io)
-                println("$instanceName $seed $cost $t")
-            end
-        end
-    end
-end
+#         for instancePath in instances
+#             for seed in seeds
+#                 instanceName = splitext(basename(instancePath))[1]
+#                 cost = 99999
+#                 t    = 99999
+#                 try
+#                     data = readData(instancePath)
+#                     cost, t = main(data, restarts, outerIterMax, innerIterMax, seed)
+#                 catch e
+#                     println("ERROR on $instanceName (seed=$seed): $e")
+#                     cost = 99999
+#                     t    = 99999
+#                 end
+#                 println(io, "$instanceName,$seed,$cost,$t")
+#                 flush(io)
+#                 println("$instanceName $seed $cost $t")
+#             end
+#         end
+#     end
+# end
 
-runAll()
+# runAll()
 

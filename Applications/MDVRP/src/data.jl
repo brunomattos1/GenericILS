@@ -27,6 +27,13 @@ mutable struct DataMDVRP
     name::String
 end
 
+function c(data::DataMDVRP, a::Tuple{Int64,Int64})
+    if !(haskey(data.G′.cost, a))
+        return 100000.0
+    end
+    return data.G′.cost[a]
+end
+
 function arcDistance(data::DataMDVRP, arc::Tuple{Int64,Int64})
     u, v = arc
     x_sq = (data.G′.V′[v+1].pos_x - data.G′.V′[u+1].pos_x)^2

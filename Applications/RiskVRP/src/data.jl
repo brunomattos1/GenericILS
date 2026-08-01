@@ -88,12 +88,12 @@ function readData(instance::String)
     for k = 1:dim
         Lista[k+1] = Int(G′.V′[k].demand)
     end
-    g        = gcd(Lista)
-    data.T   = data.T / g
-    for i = 1:dim
-        G′.V′[i].demand = G′.V′[i].demand / g
-        demands_sum    += G′.V′[i].demand
-    end
+    # g        = gcd(Lista)
+    # data.T   = data.T / g
+    # for i = 1:dim
+    #     G′.V′[i].demand = G′.V′[i].demand / g
+    #     demands_sum    += G′.V′[i].demand
+    # end
 
     if data.coord
         for i in getCustomers(data)

@@ -30,7 +30,8 @@ function updateBestFeasible!(solver::Solver, sol::Solution)
     if sol.cost < solver.bestFeasSol.cost - 1e-6
         if sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd1 <= 1e-6
             copy_solution!(solver.bestFeasSol, sol)
-            solver.iter = 0 
+            registerBestFeasible!(solver, sol)
+            solver.iter = 0
         end
     end
 end
@@ -71,20 +72,15 @@ end
 function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
-    if candidateSol.cost < bestSol.cost - 1e-6
-        copy_solution!(bestSol, candidateSol)
+    if candidateSol.cost < solver.outerBestSol.cost - 1e-6
+        copy_solution!(solver.outerBestSol, candidateSol)
     end
     if Δ < -1e-6
-        # melhorou -> aceita sempre
         copy_solution!(currSol, candidateSol)
     else
         # Metropolis
         if rand(solver.seed) < exp(-Δ / criteria.temperature)
-            # aceita pior solução (diversificação)
             copy_solution!(currSol, candidateSol)
-        else
-            # rejeita -> volta pro best
-            copy_solution!(candidateSol, currSol)
         end
     end
     totalTime = time() - solver.startTime

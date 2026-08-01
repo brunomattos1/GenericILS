@@ -8,8 +8,8 @@ end
 
 mutable struct Vertex_
     id_vertex::Int
-    pos_x::Int
-    pos_y::Int
+    pos_x::Float64
+    pos_y::Float64
     demand::Int
 end
 
@@ -44,7 +44,7 @@ function readBrandaoData(path::String)
     vertices = Vertex_[]
     offset   = 2
     for i in 0:n
-        push!(vertices, Vertex_(i, Int(raw[offset+1]), Int(raw[offset+2]), 0))
+        push!(vertices, Vertex_(i, raw[offset+1], raw[offset+2], 0))
         offset += 3
     end
     for i in 0:n
@@ -87,7 +87,7 @@ function readClassicData(path::String)
     vertices = Vertex_[]
     offset   = 2
     for i in 0:n
-        push!(vertices, Vertex_(i, Int(raw[offset+1]), Int(raw[offset+2]), Int(raw[offset+3])))
+        push!(vertices, Vertex_(i, raw[offset+1], raw[offset+2], Int(raw[offset+3])))
         offset += 4
     end
 

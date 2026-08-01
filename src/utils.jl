@@ -96,10 +96,6 @@ function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float
     return cost
 end
 
-# Custo fixo do resto da solucao (tudo exceto dist e as violacoes das rotas envolvidas),
-# assumindo o melhor caso possivel (violacoes novas = 0). Usado para podar um movimento
-# sem calcular suas violacoes: se dist + fixedPenalty >= bestCost, o movimento nao pode
-# melhorar. So valido quando isCostResource() == false (labelCost sem sinal garantido).
 function pruningFixedPenalty(solver::Solver, sol::Solution, r1::Int, r2::Int)
     rt1 = sol.routes[r1]
     rt2 = sol.routes[r2]

@@ -117,6 +117,18 @@ struct ProblemData
 end
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
+mutable struct Statistics
+    bestFeasCost::Float64
+    bestFeasCostBefSP::Float64
+    foundTime::Float64
+    foundTemperature::Float64
+    foundIter::Int
+    poolSize::Int
+    totalTime::Float64
+end
+
+Statistics() = Statistics(Inf, Inf, NaN, NaN, 0, 0, NaN)
+
 mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: AbstractResources, PM <: PenaltyManager, FL, BL}
     seed::Random.MersenneTwister
     parameters::Parameters
@@ -154,6 +166,7 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: Abst
     timeLimitSP::Float64
     aggressivePool::Bool
     MIPSolver::Any
+    statistics::Statistics
 end
 
 function Solver(;
@@ -202,7 +215,8 @@ function Solver(;
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
         Solution{FL, BL}(),
         route_storage, cost_storage, route_lookup,
-        timeStamp, timeLimitILS, timeLimitSP, aggressivePool, MIPSolver
+        timeStamp, timeLimitILS, timeLimitSP, aggressivePool, MIPSolver,
+        Statistics()
     )
 end
 
@@ -238,3 +252,25 @@ getCost(sol::Union{Solution, UserSolution}) = sol.cost
 getDistance(sol::Union{Solution, UserSolution}) = sol.dist
 
 getCostMatrix(solver::Solver) = solver.data.costMatrix
+
+currentTemperature(solver::Solver) = hasproperty(solver.acceptCriteria, :temperature) ? solver.acceptCriteria.temperature : NaN
+
+function registerBestFeasible!(solver::Solver, sol::Solution)
+    stats = solver.statistics
+    stats.bestFeasCost     = sol.cost
+    stats.foundTime        = totalTime(solver)
+    stats.foundTemperature = currentTemperature(solver)
+    stats.foundIter        = solver.iter
+end
+
+function registerBestFeasibleBefSP!(solver::Solver)
+    solver.statistics.bestFeasCostBefSP = solver.bestFeasSol.cost
+end
+
+function registerPoolSize!(solver::Solver)
+    solver.statistics.poolSize = length(solver.route_storage)
+end
+
+function registerTotalTime!(solver::Solver)
+    solver.statistics.totalTime = totalTime(solver)
+end

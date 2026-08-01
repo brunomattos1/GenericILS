@@ -21,17 +21,23 @@ function NILS(solver::Solver)
     constructSol!(solver)
     push!(solver, solver.outerCurrSol)
     ILS(solver, solver.outerCurrSol)
+
     accept!(AcceptBest(), solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
     while !(stop(solver.stopCriteria, solver))
         solver.iter += 1
         copy_solution!(solver.outerCandidateSol, solver.outerCurrSol)
         outerPerturb!(solver, solver.outerCandidateSol)
         ILS(solver, solver.outerCandidateSol)
-        # updatePenalty(solver.penaltyManager, solver.outerCandidateSol)
-
+        # @show solver.outerCandidateSol.totalInfeas
+        # for r = 1:length(solver.outerCandidateSol.routes)
+        #     @show solver.outerCandidateSol.routes[r].visits
+        # end
+        # println("-"^100)
+        # RVND!(solver, solver.outerCandidateSol)
+        updatePenalty(solver.penaltyManager, solver.outerCandidateSol)
         push!(solver, solver.outerCandidateSol)
         accept!(solver.acceptCriteria, solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
-        printInfo(solver)
+        # printInfo(solver)
         if totalTime(solver) >= solver.timeLimitILS
             @goto SP
         end
@@ -44,8 +50,11 @@ function NILS(solver::Solver)
         # println("Search finished! Executing Set Partitioning model...")
     end
     # println("-"^144)
+    registerBestFeasibleBefSP!(solver)
     setPartitioning(solver, solver.bestFeasSol.cost)
     solver.outerBestSol = deepcopy(solver.bestFeasSol)
+    registerPoolSize!(solver)
+    registerTotalTime!(solver)
 end
 
 function ILS(solver::Solver, sol::Solution)
@@ -54,7 +63,7 @@ function ILS(solver::Solver, sol::Solution)
     while it < solver.parameters.innerIterMax
         it += 1
         RVND!(solver, sol)
-        updatePenalty(solver.penaltyManager, sol)
+        # updatePenalty(solver.penaltyManager, sol)
         if solver.aggressivePool
             push!(solver, sol)
         end
