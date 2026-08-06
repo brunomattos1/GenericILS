@@ -55,33 +55,10 @@ function move_blocks_intra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::
     return nothing
 end
 
-totalTime(solver::Solver) = time() - solver.startTime
-get_stop_info(solver::Solver, ::Any) = NaN  # default (não tem temperatura)
+totalTime(algo::Algorithm) = error("totalTime not implemented for $(typeof(algo))")
 
-get_stop_info(solver::Solver, c::ByIterMax) = solver.iter  # default (não tem temperatura)
-
-get_stop_info(solver::Solver, c::ByTemperature) = solver.acceptCriteria.temperature
-
-function printInfo(solver::Solver)
-    total_algorithm_time = time() - solver.startTime
-    stopInfo = get_stop_info(solver, solver.stopCriteria)
-    if mod(total_algorithm_time, 10.0) == 0
-        println("-"^135)
-        @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
-            "Temp.", "Best Feas", "Best", "Candidate",
-            "Pen. Custom", "Pen. Standard 1", "Pen. Standard 2", "Pool", "Time (s)")
-        println("-"^135)
-        # header_time += 10.0
-    end
-
-    @printf("| %10.6f | %10.2f | %12.2f | %12.2f | %11.2f | %15.2f | %15.2f | %6d | %10.4f |\n",
-        stopInfo,
-        solver.bestFeasSol.cost, solver.outerBestSol.cost, solver.outerCandidateSol.cost,
-        solver.penaltyManager.penaltyCustom,
-        solver.penaltyManager.penaltyStandard1, solver.penaltyManager.penaltyStandard2,
-        length(solver.route_storage), total_algorithm_time)
-
-end
+printInfo(solver::Solver) = printInfo(solver.algorithm, solver)
+printInfo(algo::Algorithm, solver::Solver) = nothing  # default: no-op for algorithms that don't define progress reporting
 
 
 
@@ -284,10 +261,10 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
 end
 
 function createSolution(
-    solver::Solver{N, AC, SC, R, PM, FL, BL},
+    solver::Solver{N, R, PM, FL, BL, AL},
     routes::Vector{Vector{Int}};
     dist::Union{Float64,Nothing}=nothing,
-    cost::Union{Float64,Nothing}=nothing) where {N, AC, SC, R <: AbstractResources, PM, FL, BL}
+    cost::Union{Float64,Nothing}=nothing) where {N, R <: AbstractResources, PM, FL, BL, AL}
 
     sol = UserSolution{FL, BL}(routes, 0.0, 0.0)
 

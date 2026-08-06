@@ -29,7 +29,7 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)
     routesIdx = solver.buffer
-    neighborhoodId = neigh_index(typeof(neigh))
+    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)

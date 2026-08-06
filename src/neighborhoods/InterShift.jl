@@ -22,7 +22,7 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
     flag = false
     copy_solution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(InterShift{k})
+    neighborhoodId = neigh_index(typeof(solver), InterShift{k})
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)

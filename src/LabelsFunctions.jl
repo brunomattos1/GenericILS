@@ -32,6 +32,9 @@ end
 initStateForward(res::AbstractResource) = error("not implemented")
 initStateBackward(res::AbstractResource) = error("not implemented")
 
+isSymmetric() = error("not implemented")
+isCostResource() = error("not implemented")
+
 @inline function get_state(label::ForwardLabel, ::Val{1})
     return label.std1State
 end

@@ -5,14 +5,14 @@ function acceptSol(solver::Solver)
         currInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
     end
     bestInfeas = 0
-    for r = 1:length(solver.bestSol.routes)
-        rt = solver.bestSol.routes[r]
+    for r = 1:length(solver.algorithm.bestSol.routes)
+        rt = solver.algorithm.bestSol.routes[r]
         bestInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
     end
     if currInfeas < bestInfeas
         return true
     end
-    if currInfeas == bestInfeas && solver.currSol.cost < solver.bestSol.cost - 1e-5
+    if currInfeas == bestInfeas && solver.currSol.cost < solver.algorithm.bestSol.cost - 1e-5
         return true
     end
     return false
@@ -27,12 +27,9 @@ end
 
 ##############################
 function updateBestFeasible!(solver::Solver, sol::Solution)
-    if sol.cost < solver.bestFeasSol.cost - 1e-6
-        if sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd1 <= 1e-6
-            copy_solution!(solver.bestFeasSol, sol)
-            registerBestFeasible!(solver, sol)
-            solver.iter = 0
-        end
+    if updateBestFeasSol!(solver, sol)
+        registerBestFeasible!(solver, sol)
+        solver.algorithm.iter = 0
     end
 end
 
@@ -47,7 +44,7 @@ end
 
 function accept!(criteria::AcceptBest, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     updateBestFeasible!(solver, candidateSol)
-    if candidateSol.cost < solver.outerBestSol.cost - 1e-6
+    if candidateSol.cost < bestSol.cost - 1e-6
         copy_solution!(bestSol, candidateSol)
     end
 end
@@ -55,8 +52,8 @@ end
 function accept!(criteria::Metropolis, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
-    if candidateSol.cost < solver.outerBestSol.cost - 1e-6
-        copy_solution!(solver.outerBestSol, candidateSol)
+    if candidateSol.cost < bestSol.cost - 1e-6
+        copy_solution!(bestSol, candidateSol)
     end
     if Δ < -1e-6
         copy_solution!(currSol, candidateSol)
@@ -72,8 +69,8 @@ end
 function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
-    if candidateSol.cost < solver.outerBestSol.cost - 1e-6
-        copy_solution!(solver.outerBestSol, candidateSol)
+    if candidateSol.cost < bestSol.cost - 1e-6
+        copy_solution!(bestSol, candidateSol)
     end
     if Δ < -1e-6
         copy_solution!(currSol, candidateSol)
@@ -83,7 +80,7 @@ function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, c
             copy_solution!(currSol, candidateSol)
         end
     end
-    totalTime = time() - solver.startTime
+    totalTime = time() - solver.algorithm.startTime
     criteria.temperature = criteria.initialTemperature*(1-totalTime/criteria.maxTime)^criteria.p
     if totalTime >= criteria.maxTime
         criteria.temperature = 0.0

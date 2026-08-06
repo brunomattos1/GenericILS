@@ -30,7 +30,7 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
     flag = false
     copy_solution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(InterSwap{k1,k2})
+    neighborhoodId = neigh_index(typeof(solver), InterSwap{k1,k2})
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)

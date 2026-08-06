@@ -1,24 +1,11 @@
-function innerPerturb!(solver::Solver, solution::Solution)
+function perturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 0.5
-        for _ = 1:solver.diversification.innerShift
+        for _ = 1:solver.algorithm.diversification.shift
             perturbed = randomInterShift10!(solver, solution)
         end
     else
-        for _ = 1:solver.diversification.innerSwap
-            perturbed = randomInterSwap11!(solver, solution)
-        end
-    end
-end
-
-function outerPerturb!(solver::Solver, solution::Solution)
-    rnd = rand(solver.seed)
-    if rnd <= 0.5
-        for _ = 1:solver.diversification.outerShift
-            perturbed = randomInterShift10!(solver, solution)
-        end
-    else
-        for _ = 1:solver.diversification.outerSwap
+        for _ = 1:solver.algorithm.diversification.swap
             perturbed = randomInterSwap11!(solver, solution)
         end
     end

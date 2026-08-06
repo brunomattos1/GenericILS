@@ -1,19 +1,6 @@
-﻿const NEIGHBORHOODS = (
-    TwoOptStar(),
-    IntraShift(),
-    InterShift{1}(),
-    InterShift{2}(),
-    InterSwap{1, 1}(),
-    InterSwap{2, 1}(),
-    InterSwap{2, 2}()
-)
-const NUM_NEIGHBORHOODS = length(NEIGHBORHOODS)
-
-@generated function neigh_index(::Type{T}) where T
-    for (i, n) in enumerate(NEIGHBORHOODS)
-        if n isa T
-            return :( $i )
-        end
+@generated function neigh_index(::Type{Solver{N, R, PM, FL, BL, AL}}, ::Type{T}) where {N, R, PM, FL, BL, AL, T}
+    for (i, n) in enumerate(N.parameters)
+        n <: T && return :( $i )
     end
-    error("Neighborhood not registered")
+    error("Neighborhood $T not registered in solver.neighborhoods")
 end
