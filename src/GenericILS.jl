@@ -67,6 +67,7 @@ export
 
 include("Algorithms/NILS/NILS.jl")
 include("Algorithms/ILS/ILS.jl")
+include("Algorithms/HGS/HGS.jl")
 
 # Only the concrete Algorithm types (unique names) and the run!/solve! entry
 # points are re-exported without qualification. Each submodule's criteria
@@ -75,7 +76,8 @@ include("Algorithms/ILS/ILS.jl")
 # NILS.Metropolis(...) or ILS.Metropolis(...), to avoid name ambiguity.
 using .NILS: NILSAlgorithm
 using .ILS: ILSAlgorithm
-export NILSAlgorithm, ILSAlgorithm, NILS, ILS
+using .HGS: HGSAlgorithm
+export NILSAlgorithm, ILSAlgorithm, HGSAlgorithm, NILS, ILS, HGS
 
 solve!(solver::Solver) = run!(solver.algorithm, solver)
 

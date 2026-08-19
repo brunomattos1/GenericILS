@@ -104,9 +104,9 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     return sol.cost
 end
 
-set = "A"
-n = 37
-k = 5
+set = "M"
+n = 151
+k = 12
 instance = "$set-n$n-k$k.vrp"
 seed = 2
 restarts = 1
