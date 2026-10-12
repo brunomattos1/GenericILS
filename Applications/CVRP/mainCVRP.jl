@@ -1,62 +1,11 @@
-﻿include("../../src/Include.jl")
-include("resourcesCVRP.jl")
+using GenericILS
+using Random
+include("resourcesCVRP_pkg.jl")
 ENV["JULIA_HASH_SEED"] = "0"
 Random.seed!(0)
 
 using CVRPLIB
-# using PlotlyJS
-# using CPLEX
-
-function plot_cvrp_interactive_html(cvrp, solution; filename::String="cvrp_solution.html")
-    coords = [(cvrp.coordinates[i, 1], cvrp.coordinates[i, 2]) for i = 2:cvrp.dimension]
-    depot_coord = (cvrp.coordinates[1, 1], cvrp.coordinates[1, 2])
-    routes = solution.routes
-    traces = GenericTrace{Dict{Symbol, Any}}[]
-
-    push!(traces, PlotlyJS.scatter(
-        x=[depot_coord[1]], y=[depot_coord[2]],
-        mode="markers+text",
-        marker=attr(color="yellow", size=12, symbol="square"),
-        text=["1 (" * string(cvrp.demand[1]) * ")"],
-        hoverinfo="text",
-        name="Depot"
-    ))
-
-    for route in routes
-        route_coords = vcat([depot_coord], [coords[route[i]] for i = 2:length(route)-1], [depot_coord])
-        xs, ys = first.(route_coords), last.(route_coords)
-        push!(traces, PlotlyJS.scatter(x=xs, y=ys, mode="lines", line=attr(width=2), showlegend=false))
-
-        for i in 2:length(route)-1
-            cliente = route[i]
-            coord = coords[cliente]
-            demanda = cvrp.demand[cliente+1]
-            texto = "Cliente $(cliente) (Demanda: $(demanda))"
-            push!(traces, PlotlyJS.scatter(
-                x=[coord[1]], y=[coord[2]],
-                mode="markers",
-                marker=attr(size=8, color = "black"),
-                text=[texto],
-                hoverinfo="text",
-                showlegend=false
-            ))
-        end
-    end
-    layout = Layout(title="Cost: $(solution.cost)", width=1200, height=800, plot_bgcolor = "white", dragmode = "pan")
-    config = PlotConfig(
-        displayModeBar=true,
-        scrollZoom=true,
-        modeBarButtonsToRemove=[
-            "select2d", "lasso2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d",
-            "drawline", "drawopenpath", "drawclosedpath", "drawcircle", "drawrect", "eraseshape"
-        ]
-    )
-    plt = PlotlyJS.Plot(traces, layout, config = config)
-    open(joinpath(pwd(), "..", "plots", "$filename.html"),"w") do f
-        PlotlyJS.PlotlyBase.to_html(f, plt; include_plotlyjs="cdn", full_html=true)
-    end
-    println("Gráfico interativo salvo como '$filename'")
-end
+using CPLEX
 
 function printCVRP(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
@@ -80,55 +29,6 @@ function printCVRP(solver::Solver, sol::Solution)
     println("\nCost: $(sol.dist)")
 end
 
-function checkCVRP(solver::Solver, sol::Solution)
-    visits = zeros(Int, length(solver.data.vertices))
-    cost = 0.
-    demands = solver.res.d[1,:][2:end-1]
-    resViol = Int[]
-    for r = 1:length(sol.routes)
-        load = 0.
-        for i = 1:length(sol.routes[r].visits)-1
-            cost += solver.data.costMatrix[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
-            if sol.routes[r].visits[i] > 0
-                load += demands[sol.routes[r].visits[i]]
-            end
-            if sol.routes[r].visits[i] > 0
-                visits[sol.routes[r].visits[i]] += 1
-            end
-        end
-    end
-    feasiblesF = zeros(Int, length(sol.routes))
-    for r = 1:length(sol.routes)
-        load = 0
-        feasibles = 0
-        for i = 1:length(sol.routes[r].visits)-2
-            load += solver.res.d[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
-            if load <= solver.res.Q
-                feasibles += 1
-            end
-        end
-        feasiblesF[r] = feasibles
-        if feasiblesF[r] != sol.feasiblesF[r]
-            @show sol.routes[r]
-            @show sol.feasiblesF[r]
-            @show feasiblesF[r]
-            @show load, solver.res.Q
-            throw("feasiblesF wrong")
-        end
-    end
-    if abs(sol.cost - cost) > 1e-6
-        throw("cost is: $(sol.cost) but should be $(cost)")
-    end
-    for i = 1:length(solver.data.vertices)
-        if visits[i] > 1
-            throw("customer $i visited more than once")
-        end
-        if visits[i] < 1
-            throw("customer $i visited less than once")
-        end
-    end
-end
-
 function createArcDemands(demands)
     n = length(demands)
     d = zeros(Float64, n, n)
@@ -146,21 +46,7 @@ function createArcDemands(demands)
     return d
 end
 
-function distanceMatrix(cvrp)
-    dist = zeros(Float64, cvrp.dimension, cvrp.dimension)
-    @show cvrp.coordinates[1, :]
-    for i = 1:size(cvrp.coordinates)[1]
-        for j = 1:size(cvrp.coordinates)[1]
-            if i != j
-                dist[i,j] = floor(10*sqrt((cvrp.coordinates[i,:][1] - cvrp.coordinates[j,:][1])^2 + (cvrp.coordinates[i,:][2] - cvrp.coordinates[j,:][2])^2))/10
-            end
-        end
-    end
-    return dist
-end
-
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
-    instName = instance[1:end-4]
     instance = joinpath(normpath(joinpath(@__DIR__, "data")), string(instance[1]), instance)
 
     cvrp = CVRPLIB.readCVRP(instance)
@@ -171,43 +57,50 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         push!(customers, Vertex(i))
     end
     maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
-    data = ProblemData(customers, dist, maxNbRoute)
-
     demands = push!(Float64.(cvrp.demand), 0.0)
     d = createArcDemands(demands)
-
     customRes = CustomResource(d, cvrp.capacity)
-
-    # Capacity as standard resource 1
     n = length(customers) + 1
     stdRes1 = StandardResource{1}(d, zeros(Float64, n), Float64[cvrp.capacity for _ in 1:n])
-    # Loose second standard resource (no constraint)
     stdRes2 = StandardResource{2}(zeros(Float64, n, n), zeros(Float64, n), fill(Inf, n))
 
     res = Resources(customRes, stdRes1, stdRes2)
 
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax,
+    algorithm = NILSAlgorithm(res;
+        acceptCriteria = NILS.AcceptBest(),
+        stopCriteria = NILS.ByIterMax(outerIterMax),
+        diversification = NILS.Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0),
+        innerIterMax = innerIterMax
+    )
+
+    solver = Solver(
+        res = res,
+        data = ProblemData(customers, dist, maxNbRoute),
+        neighborhoods = (
+            TwoOptStar(),
+            IntraShift(),
+            InterShift{1}(),
+            InterShift{2}(),
+            InterSwap{1, 1}(),
+            InterSwap{2, 1}(),
+            InterSwap{2, 2}()
+        ),
+        algorithm = algorithm
+    )
+
+    setSeed!(solver, Random.MersenneTwister(seed))
+
+    setPenaltyManager!(solver, StandardPenaltyManager(
         penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
         penaltyStandard1 = 1.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
         penaltyStandard2 = 0.0, penaltyStandard2Increase = 0.0, penaltyStandard2Decrease = 0.0
-    )
+    ))
 
-    diversif = Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0)
+    setMIPSolver!(solver, CPLEX.Optimizer)
 
-    solver = Solver(
-        seed = seed,
-        parameters = parameters,
-        diversification = diversif,
-        acceptCriteria = AcceptBest(),
-        stopCriteria = ByIterMax(outerIterMax),
-        res = res,
-        data = data,
-        neighborhoods = NEIGHBORHOODS
-    )
-    @time NILS(solver)
+    @time solve!(solver)
     sol = getBestSol(solver)
-    printCVRP(solver, solver.outerBestSol)
-    # plot_cvrp_interactive_html(cvrp, solver.outerBestSol, filename = instName)
+    printCVRP(solver, solver.algorithm.outerBestSol)
     return sol.cost
 end
 
@@ -221,4 +114,3 @@ outerIterMax = 200
 innerIterMax = 5
 
 main(instance, restarts, outerIterMax, innerIterMax, seed)
-
