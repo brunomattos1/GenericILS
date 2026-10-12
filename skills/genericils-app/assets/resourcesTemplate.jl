@@ -31,14 +31,17 @@ end
 initStateForward(res::CustomResource) = (ForwardState(0.0), 0.0)
 initStateBackward(res::CustomResource) = (BackwardState(0.0), 0.0)
 
-# a = (i, j) are matrix indices (depot = 1). Return (newState, cost); cost = Inf flags a violation.
+# Return (newState, cost); cost = Inf flags a violation. Arcs are matrix indices (depot = 1):
+#  - forward:  a = (i, j), j is appended and the label includes j
+#  - backward: a = (next, cur), cur is prepended; the label at a vertex excludes that vertex
+# so forward(x) + backward(x) counts x exactly once (see references/api.md).
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
-    q = label.state.q + res.d[1, a[2]]          # forward adds the head j
+    q = label.state.q + res.d[1, a[2]]          # forward adds the head j (a[2])
     q > res.Q + 1e-5 ? (ForwardState(q), Inf) : (ForwardState(q), 0.0)
 end
 
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
-    q = label.state.q + res.d[1, a[1]]          # backward adds the tail i
+    q = label.state.q + res.d[1, a[1]]          # backward adds the previous start of the suffix (a[1])
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
 
