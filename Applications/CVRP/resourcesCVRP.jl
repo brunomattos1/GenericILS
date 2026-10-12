@@ -1,16 +1,16 @@
-################ user-defined ################
+################ user-defined (GenericILS as a package) ################
+using GenericILS
+import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
+    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+
 struct CustomResource <: AbstractResource
     d::Matrix{Float64}
     Q::Float64
 end
 
-function isSymmetric()
-    return false
-end
+GenericILS.isSymmetric() = false
 
-function isCostResource()
-    return false
-end
+GenericILS.isCostResource() = false
 
 struct ForwardState
     q::Float64

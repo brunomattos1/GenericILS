@@ -59,7 +59,7 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
     improved = false
     copy_solution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(typeof(neigh))
+    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
         if sol.lastEval[neighborhoodId, r, r] > rt.lastModif

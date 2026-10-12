@@ -5,7 +5,6 @@ import Base: split
 include("LabelsFunctions.jl")
 include("Resources.jl")
 include("Solution.jl")
-include("Parameters.jl")
 include("PenaltyManager.jl")
 include("Diversification.jl")
 include("Solver.jl")

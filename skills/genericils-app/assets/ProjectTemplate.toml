@@ -1,0 +1,10 @@
+[deps]
+GenericILS = "264616b9-4ba5-42b2-a769-b189edc0be0a"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+# Inside the GenericILS repository (Applications/<Problem>/): depend on the local checkout (Julia >= 1.11).
+# Outside the repo, remove [sources] and run:
+#   Pkg.add(url="https://github.com/brunomattos1/GenericILS")
+[sources]
+GenericILS = {path = "../.."}

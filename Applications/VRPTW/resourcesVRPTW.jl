@@ -1,16 +1,16 @@
-################ user-defined ################
+################ user-defined (GenericILS as a package) ################
+using GenericILS
+import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
+    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+
 struct CustomResource <: AbstractResource
     d::Matrix{Float64}
     Q::Float64
 end
 
-function isSymmetric()
-    return false
-end
+GenericILS.isSymmetric() = false
 
-function isCostResource()
-    return false
-end
+GenericILS.isCostResource() = false
 
 struct ForwardState
     q::Float64
@@ -48,11 +48,8 @@ end
 
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     if forwardLabel.state.q + backwardLabel.state.q > res.Q + 1e-5
-        newState = (ForwardState(forwardLabel.state.q + backwardLabel.state.q), Inf)
-        return newState
+        return (ForwardState(forwardLabel.state.q + backwardLabel.state.q), Inf)
     else
-        newState = (ForwardState(forwardLabel.state.q + backwardLabel.state.q), 0.0)
-        return newState
+        return (ForwardState(forwardLabel.state.q + backwardLabel.state.q), 0.0)
     end
 end
-

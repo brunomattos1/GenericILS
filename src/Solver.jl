@@ -1,48 +1,7 @@
 abstract type Move end
-abstract type AcceptCriteria end
-abstract type StoppingCriteria end
+abstract type Algorithm end
 
-mutable struct Metropolis <: AcceptCriteria
-    temperature::Float64
-    alpha::Float64
-end
-
-mutable struct MetropolisTimed <: AcceptCriteria
-    initialTemperature::Float64
-    temperature::Float64
-    maxTime::Float64
-    p::Float64
-end
-
-mutable struct MetropolisTimedIter <: AcceptCriteria
-    initialTemperature::Float64
-    temperature::Float64
-    maxTime::Float64
-    p::Float64
-    iter::Int
-end
-
-struct AcceptBest <: AcceptCriteria
-end
-
-struct RandomWalk <: AcceptCriteria
-end
-
-struct ByTime <: StoppingCriteria
-    maxTime::Float64
-end
-
-struct ByTemperature <: StoppingCriteria
-    minTemp::Float64
-end
-
-struct ByTemperatureIter <: StoppingCriteria
-    minTemp::Float64
-end
-
-struct ByIterMax <: StoppingCriteria
-    maxIter::Int
-end
+run!(algo::Algorithm, solver) = error("run! not implemented for $(typeof(algo))")
 
 struct BestInsertion
     cost::Float64
@@ -129,23 +88,13 @@ end
 
 Statistics() = Statistics(Inf, Inf, NaN, NaN, 0, 0, NaN)
 
-mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: AbstractResources, PM <: PenaltyManager, FL, BL}
+mutable struct Solver{N, R <: AbstractResources, PM <: PenaltyManager, FL, BL, AL <: Algorithm}
     seed::Random.MersenneTwister
-    parameters::Parameters
+    algorithm::AL
     penaltyManager::PM
     data::ProblemData
-    outerCandidateSol::Solution{FL, BL}
-    outerCurrSol::Solution{FL, BL}
-    outerBestSol::Solution{FL, BL}
     bestFeasSol::Solution{FL, BL}
     currSol::Solution{FL, BL}
-    bestSol::Solution{FL, BL}
-    diversification::Diversification
-    acceptCriteria::AC
-    stopCriteria::SC
-    iter::Int
-    innerIter::Int
-    startTime::Float64
     neighborhoods::N
     active_neighs::Vector{Int}
     res::R
@@ -158,39 +107,24 @@ mutable struct Solver{N, AC <: AcceptCriteria, SC <: StoppingCriteria, R <: Abst
     buffer2opt::Vector{Int}
     bufferRoute::Vector{Int}
     bufferSol::Solution{FL, BL}
-    route_storage::Vector{Vector{Int}}
-    cost_storage::Vector{Float64}
-    route_lookup::Dict{Vector{Int}, Int}
     timeStamp::Int
-    timeLimitILS::Float64
-    timeLimitSP::Float64
-    aggressivePool::Bool
     MIPSolver::Any
     statistics::Statistics
 end
 
 function Solver(;
     seed = 1,
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax),
+    algorithm::Algorithm,
     penaltyManager = StandardPenaltyManager(
         penaltyCustom = 100.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
         penaltyStandard1 = 100.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
         penaltyStandard2 = 100.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
     ),
     data = ProblemData(),
-    diversification = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
-    acceptCriteria = Metropolis(100.0, 0.995),
-    stopCriteria = ByTemperature(1.0),
-    iter = 0,
-    innerIter = 0,
-    startTime = 0.0,
     neighborhoods = (),
     active_neighs = Int[],
     res,
     timeStamp = 0,
-    timeLimitILS = 3600.0,
-    timeLimitSP = 3600.0,
-    aggressivePool = false,
     MIPSolver = HiGHS.Optimizer)
 
     prevLabelF    = myInitStateForward(res.customResource)
@@ -200,44 +134,64 @@ function Solver(;
     BL = typeof(prevLabelB)
     R  = typeof(res)
 
-    route_storage = Vector{Vector{Int}}()
-    cost_storage  = Vector{Float64}()
-    route_lookup  = Dict{Vector{Int}, Int}()
+    bestFeasSol = Solution{FL, BL}()
+    bestFeasSol.cost = Inf
 
     Solver(
-        Random.MersenneTwister(seed), parameters, penaltyManager, data,
-        Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
-        Solution{FL, BL}(), Solution{FL, BL}(), Solution{FL, BL}(),
-        diversification, acceptCriteria, stopCriteria,
-        iter, innerIter, startTime, neighborhoods, active_neighs, res,
+        Random.MersenneTwister(seed), algorithm, penaltyManager, data,
+        bestFeasSol, Solution{FL, BL}(),
+        neighborhoods, active_neighs, res,
         Vector{Vector{FL}}(), Vector{Vector{BL}}(),
         prevLabelF, prevLabelB,
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
         Solution{FL, BL}(),
-        route_storage, cost_storage, route_lookup,
-        timeStamp, timeLimitILS, timeLimitSP, aggressivePool, MIPSolver,
+        timeStamp, MIPSolver,
         Statistics()
     )
 end
 
-new_solution(::Solver{N, AC, SC, R, PM, FL, BL}) where {N, AC, SC, R, PM, FL, BL} = Solution{FL, BL}()
+new_solution(::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = Solution{FL, BL}()
 
-new_route(::Solver{N, AC, SC, R, PM, FL, BL}, visits::Vector{Int}) where {N, AC, SC, R, PM, FL, BL} = Route{FL, BL}(visits)
-
-function setTimeLimitILS(solver::Solver, time::Float64)
-    solver.timeLimitILS = time
-end
-
-function setTimeLimitSP(solver::Solver, time::Float64)
-    solver.timeLimitSP = time
-end
-
-function aggressivePool(solver::Solver, agg::Bool)
-    solver.aggressivePool = agg
-end
+new_route(::Solver{N, R, PM, FL, BL, AL}, visits::Vector{Int}) where {N, R, PM, FL, BL, AL} = Route{FL, BL}(visits)
 
 getCurrSol(solver::Solver) = solver.currSol
-getBestSol(solver::Solver) = solver.bestFeasSol
+
+function getBestSol(solver::Solver)
+    sol = solver.bestFeasSol
+    r = 0
+    for rt in sol.routes
+        length(rt.visits) == 2 && continue
+        r += 1
+        println("Route #$r: ", join(rt.visits, " -> "))
+    end
+    println("Cost: ", sol.cost)
+    return sol
+end
+
+getSeed(solver::Solver) = solver.seed
+setSeed!(solver::Solver, seed::Random.MersenneTwister) = (solver.seed = seed; solver)
+
+getAlgorithm(solver::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = solver.algorithm
+setAlgorithm!(solver::Solver{N, R, PM, FL, BL, AL}, algorithm::AL) where {N, R, PM, FL, BL, AL} =
+    (solver.algorithm = algorithm; solver)
+
+getPenaltyManager(solver::Solver{N, R, PM}) where {N, R, PM} = solver.penaltyManager
+setPenaltyManager!(solver::Solver{N, R, PM}, penaltyManager::PM) where {N, R, PM} =
+    (solver.penaltyManager = penaltyManager; solver)
+
+getRes(solver::Solver{N, R}) where {N, R} = solver.res
+setRes!(solver::Solver{N, R}, res::R) where {N, R} = (solver.res = res; solver)
+
+getData(solver::Solver) = solver.data
+setData!(solver::Solver, data::ProblemData) = (solver.data = data; solver)
+
+getNeighborhoods(solver::Solver{N}) where {N} = solver.neighborhoods
+setNeighborhoods!(solver::Solver{N}, neighborhoods::N) where {N} = (solver.neighborhoods = neighborhoods; solver)
+
+getMIPSolver(solver::Solver) = solver.MIPSolver
+setMIPSolver!(solver::Solver, mipSolver) = (solver.MIPSolver = mipSolver; solver)
+
+getStatistics(solver::Solver) = solver.statistics
 
 getBestRoutes(solver::Solver) = solver.bestFeasSol.routes
 
@@ -253,24 +207,18 @@ getDistance(sol::Union{Solution, UserSolution}) = sol.dist
 
 getCostMatrix(solver::Solver) = solver.data.costMatrix
 
-currentTemperature(solver::Solver) = hasproperty(solver.acceptCriteria, :temperature) ? solver.acceptCriteria.temperature : NaN
-
-function registerBestFeasible!(solver::Solver, sol::Solution)
-    stats = solver.statistics
-    stats.bestFeasCost     = sol.cost
-    stats.foundTime        = totalTime(solver)
-    stats.foundTemperature = currentTemperature(solver)
-    stats.foundIter        = solver.iter
+# Generic result reporting: any algorithm can call this to publish its best
+# feasible solution, independently of algorithm-specific bookkeeping (iter,
+# temperature, statistics, ...).
+function updateBestFeasSol!(solver::Solver, sol::Solution)
+    if sol.cost < solver.bestFeasSol.cost - 1e-6 &&
+       sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd2 <= 1e-6
+        copy_solution!(solver.bestFeasSol, sol)
+        return true
+    end
+    return false
 end
 
 function registerBestFeasibleBefSP!(solver::Solver)
     solver.statistics.bestFeasCostBefSP = solver.bestFeasSol.cost
-end
-
-function registerPoolSize!(solver::Solver)
-    solver.statistics.poolSize = length(solver.route_storage)
-end
-
-function registerTotalTime!(solver::Solver)
-    solver.statistics.totalTime = totalTime(solver)
 end

@@ -1,78 +1,38 @@
+# Shared machinery reused by outer-loop-style algorithms (NILS, ILS, ...):
+# accept/stop criteria, perturbation, set partitioning.
+include("Algorithms/NILS/AcceptCriteria.jl")
+include("Algorithms/NILS/StopCriteria.jl")
+include("Algorithms/NILS/Perturb.jl")
+include("Algorithms/NILS/SetPartitioning.jl")
 
-function NILS(solver::Solver)
-    solver.outerBestSol.cost = Inf
-    solver.bestSol = new_solution(solver)
-    solver.startTime = time()
-    solver.bestFeasSol = new_solution(solver)
-    solver.bestFeasSol.cost = Inf
-    # println("-"^135)
-    # @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
-    #     "Temp.",
-    #     "Best Feas",
-    #     "Best",
-    #     "Curr",
-    #     "Pen. Custom",
-    #     "Pen. Standard 1",
-    #     "Pen. Standard 2",
-    #     "Pool",
-    #     "Time (s)"
-    # )
-    # println("-"^135)
-    constructSol!(solver)
-    push!(solver, solver.outerCurrSol)
-    ILS(solver, solver.outerCurrSol)
+get_stop_info(algo::OuterLoopAlgorithm, ::Any) = NaN  # default (não tem temperatura)
+get_stop_info(algo::OuterLoopAlgorithm, c::ByIterMax) = algo.iter
+get_stop_info(algo::OuterLoopAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
 
-    accept!(AcceptBest(), solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
-    while !(stop(solver.stopCriteria, solver))
-        solver.iter += 1
-        copy_solution!(solver.outerCandidateSol, solver.outerCurrSol)
-        outerPerturb!(solver, solver.outerCandidateSol)
-        ILS(solver, solver.outerCandidateSol)
-        # @show solver.outerCandidateSol.totalInfeas
-        # for r = 1:length(solver.outerCandidateSol.routes)
-        #     @show solver.outerCandidateSol.routes[r].visits
-        # end
-        # println("-"^100)
-        # RVND!(solver, solver.outerCandidateSol)
-        updatePenalty(solver.penaltyManager, solver.outerCandidateSol)
-        push!(solver, solver.outerCandidateSol)
-        accept!(solver.acceptCriteria, solver, solver.outerBestSol, solver.outerCurrSol, solver.outerCandidateSol)
-        # printInfo(solver)
-        if totalTime(solver) >= solver.timeLimitILS
-            @goto SP
-        end
+function printInfo(algo::OuterLoopAlgorithm, solver::Solver)
+    total_algorithm_time = time() - algo.startTime
+    stopInfo = get_stop_info(algo, algo.stopCriteria)
+    if mod(total_algorithm_time, 10.0) == 0
+        println("-"^135)
+        @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
+            "Temp.", "Best Feas", "Best", "Candidate",
+            "Pen. Custom", "Pen. Standard 1", "Pen. Standard 2", "Pool", "Time (s)")
+        println("-"^135)
     end
-    @label SP
-    # println("-"^144)
-    if totalTime(solver) >= solver.timeLimitILS
-        # println("Search finished due to time limit! Executing Set Partitioning model...")
-    else
-        # println("Search finished! Executing Set Partitioning model...")
-    end
-    # println("-"^144)
-    registerBestFeasibleBefSP!(solver)
-    setPartitioning(solver, solver.bestFeasSol.cost)
-    solver.outerBestSol = deepcopy(solver.bestFeasSol)
-    registerPoolSize!(solver)
-    registerTotalTime!(solver)
+
+    @printf("| %10.6f | %10.2f | %12.2f | %12.2f | %11.2f | %15.2f | %15.2f | %6d | %10.4f |\n",
+        stopInfo,
+        solver.bestFeasSol.cost, algoBestSol(algo).cost, algoCandidateSol(algo).cost,
+        solver.penaltyManager.penaltyCustom,
+        solver.penaltyManager.penaltyStandard1, solver.penaltyManager.penaltyStandard2,
+        length(algo.route_storage), total_algorithm_time)
 end
 
-function ILS(solver::Solver, sol::Solution)
-    it = 0
-    copy_solution!(solver.bestSol, sol)
-    while it < solver.parameters.innerIterMax
-        it += 1
-        RVND!(solver, sol)
-        # updatePenalty(solver.penaltyManager, sol)
-        if solver.aggressivePool
-            push!(solver, sol)
-        end
-        if acceptSol(solver, sol, solver.bestSol)
-            copy_solution!(solver.bestSol, sol)
-            it = 0
-        end
-        copy_solution!(sol, solver.bestSol)
-        innerPerturb!(solver, sol)
-    end
-    copy_solution!(solver.outerCandidateSol, solver.bestSol)
-end
+include("Algorithms/NILS/ILS.jl")
+include("Algorithms/NILS/NILS.jl")
+include("Algorithms/ILS/ILS.jl")
+
+run!(::NILSAlgorithm, solver::Solver) = NILS(solver)
+run!(::ILSAlgorithm, solver::Solver) = ILS(solver)
+
+solve!(solver::Solver) = run!(solver.algorithm, solver)

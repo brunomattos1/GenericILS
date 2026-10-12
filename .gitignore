@@ -1,4 +1,3 @@
-*.md
 *.mem
 *.pdf
 *.tex
@@ -13,3 +12,4 @@
 *.cls
 *.csv
 *.
+/Manifest.toml
