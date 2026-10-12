@@ -1,9 +1,12 @@
 struct IntraShift end
 
+# Move customer `route[i]` inside its route:
+#   * i < j: it goes right AFTER `route[j]` (j == i+1 is a swap of two adjacent customers);
+#   * i > j: it goes right BEFORE `route[j]`.
 function intraShift10Cost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector{Int}, i::Int, j::Int)
-    if j == i+1
+    if i < j
         newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j]+1, route[j+1]+1]
-        newCost += costMatrix[route[i-1]+1, route[j]+1] + costMatrix[route[j]+1, route[i]+1] + costMatrix[route[i]+1, route[j+1]+1]
+        newCost += costMatrix[route[i-1]+1, route[i+1]+1] + costMatrix[route[j]+1, route[i]+1] + costMatrix[route[i]+1, route[j+1]+1]
     else
         newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j-1]+1, route[j]+1]
         newCost += costMatrix[route[i-1]+1, route[i+1]+1] + costMatrix[route[j-1]+1, route[i]+1] + costMatrix[route[i]+1, route[j]+1]
@@ -11,32 +14,41 @@ function intraShift10Cost(currCost::Float64, costMatrix::Matrix{Float64}, route:
     return newCost
 end
 
-function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
+# The labels of the route WITHOUT customer i are built incrementally while j sweeps the route
+# (`solver.prevLabelF` going forward, `solver.prevLabelB` going backward). This must be called for
+# every j, including those pruned by distance, or the chain would be left behind.
+function advanceIntraShift10!(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
     rt = sol.routes[r]
     if i < j
         if j == i+1
             solver.prevLabelF = myExtendAlongArc(solver.res, rt.forwardLabels[i-1], (rt.visits[i-1]+1, rt.visits[i+1] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
-            res = myConcatenationCost(solver.res, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
         else
-            solver.prevLabelF = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last + 1, rt.visits[j] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
-            res = myConcatenationCost(solver.res, rt.backwardLabels[length(rt.visits) + 1 - j - 1].last, auxLabel, rt.backwardLabels[length(rt.visits) + 1 - j - 1])
+            solver.prevLabelF = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[j] + 1))
         end
     else
         if j == i-1
             solver.prevLabelB = myExtendAlongArc(solver.res, rt.backwardLabels[length(rt.visits) - i], (rt.visits[i+1]+1, rt.visits[i-1] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (rt.visits[i-1]+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
-            res = myConcatenationCost(solver.res, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
         else
             solver.prevLabelB = myExtendAlongArc(solver.res, solver.prevLabelB, (solver.prevLabelB.last+1, rt.visits[j] + 1))
-            auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (rt.visits[j]+1, rt.visits[i] + 1))
-            auxLabel = myExtendAlongArc(solver.res, auxLabel, (rt.visits[j]+1, rt.visits[j-1] + 1))
-            res = myConcatenationCost(solver.res, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
         end
+    end
+    return nothing
+end
+
+# Requires `advanceIntraShift10!(solver, sol, r, i, j)` to have been called for this (i, j).
+function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
+    rt = sol.routes[r]
+    if i < j
+        # prefix without i up to j, then i, then j+1; joined with the suffix after j+1
+        auxLabel = myExtendAlongArc(solver.res, solver.prevLabelF, (solver.prevLabelF.last+1, rt.visits[i] + 1))
+        auxLabel = myExtendAlongArc(solver.res, auxLabel, (auxLabel.last + 1, rt.visits[j+1] + 1))
+        bwdLabel = rt.backwardLabels[length(rt.visits) - j]
+        res = myConcatenationCost(solver.res, bwdLabel.last, auxLabel, bwdLabel)
+    else
+        # suffix without i from j, then i before j, then j-1; joined with the prefix up to j-2
+        auxLabel = myExtendAlongArc(solver.res, solver.prevLabelB, (rt.visits[j]+1, rt.visits[i] + 1))
+        auxLabel = myExtendAlongArc(solver.res, auxLabel, (rt.visits[i]+1, rt.visits[j-1] + 1))
+        res = myConcatenationCost(solver.res, auxLabel.last, rt.forwardLabels[j - 1], auxLabel)
     end
     warpStd1, warpStd2 = res.std1State.stdWarp, res.std2State.stdWarp
     if res.cost >= Inf
@@ -71,6 +83,7 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
         if rt.feasibleF >= length(rt.visits) - 1
             for i = 2:length(rt.visits)-1
                 for j = i+1:length(rt.visits)-1
+                    advanceIntraShift10!(solver, sol, r, i, j)
                     dist = intraShift10Cost(sol.dist, solver.data.costMatrix, rt.visits, i, j)
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue
@@ -85,6 +98,7 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
         if rt.feasibleB >= length(rt.visits) - 1
             for i = length(rt.visits)-1:-1:2
                 for j = i-1:-1:2
+                    advanceIntraShift10!(solver, sol, r, i, j)
                     dist = intraShift10Cost(sol.dist, solver.data.costMatrix, rt.visits, i, j)
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue
@@ -124,10 +138,10 @@ function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove
     solution.totalLabelCost -= rt.labelCost
 
     route = rt.visits
-    if i < j && j == i + 1
-        route[i], route[j] = route[j], route[i]
+    if i < j
+        move_blocks_intra!(route, i, 1, j + 1, solver.bufferRoute)   # lands right after the old route[j]
     else
-        move_blocks_intra!(route, i, 1, j, solver.bufferRoute)
+        move_blocks_intra!(route, i, 1, j, solver.bufferRoute)       # lands right before the old route[j]
     end
 
     computeLabels(solver, solution, r)

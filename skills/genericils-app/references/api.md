@@ -8,12 +8,19 @@ exported by `using GenericILS`; to *add methods* you must `import GenericILS: ex
 - Vertex ids: depot = 0, customers 1..n. Matrices/vectors passed to the resources have size
   (n+1) and are indexed by **id + 1** (depot = index 1).
 - An arc is `a = (i, j)` in **matrix indices**. `label.last` and `Vertex(id)` use ids (`a[2]-1`).
-- Forward extension along `(i, j)`: the prefix gets vertex `j` appended → use data of the head
-  `a[2]`. Backward extension along `(i, j)`: the suffix gets vertex `i` prepended → use data of
-  the tail `a[1]`. (CVRP: forward adds `d[1, a[2]]`, backward adds `d[1, a[1]]`.)
-- `concatenationCost(res, v, fwd, bwd)` joins a forward label (prefix) with a backward label
-  (suffix). What it returns must equal what extending the entire route forward would give.
-  Start from an existing app and keep its convention.
+- **Forward** extension along `a = (i, j)`: vertex `j` is appended and the label ends at `j`. The
+  forward label at `x` *includes* `x` (CVRP: adds `d[1, a[2]]`).
+- **Backward** extension is called with `a = (next, cur)`: `cur = a[2]` (also `label.last`) is being
+  prepended to a suffix that starts at `next = a[1]`. The travel direction is therefore
+  `cur -> next`, i.e. `(a[2], a[1])` (the standard resources swap the tuple for this reason; for a
+  cost use `dist[a[2], a[1]]`). The backward label at `x` describes the route *after* `x` and does
+  **not** include `x` (CVRP: adds `d[1, a[1]]`).
+- `concatenationCost(res, v, fwd, bwd)` joins the forward label at a vertex `x` (route up to and
+  including `x`) with the backward label at the same `x` (route after `x`), so `x` is counted
+  once. Example, route `0-1-2-3-0` with demands 9, 7, 4: forward labels at 1, 2, 3 hold 9, 16, 20;
+  backward labels at 3, 2, 1 hold 0, 4, 11; forward(2) + backward(2) = 16 + 4 = 20 = whole route.
+  What it returns must equal what extending the entire route forward would give.
+  (Verified against `computeLabels` and the CVRP resource.)
 
 ## Functions to define for the custom resource
 

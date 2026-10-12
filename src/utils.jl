@@ -5,6 +5,8 @@
     n2 = length(route2)
 
     if k1 > 0
+        # the buffer may not have been sized yet (e.g. perturbation without InterShift/InterSwap neighborhoods)
+        length(buffer) < k1 && resize!(buffer, k1)
         copyto!(buffer, 1, route1, i, k1)
     end
 
