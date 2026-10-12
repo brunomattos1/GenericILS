@@ -138,11 +138,11 @@ function main(data::DataMDVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
     parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax)
     diversif = Diversification(outerShift = 4, outerSwap = 4, innerShift = 2, innerSwap = 2)
     timeRef = (n / 100) * 60
-    maxTime = TIME_FACTOR * timeRef
+    maxTime = 1.1 * timeRef
     solver = Solver(
         seed = seed,
         parameters = parameters,
-        penaltyManager = TargetRatePenaltyManager(updatePeriod = 100),
+        penaltyManager = TargetRatePenaltyManager(updatePeriod = 50),
         diversification = diversif,
         acceptCriteria = MetropolisTimed(100.0, 100.0, maxTime, 2.0),
         stopCriteria = ByTemperature(0.0001),
@@ -152,7 +152,7 @@ function main(data::DataMDVRP, restarts::Int, outerIterMax::Int, innerIterMax::I
         data = dataHeuristic,
         neighborhoods = NEIGHBORHOODS,
         MIPSolver = CPLEX.Optimizer,
-        timeLimitSP = 60.0
+        timeLimitSP = 30.0
     )
     NILS(solver)
     getBestSol(solver)
@@ -199,7 +199,7 @@ function runAll()
 
     baseDir = @__DIR__
     dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+    outCsv  = joinpath(baseDir, "..", "results_fast.csv")
 
     instances = collectInstances(dataDir)
     jobs      = buildJobs(instances, seeds)
@@ -236,9 +236,9 @@ function runAll()
     close(io)
 end
 
-# runAll()
+runAll()
 
 # One-off check: evaluate PyVRP's P01 solution through our REF labels.
-data = readData(joinpath(@__DIR__, "..", "data", "P01.mdovrp"))
-main(data, 1, 1, 1, 1)
+# data = readData(joinpath(@__DIR__, "..", "data", "P01.mdovrp"))
+# main(data, 1, 1, 1, 1)
 

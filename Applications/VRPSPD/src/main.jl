@@ -66,22 +66,22 @@ function main(data::DataVRPSPD, restarts::Int, outerIterMax::Int, innerIterMax::
         penaltyStandard2Decrease = 0.2,
         targetFeasRate = 0.7,
         feasRateTolerance = 0.05,
-        updatePeriod = 100
+        updatePeriod = 50
     )
     timeRef = get(LITERATURE_TIMES, data.name, 30.0)
-    maxTime = TIME_FACTOR * timeRef
+    maxTime = 1.1 * timeRef * 0.828
     solver = Solver(
         seed = seed,
         parameters = parameters,
         diversification = diversif,
         penaltyManager = pm,
         acceptCriteria = MetropolisTimed(100.0, 100.0, maxTime, 2.0),
-        stopCriteria = ByTemperature(0.0001),
+        stopCriteria = ByTemperature(0.00001),
         res = res,
         data = dataHeuristic,
         neighborhoods = NEIGHBORHOODS,
         MIPSolver = CPLEX.Optimizer,
-        timeLimitSP = 60.0
+        timeLimitSP = 30.0
     )
 
     @elapsed NILS(solver)
@@ -130,7 +130,7 @@ function runAll()
 
     baseDir = @__DIR__
     dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+    outCsv  = joinpath(baseDir, "..", "results_fast_scaled.csv")
 
     instances = collectInstances(dataDir)
     jobs      = buildJobs(instances, seeds)

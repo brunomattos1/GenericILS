@@ -73,7 +73,7 @@ function main(data::DataHVRP, restarts::Int, outerIterMax::Int, innerIterMax::In
 
     parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax)
     diversif = Diversification(outerShift = 4, outerSwap = 4, innerShift = 2, innerSwap = 2)
-    maxTime = TIME_FACTOR * timeRef
+    maxTime = 1.1 * timeRef * 0.561
     solver = Solver(
         seed = seed,
         parameters = parameters,
@@ -83,14 +83,14 @@ function main(data::DataHVRP, restarts::Int, outerIterMax::Int, innerIterMax::In
             updatePeriod = 50),
         diversification = diversif,
         acceptCriteria = MetropolisTimed(100.0, 100.0, maxTime, 2.0),
-        stopCriteria = ByTemperature(0.0001),
+        stopCriteria = ByTemperature(0.00001),
         # acceptCriteria = AcceptBest(),
         # stopCriteria = ByIterMax(500),
         res = res,
         data = dataHeuristic,
         neighborhoods = NEIGHBORHOODS,
         MIPSolver = CPLEX.Optimizer,
-        timeLimitSP = 60.0
+        timeLimitSP = 30.0
     )
 
     NILS(solver)
@@ -192,7 +192,7 @@ function runAll()
 
     baseDir = @__DIR__
     dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+    outCsv  = joinpath(baseDir, "..", "results_fast_scaled.csv")
     litCsv  = joinpath(baseDir, "..", "..", "..", "literature", "HFVRP_literature.csv")
 
     timeRefs  = readTimeRefs(litCsv)
@@ -209,7 +209,7 @@ end
 function runOne(instanceName::String; seeds::Vector{Int} = [1, 2, 3, 4, 5])
     baseDir = @__DIR__
     dataDir = joinpath(baseDir, "..", "data")
-    outCsv  = joinpath(baseDir, "..", "results.csv")
+    outCsv  = joinpath(baseDir, "..", "results_fast.csv")
     litCsv  = joinpath(baseDir, "..", "..", "..", "literature", "HFVRP_literature.csv")
 
     timeRefs     = readTimeRefs(litCsv)
@@ -219,8 +219,8 @@ function runOne(instanceName::String; seeds::Vector{Int} = [1, 2, 3, 4, 5])
     runJobs(jobs, timeRefs, outCsv; writeHeader = !isfile(outCsv))
 end
 
-# runAll()
-runOne("brandaoN5fsmd")
+runAll()
+# runOne("brandaoN5fsmd")
 
 # brandao      = false
 # instance     = raw"C:\Users\Administrador\Documents\GitHub\GenericILS\Applications\HFVRP\data\c50_15fsmfd.txt"
