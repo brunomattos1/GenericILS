@@ -5,6 +5,8 @@ description: Guides a user through modeling a new routing problem with the Gener
 
 # Creating a GenericILS application
 
+_These instructions are plain Markdown and work with any AI coding assistant. Paths below are relative to this skill folder; use whatever file, shell and Julia tools you have._
+
 GenericILS searches over sets of routes with local search + Set Partitioning. The user supplies
 only the problem-specific part: a small **resource** that says, for a partial route, what to
 remember and when it becomes infeasible or costly. Your job is to (1) understand the problem,
@@ -41,7 +43,7 @@ If the user has a paper, instance files or code, read those first and only ask a
 5. **Data and goal.** Instance format/benchmarks, size (customers), time budget, known best
    solutions to compare against, exactness vs good heuristic solutions.
 
-Use the AskUserQuestion tool for choices with a few clear options; free text otherwise.
+For choices with a few clear options, use your interactive question tool if you have one; otherwise ask in plain text.
 
 ## Step 2 — Feasibility verdict
 

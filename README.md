@@ -108,3 +108,58 @@ A complete, runnable walkthrough of this (a CVRP solved end to end) is in
 built on top of the package. [`Applications/CVRP`](Applications/CVRP) is the
 one used throughout the tutorial and is kept up to date with the package's
 current API (`mainCVRP.jl` / `resourcesCVRP.jl`).
+
+## Creating a new application with an AI assistant
+
+[`skills/genericils-app/`](skills/genericils-app/) is a guide for AI coding assistants (Claude,
+Codex, Gemini, Cursor, Copilot, ...) that helps you model a new routing problem with GenericILS.
+It is plain Markdown ([`SKILL.md`](skills/genericils-app/SKILL.md) plus reference files and
+templates), so it is not tied to any one tool. It:
+
+1. **Interviews you** about the problem: what a route is, depots and fleet, constraints
+   (capacity, time windows, precedence, ...), objective and data.
+2. **Tells you whether the problem fits** the package (constraints and costs that can be computed
+   per route), needs a modeling trick, needs changes to the package, or doesn't fit at all.
+3. **Scaffolds the application** (`main<Problem>.jl`, `resources<Problem>.jl`, `Project.toml`)
+   from templates that run out of the box.
+4. **Validates it** with an independent feasibility checker, on a small instance first.
+
+The assistant needs to be able to read files, write files and run Julia in your project folder
+(any agentic coding tool does).
+
+### Using it with any assistant
+
+Open your assistant in the folder where the application should live (for example a clone of this
+repository, so it can use `Applications/` as reference) and say:
+
+```
+Read skills/genericils-app/SKILL.md and follow it to help me create a GenericILS application.
+My problem is: <describe it>
+```
+
+If you installed the package with `Pkg.add`, the folder is in the package directory
+(`using GenericILS; pkgdir(GenericILS)`), or you can download it from the repository.
+
+### Making the assistant load it automatically
+
+Each tool has its own place for persistent instructions. Pick yours:
+
+| Tool | How |
+|---|---|
+| Claude Code | Copy the folder: `mkdir -p .claude/skills && cp -r skills/genericils-app .claude/skills/` (or `~/.claude/skills/` for all projects). Then it triggers on its own, or run `/genericils-app`. |
+| Codex CLI | Copy the folder into `.agents/skills/` (or your Codex skills directory), or add a line to `AGENTS.md`: *"For new GenericILS applications, follow skills/genericils-app/SKILL.md"*. |
+| Gemini CLI | Add the same line to `GEMINI.md` (or use `@skills/genericils-app/SKILL.md` to include the file). |
+| Cursor, Copilot, others | Add the same line to the tool's rules/instructions file (`.cursor/rules`, `.github/copilot-instructions.md`, ...). |
+
+Skill-loading locations change between tool versions, so check your tool's documentation if the
+path above doesn't work; the "Read ... and follow it" prompt always does.
+
+### Example prompts
+
+- *"I need to route technicians with time windows and a maximum of 8 hours per route. Can GenericILS
+  solve it?"*
+- *"Create a GenericILS application for a VRP with pickup and delivery and incompatible items."*
+- *"How do I write `extendAlongArc` and `concatenationCost` for my own constraint?"*
+
+Answer its questions, confirm the modeling plan it proposes, and it will create and run the
+application. It should not commit anything unless you ask.
