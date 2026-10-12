@@ -85,6 +85,18 @@ sol = getBestSol(solver)
 A complete, runnable walkthrough of this (a CVRP solved end to end) is in
 [docs/tutorial.md](docs/tutorial.md).
 
+## Running the tests
+
+```julia
+using Pkg
+Pkg.test("GenericILS")                  # or Pkg.test(coverage = true)
+```
+
+The suite lives in [`test/`](test/) and is split by area (penalty managers, accept/stop criteria,
+solver API, algorithms, cost resources, block moves). Line coverage of `src/` is above 90%. To
+measure it, run the tests with `coverage = true` and summarize the generated `.cov` files with
+[Coverage.jl](https://github.com/JuliaCI/Coverage.jl) (`using Coverage; process_folder("src")`).
+
 ## Documentation
 
 - **[Tutorial](docs/tutorial.md)** — start here. Solves a CVRP from scratch,
