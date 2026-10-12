@@ -1,6 +1,6 @@
 using GenericILS
 using Random
-include("resourcesCVRP_pkg.jl")
+include("resourcesCVRP.jl")
 ENV["JULIA_HASH_SEED"] = "0"
 Random.seed!(0)
 

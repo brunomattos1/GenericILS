@@ -22,17 +22,25 @@ package. You only implement the parts specific to your problem.
 
 ## Installation
 
-`GenericILS` isn't registered in the General registry. Install it by path,
-either directly:
+`GenericILS` isn't registered in the General registry yet, so install it
+straight from GitHub (Julia 1.9 or newer):
+
+```julia
+using Pkg
+Pkg.add(url="https://github.com/brunomattos1/GenericILS")
+```
+
+To work on the package itself, clone the repository and use:
 
 ```julia
 using Pkg
 Pkg.develop(path="/path/to/GenericILS")
 ```
 
-or by adding it as a `[sources]` entry in your own project's `Project.toml`
-(this is how the applications under `Applications/` in this repository
-depend on it):
+To run the test suite: `Pkg.test("GenericILS")`.
+
+The applications under `Applications/` depend on the local checkout through a
+`[sources]` entry in their `Project.toml` (this needs Julia 1.11 or newer):
 
 ```toml
 [deps]
@@ -99,4 +107,4 @@ A complete, runnable walkthrough of this (a CVRP solved end to end) is in
 [`Applications/`](Applications/) contains problem-specific applications
 built on top of the package. [`Applications/CVRP`](Applications/CVRP) is the
 one used throughout the tutorial and is kept up to date with the package's
-current API (`mainCVRP_pkg.jl` / `resourcesCVRP_pkg.jl`).
+current API (`mainCVRP.jl` / `resourcesCVRP.jl`).

@@ -49,7 +49,12 @@ end
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
     set_silent(sp)
-    set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    # The cutoff is only a speed-up hint (CPLEX-specific); other solvers (e.g. HiGHS) skip it.
+    try
+        set_optimizer_attribute(sp, "CPXPARAM_MIP_Tolerances_UpperCutoff", cutOff + 0.1)
+    catch e
+        e isa JuMP.MOI.UnsupportedAttribute || rethrow()
+    end
     # set_optimizer_attribute(sp, "CPXPARAM_Threads", 1)
 
     set_time_limit_sec(sp, solver.algorithm.timeLimitSP)

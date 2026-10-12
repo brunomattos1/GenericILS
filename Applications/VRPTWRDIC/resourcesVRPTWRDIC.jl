@@ -1,3 +1,8 @@
+################ user-defined (GenericILS as a package) ################
+using GenericILS
+import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
+    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+
 mutable struct FastBitSet32
     data::Vector{UInt32}
 end
@@ -44,7 +49,7 @@ function has(bs::FastBitSet32, x::Int)
     return (bs.data[block] & mask) != 0
 end
 
-function union(a::FastBitSet32, b::FastBitSet32)
+function Base.union(a::FastBitSet32, b::FastBitSet32)
     nblocks = length(a.data)
     result = FastBitSet32(fill(UInt32(0), nblocks))
     @inbounds for i in 1:nblocks
@@ -53,7 +58,7 @@ function union(a::FastBitSet32, b::FastBitSet32)
     return result
 end
 
-function intersect(a::FastBitSet32, b::FastBitSet32)
+function Base.intersect(a::FastBitSet32, b::FastBitSet32)
     nblocks = length(a.data)
     result = FastBitSet32(fill(UInt32(0), nblocks))
     @inbounds for i in 1:nblocks
@@ -80,41 +85,26 @@ end
 
 
 
-struct CustomResource
+struct CustomResource <: AbstractResource
     t::Matrix{Float64} # time cost
-    u::Vector{Int} # upper window
-    r::Vector{Int} # release dates
-    q::Matrix{Int} # demands
-    Q::Float64 # capacity
-    inc::Vector{FastBitSet32}
+    u::Vector{Int}     # upper window (due dates)
+    r::Vector{Int}     # release dates
+    q::Matrix{Int}     # demands
+    Q::Float64         # capacity
+    inc::Vector{FastBitSet32} # incompatible customers (indexed by vertex + 1)
 end
 
-struct StandardResource
-    d::Matrix{Float64}
-    lb::Vector{Float64}
-    ub::Vector{Float64}
-end
+GenericILS.isSymmetric() = false
 
-struct Resources
-    customResource::CustomResource
-    stdResource::StandardResource
-end
-
-function isSymmetric()
-    return false
-end
-
-function isCostResource()
-    return false
-end
+GenericILS.isCostResource() = false
 
 struct ForwardState
     T::Float64
     U::Float64
     RD::Float64
     cap::Float64
-    inc::FastBitSet32
-    inVeh::FastBitSet32
+    inc::FastBitSet32   # customers incompatible with the ones already visited
+    inVeh::FastBitSet32 # customers already visited
 end
 
 struct BackwardState
@@ -126,68 +116,6 @@ struct BackwardState
     inVeh::FastBitSet32
 end
 
-struct StandardState
-    q::Float64
-    stdWarp::Float64
-end
-
-struct ForwardLabel
-    state::ForwardState
-    cost::Float64
-    std_res::StandardState
-    last::Int
-end
-
-struct BackwardLabel
-    state::BackwardState
-    cost::Float64
-    std_res::StandardState
-    last::Int
-end
-function myInitStateForward()
-    return ForwardLabel(initStateForward()..., StandardState(0.0, 0.0), 0)
-end
-
-function myInitStateBackward()
-    return BackwardLabel(initStateBackward()..., StandardState(Inf, 0.0), 0)
-end
-
-function myExtendAlongArc(res::Resources, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
-end
-
-function myExtendAlongArc(res::Resources, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res.customResource, label, a)..., extendAlongArc(res.stdResource, label, a), a[2] - 1)
-end
-
-function myConcatenationCost(res::Resources, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res.customResource, v, forwardLabel, backwardLabel)..., concatenationCost(res.stdResource, v, forwardLabel, backwardLabel), backwardLabel.last)
-end
-
-function myInitStateForward(res::CustomResource)
-    return ForwardLabel(initStateForward(res::CustomResource)..., StandardState(0.0, 0.0), 0)
-end
-
-function myInitStateBackward(res::CustomResource)
-    return BackwardLabel(initStateBackward(res::CustomResource)..., StandardState(Inf, 0.0), 0)
-end
-
-function myExtendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
-    return ForwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
-end
-
-function myExtendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
-    return BackwardLabel(extendAlongArc(res, label, a)..., label.std_res, a[2] - 1)
-end
-
-function myConcatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    return ForwardLabel(concatenationCost(res, v, forwardLabel, backwardLabel)..., forwardLabel.std_res, backwardLabel.last)
-end
-
-
-
-# CUSTOM, user-dependent
-
 function initStateForward(res::CustomResource)
     return (ForwardState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
@@ -196,105 +124,56 @@ function initStateBackward(res::CustomResource)
     return (BackwardState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
 
-
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
-    # a = (i,j) i -> j
-    # a = (2, 3) => (3, 4)
     T′ = label.state.T + res.t[a...]
     U′ = min(label.state.U, res.u[a[2]] - T′)
     RD′ = max(label.state.RD, res.r[a[2]])
     cap′ = label.state.cap + res.q[1, a[2]]
 
-    inc′ = union(label.state.inc, res.inc[a[2]])#Base.union(label.state.inc, res.inc[a[2]])
+    inc′ = Base.union(label.state.inc, res.inc[a[2]])
     inVeh′ = label.state.inVeh
-
-    if a[2]-1 != 0
-        inVeh′ = add(label.state.inVeh, a[2]-1)
-    end
-    
-    if label.cost == Inf
-        state = ForwardState(T′, U′, RD′, cap′, inc′, inVeh′)
-        return (state, Inf)
-    end
-    if T′ > res.u[a[2]] + 1e-12 || U′ < max(0, RD′) - 1e-12 || cap′ > res.Q + 1e-12 || has(label.state.inc, a[2]-1)
-        state = ForwardState(T′, U′, RD′, cap′, inc′, inVeh′)
-        return (state, Inf)
+    if a[2] - 1 != 0
+        inVeh′ = add(label.state.inVeh, a[2] - 1)
     end
     state = ForwardState(T′, U′, RD′, cap′, inc′, inVeh′)
+
+    if label.cost == Inf
+        return (state, Inf)
+    end
+    if T′ > res.u[a[2]] + 1e-12 || U′ < max(0, RD′) - 1e-12 || cap′ > res.Q + 1e-12 || has(label.state.inc, a[2] - 1)
+        return (state, Inf)
+    end
     return (state, 0.0)
 end
 
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
-    # a = (i, j)
-    # 3 - 0
     T′ = 0.0
     U′ = min(label.state.U - res.t[a...], res.u[a[2]])
     RD′ = max(label.state.RD, res.r[a[2]])
     cap′ = label.state.cap + res.q[1, a[1]]
 
-    inc′ = union(label.state.inc, res.inc[a[2]])#Base.union(label.state.inc, res.inc[a[2]])
+    inc′ = Base.union(label.state.inc, res.inc[a[2]])
     inVeh′ = label.state.inVeh
-
-    if a[2]-1 != 0
-        inVeh′ = add(label.state.inVeh, a[2]-1)
-    end
-
-    if label.cost == Inf
-        state = BackwardState(T′, U′, RD′, cap′, inc′, inVeh′)
-        return (state, Inf)
-    end
-
-    if U′ < max(0, max(RD′, res.r[a[2]])) - 1e-6 || cap′ > res.Q + 1e-6 || has(label.state.inc, a[2]-1)
-        state = BackwardState(T′, U′, RD′, cap′, inc′, inVeh′)
-        return (state, Inf)
+    if a[2] - 1 != 0
+        inVeh′ = add(label.state.inVeh, a[2] - 1)
     end
     state = BackwardState(T′, U′, RD′, cap′, inc′, inVeh′)
+
+    if label.cost == Inf
+        return (state, Inf)
+    end
+    if U′ < max(0, max(RD′, res.r[a[2]])) - 1e-6 || cap′ > res.Q + 1e-6 || has(label.state.inc, a[2] - 1)
+        return (state, Inf)
+    end
     return (state, 0.0)
 end
 
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    if (max(forwardLabel.state.RD, backwardLabel.state.RD) <= min(backwardLabel.state.U - forwardLabel.state.T, forwardLabel.state.U)) && 
+    if (max(forwardLabel.state.RD, backwardLabel.state.RD) <= min(backwardLabel.state.U - forwardLabel.state.T, forwardLabel.state.U)) &&
         (forwardLabel.state.cap + backwardLabel.state.cap <= res.Q) &&
         (!has_intersection(forwardLabel.state.inc, backwardLabel.state.inVeh)) && (!has_intersection(backwardLabel.state.inc, forwardLabel.state.inVeh))
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), 0.0)
     else
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), Inf)
     end
-end
-
-# STANDARD, user-independent
-
-
-function extendAlongArc(res::StandardResource, label::ForwardLabel, a::Tuple{Int, Int})
-    q_std = max(label.std_res.q + res.d[a...], res.lb[a[2]])
-    if q_std > res.ub[a[2]] + 1e-12
-        q_std = res.ub[a[2]]
-    end
-    q_warp = label.std_res.stdWarp
-    if label.std_res.q + res.d[a...] > res.ub[a[2]] + 1e-12
-        q_warp += label.std_res.q + res.d[a...] - res.ub[a[2]] - 1e-12
-    end
-    # q_std = max(min(label.std_res.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
-    # q_warp = label.std_res.stdWarp + max(label.std_res.q + res.d[a...] - res.ub[a[2]] - 1e-12, 0.0)
-    return (StandardState(q_std, q_warp))
-end
-
-function extendAlongArc(res::StandardResource, label::BackwardLabel, a::Tuple{Int, Int})
-    a = (a[2], a[1])
-
-    q_std = min(label.std_res.q - res.d[a...], res.ub[a[1]])
-    q_warp = label.std_res.stdWarp
-    if q_std < res.lb[a[1]] - 1e-12
-        q_warp += res.lb[a[1]] - q_std
-    end
-    if q_std < res.lb[a[1]] - 1e-12
-        q_std = res.lb[a[1]]
-    end
-    return (StandardState(q_std, q_warp))
-end
-
-function concatenationCost(res::StandardResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    q_std = min(forwardLabel.std_res.q, backwardLabel.std_res.q)
-    q_warp = max(forwardLabel.std_res.q - backwardLabel.std_res.q, 0) + (forwardLabel.std_res.stdWarp + backwardLabel.std_res.stdWarp)
-    return StandardState(q_std, q_warp)
 end

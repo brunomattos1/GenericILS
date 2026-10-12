@@ -1,6 +1,6 @@
 using GenericILS
 using Random
-include("resourcesSylvain_pkg.jl")
+include("resourcesVRPTWDC.jl")
 ENV["JULIA_HASH_SEED"] = "0"
 Random.seed!(0)
 
@@ -181,8 +181,9 @@ function main(instance::String, duration, outerIterMax::Int, innerIterMax::Int, 
     return sol.cost
 end
 
-instance     = "C101.txt"
-duration     = "360"
+# usage: julia --project=. mainVRPTWDC.jl [instance file name in Solomon/] [duration]
+instance     = length(ARGS) >= 1 ? basename(ARGS[1]) : "C101.txt"
+duration     = length(ARGS) >= 2 ? ARGS[2] : "360"
 outerIterMax = 500
 innerIterMax = 7
 seed         = 1

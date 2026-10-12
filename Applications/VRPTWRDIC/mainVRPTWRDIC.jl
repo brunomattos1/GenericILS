@@ -1,8 +1,10 @@
-﻿include("resourcesTWRDIC.jl")
-include("../../src/include.jl")
-using CPLEX
-Random.seed!(0)  # inicializa o GLOBAL_RNG (se precisar)
+using GenericILS
+using Random
+include("resourcesVRPTWRDIC.jl")
 ENV["JULIA_HASH_SEED"] = "0"
+Random.seed!(0)
+
+using CPLEX
 
 # function fastbitset_str(bs::FastBitSet32)
 #     elems = Int[]
@@ -67,7 +69,7 @@ function read_solomon(path::String)
             end
         end
         push!(inc, inc_)
-        push!(customers, Vertex(parse(Int, row[1]), [(0.0, 0.0)]))
+        push!(customers, Vertex(parse(Int, row[1])))
     end
     n = length(customers)
     dist  = zeros(Float64, n, n)
@@ -110,8 +112,6 @@ function read_solomon(path::String)
         end
     end
     make_symmetric!(inc)
-    @show ready_time
-    @show due_date
     return x, y, w, vehicles, capacity, customers, dist, time, dmat, ready_time, due_date, release, inc
 end
 
@@ -123,21 +123,22 @@ function printVRPTW(solver::Solver, sol::Solution)
             continue
         end
         cont += 1
-        time = sol.forwardLabels[r][end].state.RD
+        rt = sol.routes[r]
+        time = rt.forwardLabels[end].state.RD
         demand = 0.
         print("#$cont: ")
-        for i = 1:length(sol.routes[r].visits)
+        for i = 1:length(rt.visits)
             if i == 1
                 print("0 (0.0) {$(round(time, digits = 2))}", " -> ")
             else
-                dist += solver.data.costMatrix[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1]
-                time += round(solver.res.customResource.t[sol.routes[r].visits[i-1]+1, sol.routes[r].visits[i]+1], digits = 1)
-                if time < solver.res.stdResource.lb[sol.routes[r].visits[i] + 1]
-                    time = solver.res.stdResource.lb[sol.routes[r].visits[i] + 1]
+                dist += solver.data.costMatrix[rt.visits[i-1]+1, rt.visits[i]+1]
+                time += round(solver.res.customResource.t[rt.visits[i-1]+1, rt.visits[i]+1], digits = 1)
+                if time < solver.res.stdResource1.lb[rt.visits[i] + 1]
+                    time = solver.res.stdResource1.lb[rt.visits[i] + 1]
                 end
-                demand += solver.res.customResource.q[sol.routes[r].visits[i-1] + 1, sol.routes[r].visits[i] + 1]
-                print("$(sol.routes[r].visits[i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource.lb[sol.routes[r].visits[i] + 1]), $(solver.res.stdResource.ub[sol.routes[r].visits[i] + 1])]")
-                if i < length(sol.routes[r].visits) print(" -> ") end
+                demand += solver.res.customResource.q[rt.visits[i-1] + 1, rt.visits[i] + 1]
+                print("$(rt.visits[i]) ($demand) {$(round(time, digits = 1))} [$(solver.res.stdResource1.lb[rt.visits[i] + 1]), $(solver.res.stdResource1.ub[rt.visits[i] + 1])]")
+                if i < length(rt.visits) print(" -> ") end
             end
         end
         println()
@@ -149,17 +150,18 @@ end
 function checkVRPTW(solver::Solver, sol::Solution)
     feasible = true
     for r = 1:length(sol.routes)
-        time = sol.forwardLabels[r][end].state.RD
+        rt = sol.routes[r]
+        time = rt.forwardLabels[end].state.RD
         demand = 0
-        for i = 1:length(sol.routes[r].visits)-1
-            time += round(solver.res.customResource.t[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1], digits = 1)
-            demand += solver.res.customResource.q[sol.routes[r].visits[i]+1, sol.routes[r].visits[i+1]+1]
-            if time < solver.res.stdResource.lb[sol.routes[r].visits[i+1] + 1]
-                time = solver.res.stdResource.lb[sol.routes[r].visits[i+1] + 1]
+        for i = 1:length(rt.visits)-1
+            time += round(solver.res.customResource.t[rt.visits[i]+1, rt.visits[i+1]+1], digits = 1)
+            demand += solver.res.customResource.q[rt.visits[i]+1, rt.visits[i+1]+1]
+            if time < solver.res.stdResource1.lb[rt.visits[i+1] + 1]
+                time = solver.res.stdResource1.lb[rt.visits[i+1] + 1]
             end
-            if time > solver.res.stdResource.ub[sol.routes[r].visits[i+1] + 1] + 1e-6
+            if time > solver.res.stdResource1.ub[rt.visits[i+1] + 1] + 1e-6
                 feasible = false
-                throw("violou janela do cliente $(sol.routes[r].visits[i+1]) na rota $r")
+                throw("violou janela do cliente $(rt.visits[i+1]) na rota $r")
             end
             if demand > solver.res.customResource.Q + 1e-6
                 feasible = false
@@ -167,27 +169,12 @@ function checkVRPTW(solver::Solver, sol::Solution)
             end
         end
     end
-    # for r = 1:length(sol.routes)
-    #     for i = 2:length(sol.routes[r].visits) - 1
-    #         for j = 2:length(sol.routes[r].visits) - 1
-    #             if i == j 
-    #                 continue
-    #             end
-    #             if has(solver.res.customResource.inc[sol.routes[r].visits[j]+1], sol.routes[r].visits[i])
-    #                 # @show sol.routes[r]
-    #                 feasible = false
-    #                 # throw("clientes $(sol.routes[r].visits[i]) e $(sol.routes[r].visits[j]) são incompativeis e estao na rota $r")
-    #             end
-    #         end
-    #     end
-    # end
     return feasible
 end
 
 
-function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
-    basepath = normpath(joinpath(@__DIR__, ".."), "VRPTWRDIC")
-    instance = joinpath(basepath, splitpath(instance)...)
+function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
+    instance = joinpath(@__DIR__, splitpath(instance)...)
     x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release, inc = read_solomon(instance)
     deleteat!(customers, 1)
 
@@ -203,46 +190,58 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
         end
         fastinc[i] = fb
     end
-    # inc = [BitSet() for _ = 1:26]
     customRes = CustomResource(time, due, release, dmat, capacity, fastinc)
-    # stdRes = StandardResource(zeros(Float64, size(time)[1], size(time)[1]), ready, due)
-    stdRes = StandardResource(time, ready, due)
-    
-    res = Resources(customRes, stdRes)
-    parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax, 
-        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01, 
-        penaltyStandard = 1.0, penaltyStandardIncrease = 0.01, penaltyStandardDecrease = 0.01
-    )
 
-    diversif = Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0)
+    # Time windows as standard resource 1
+    stdRes1 = StandardResource{1}(time, Float64.(ready), Float64.(due))
+    # Capacity as standard resource 2
+    stdRes2 = StandardResource{2}(Float64.(dmat), zeros(Float64, n), Float64[capacity for _ in 1:n])
+
+    res = Resources(customRes, stdRes1, stdRes2)
+
+    algorithm = NILSAlgorithm(res;
+        acceptCriteria = NILS.AcceptBest(),
+        stopCriteria = NILS.ByIterMax(outerIterMax),
+        diversification = NILS.Diversification(outerShift = 2, outerSwap = 0, innerShift = 2, innerSwap = 0),
+        innerIterMax = innerIterMax
+    )
 
     solver = Solver(
-        seed = seed,
         res = res,
-        stdResource = stdRes,
-        params = parameters,
-        diversification = diversif,
-        data = data, 
-        neighborhoods = [1,2,3,4]
+        data = data,
+        neighborhoods = (
+            TwoOptStar(),
+            IntraShift(),
+            InterShift{1}(),
+            InterShift{2}(),
+            InterSwap{1, 1}(),
+            InterSwap{2, 1}(),
+            InterSwap{2, 2}()
+        ),
+        algorithm = algorithm
     )
+
+    setSeed!(solver, Random.MersenneTwister(seed))
+
+    setPenaltyManager!(solver, StandardPenaltyManager(
+        penaltyCustom = 1.0, penaltyCustomIncrease = 0.01, penaltyCustomDecrease = 0.01,
+        penaltyStandard1 = 1.0, penaltyStandard1Increase = 0.01, penaltyStandard1Decrease = 0.01,
+        penaltyStandard2 = 1.0, penaltyStandard2Increase = 0.01, penaltyStandard2Decrease = 0.01
+    ))
+
+    setMIPSolver!(solver, CPLEX.Optimizer)
+
     println("Solving instance $instance...")
-    @time NILS(solver)
-    printVRPTW(solver, solver.outerBestSol)
-    checkVRPTW(solver, solver.outerBestSol)
-    return solver.outerBestSol.cost
+    @time solve!(solver)
+    sol = getBestSol(solver)
+    printVRPTW(solver, solver.algorithm.outerBestSol)
+    checkVRPTW(solver, solver.algorithm.outerBestSol)
+    return sol.cost
 end
 
-# seed = 1
-# restarts = 1
-# outerIterMax = 2000
-# innerIterMax = 15
-
-# instance     = ARGS[1]
-restarts     = 1
 outerIterMax = 1000
 innerIterMax = 20
 seed         = 1
 instance = "TWRD/incomp/25/Incompatibility0.1/25_con_rate_01_C101.txt"
 
-main(instance, restarts, outerIterMax, innerIterMax, seed)
-
+main(instance, outerIterMax, innerIterMax, seed)

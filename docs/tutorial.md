@@ -13,8 +13,8 @@ For a deeper reference on each piece, see:
 - [Algorithms](algorithms.md)
 
 The complete, working example used here lives in
-[`Applications/CVRP/mainCVRP_pkg.jl`](../Applications/CVRP/mainCVRP_pkg.jl) and
-[`Applications/CVRP/resourcesCVRP_pkg.jl`](../Applications/CVRP/resourcesCVRP_pkg.jl).
+[`Applications/CVRP/mainCVRP.jl`](../Applications/CVRP/mainCVRP.jl) and
+[`Applications/CVRP/resourcesCVRP.jl`](../Applications/CVRP/resourcesCVRP.jl).
 
 ## Overview
 

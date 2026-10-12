@@ -1,6 +1,6 @@
 using GenericILS
 using Random
-include("resources_pkg.jl")
+include("resourcesHFVRP.jl")
 include("data.jl")
 
 using CPLEX

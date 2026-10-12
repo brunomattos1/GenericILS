@@ -1,5 +1,6 @@
-include("../../../src/Include.jl")
-include("resources.jl")
+using GenericILS
+using Random
+include("resourcesVRPSPD.jl")
 include("data.jl")
 using CPLEX
 # ---------------------------------------------------------------------------
@@ -24,8 +25,6 @@ const ALPHAS         = [0.995]
 const INNER_ITER_MAX = [5]
 
 const SEEDS    = [1, 2, 3]
-const RESTARTS = 1
-const OUTER_ITER_MAX = 500
 
 const OUTPUT_FILE = joinpath(@__DIR__, "..", "calibration_results.csv")
 
@@ -46,8 +45,6 @@ function runInstance(data::DataVRPSPD, alpha::Float64, innerIterMax::Int, seed::
     stdRes2 = StandardResource{2}(zeros(Float64, n+1, n+1), zeros(Float64, n+1), fill(Inf, n+1))
     res     = Resources(customRes, stdRes1, stdRes2)
 
-    parameters = Parameters(restarts = RESTARTS, outerIterMax = OUTER_ITER_MAX, innerIterMax = innerIterMax)
-    diversif   = Diversification(outerShift = 4, outerSwap = 0, innerShift = 2, innerSwap = 0)
     pm = TargetRatePenaltyManager(
         penaltyCustom = 10.0,
         penaltyCustomIncrease = 0.4,
@@ -62,21 +59,32 @@ function runInstance(data::DataVRPSPD, alpha::Float64, innerIterMax::Int, seed::
         feasRateTolerance = 0.05,
         updatePeriod = 50
     )
-    solver = Solver(
-        seed = seed,
-        parameters = parameters,
-        diversification = diversif,
-        penaltyManager = pm,
-        acceptCriteria = Metropolis(100.0, alpha),
-        stopCriteria = ByTemperature(0.1),
-        res = res,
-        data = dataHeuristic,
-        neighborhoods = NEIGHBORHOODS,
-        MIPSolver = CPLEX.Optimizer,
+    algorithm = NILSAlgorithm(res;
+        acceptCriteria = NILS.Metropolis(100.0, alpha),
+        stopCriteria = NILS.ByTemperature(0.1),
+        diversification = NILS.Diversification(outerShift = 4, outerSwap = 0, innerShift = 2, innerSwap = 0),
+        innerIterMax = innerIterMax,
         timeLimitSP = 30.0
     )
+    solver = Solver(
+        res = res,
+        data = dataHeuristic,
+        neighborhoods = (
+            TwoOptStar(),
+            IntraShift(),
+            InterShift{1}(),
+            InterShift{2}(),
+            InterSwap{1, 1}(),
+            InterSwap{2, 1}(),
+            InterSwap{2, 2}()
+        ),
+        algorithm = algorithm,
+        penaltyManager = pm,
+        MIPSolver = CPLEX.Optimizer
+    )
+    setSeed!(solver, Random.MersenneTwister(seed))
 
-    t   = @elapsed NILS(solver)
+    t   = @elapsed solve!(solver)
     sol = getBestSol(solver)
 
     return sol.cost, t
