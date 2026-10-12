@@ -55,11 +55,11 @@ function main(data::DataRiskVRP, restarts::Int, outerIterMax::Int, innerIterMax:
     parameters = Parameters(restarts = restarts, outerIterMax = outerIterMax, innerIterMax = innerIterMax)
     diversif = Diversification(outerShift = 3, outerSwap = 3, innerShift = 1, innerSwap = 1)
     timeRef = get(LITERATURE_TIMES, data.name, 45.0)
-    maxTime = TIME_FACTOR * timeRef
+    maxTime = 1.1 * timeRef
     solver = Solver(
         seed = seed,
         parameters = parameters,
-        penaltyManager = TargetRatePenaltyManager(penaltyCustom = 1000.0 ;updatePeriod = 100),
+        penaltyManager = TargetRatePenaltyManager(penaltyCustom = 1000.0 ;updatePeriod = 50),
         diversification = diversif,
         acceptCriteria = MetropolisTimed(100.0, 100.0, maxTime, 2.0),
         stopCriteria = ByTemperature(0.001),
@@ -69,7 +69,7 @@ function main(data::DataRiskVRP, restarts::Int, outerIterMax::Int, innerIterMax:
         data = dataHeuristic,
         neighborhoods = NEIGHBORHOODS,
         MIPSolver = CPLEX.Optimizer,
-        timeLimitSP = 60.0
+        timeLimitSP = 30.0
     )
 
     NILS(solver)
@@ -117,7 +117,7 @@ function runAll()
 
     baseDir  = @__DIR__
     dataDir  = joinpath(baseDir, "..", "data")
-    outCsv   = joinpath(baseDir, "..", "results.csv")
+    outCsv   = joinpath(baseDir, "..", "results_fast.csv")
 
     instances = collectInstances(dataDir)
     jobs      = buildJobs(instances, seeds)
