@@ -1,17 +1,41 @@
+# --- Julia -------------------------------------------------------------------
+# Manifests are Julia-version specific; users and CI resolve their own.
+Manifest.toml
+*.cov
 *.mem
+
+# --- Editors / OS ------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Paper / LaTeX / PDFs ----------------------------------------------------
 *.pdf
 *.tex
 *.aux
 *.bbl
 *.blg
-*.log
-*.out
 *.bib
-*.pyc
 *.bst
 *.cls
-*.csv
-*.
-/Manifest.toml
 
-*.cov
+# --- Python ------------------------------------------------------------------
+*.pyc
+__pycache__/
+
+# --- Run outputs: logs and result tables (keep them locally, do not version) -
+out/
+*.log
+*.out
+*.csv
+/res_*.txt
+# ...except the literature reference tables used to compare results
+!literature/*.csv
+
+# --- Spreadsheets and their editor lock/temp files ---------------------------
+*.xlsx
+*.ods
+.~lock.*
+~$*
+*.xlsx#
