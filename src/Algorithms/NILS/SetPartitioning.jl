@@ -1,3 +1,4 @@
+"""Store every feasible route of `solution` in the pool used by Set Partitioning (keeping the best cost seen)."""
 function registerRoutePool!(solver::Solver, solution::Solution)
     algo = solver.algorithm
     for r = 1:length(solution.routes)
@@ -23,10 +24,12 @@ function registerRoutePool!(solver::Solver, solution::Solution)
     end
 end
 
+"""Whether customer `i` is visited by `route`."""
 function visitsCustomer(i::Int, route::Vector{Int})
     return i in route
 end
 
+"""Cost of a route: distance plus the custom-resource cost when there is one."""
 function routeCost(solver::Solver, r::Vector{Int})
     cost = 0.
     for i = 1:length(r)-1
@@ -38,6 +41,10 @@ function routeCost(solver::Solver, r::Vector{Int})
     return cost
 end
 
+"""
+Solve the Set Partitioning MIP over the pooled routes (each customer exactly once, at most `maxNbRoutes`
+routes) and keep the result if it beats the best feasible solution. `cutOff` is an upper-bound hint.
+"""
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
     set_silent(sp)

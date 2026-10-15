@@ -1,3 +1,4 @@
+"""Perturbation: with probability 1/2 apply `shift` random shifts, otherwise `swap` random swaps."""
 function perturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 0.5
@@ -11,6 +12,7 @@ function perturb!(solver::Solver, solution::Solution)
     end
 end
 
+"""Move one random customer to a random position of another route. Returns `false` if no valid pair is found."""
 function randomInterShift10!(solver::Solver, solution::Solution)
     routes = solution.routes
     r1 = rand(solver.seed, 1:length(routes))
@@ -38,6 +40,7 @@ function randomInterShift10!(solver::Solver, solution::Solution)
     return true
 end
 
+"""Swap one random customer of a route with one of another route. Returns `false` if no valid pair is found."""
 function randomInterSwap11!(solver::Solver, solution::Solution)
     routes = solution.routes
     r1 = rand(solver.seed, 1:length(routes))

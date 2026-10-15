@@ -1,23 +1,4 @@
-function acceptSol(solver::Solver)
-    currInfeas = 0
-    for r = 1:length(solver.currSol.routes)
-        rt = solver.currSol.routes[r]
-        currInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
-    end
-    bestInfeas = 0
-    for r = 1:length(solver.algorithm.bestSol.routes)
-        rt = solver.algorithm.bestSol.routes[r]
-        bestInfeas += length(rt.visits) - 2 - max(rt.feasibleF, rt.feasibleB)
-    end
-    if currInfeas < bestInfeas
-        return true
-    end
-    if currInfeas == bestInfeas && solver.currSol.cost < solver.algorithm.bestSol.cost - 1e-5
-        return true
-    end
-    return false
-end
-
+"""Whether `currSol` is strictly better than `bestSol`."""
 function acceptSol(solver::Solver, currSol::Solution, bestSol::Solution)
     if currSol.cost < bestSol.cost - 1e-6
         return true
@@ -25,7 +6,7 @@ function acceptSol(solver::Solver, currSol::Solution, bestSol::Solution)
     return false
 end
 
-##############################
+"""Publish `sol` as best feasible solution if it qualifies, recording statistics and resetting the counter."""
 function updateBestFeasible!(solver::Solver, sol::Solution)
     if updateBestFeasSol!(solver, sol)
         registerBestFeasible!(solver, sol)
@@ -33,6 +14,7 @@ function updateBestFeasible!(solver::Solver, sol::Solution)
     end
 end
 
+"""Accept every candidate."""
 function accept!(criteria::RandomWalk, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     if currSol.cost < bestSol.cost - 1e-6
         copySolution!(bestSol, currSol)
@@ -42,6 +24,7 @@ function accept!(criteria::RandomWalk, solver::Solver, bestSol::Solution, currSo
     end
 end
 
+"""Accept the candidate only if it improves the best solution."""
 function accept!(criteria::AcceptBest, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     updateBestFeasible!(solver, candidateSol)
     if candidateSol.cost < bestSol.cost - 1e-6
@@ -49,6 +32,7 @@ function accept!(criteria::AcceptBest, solver::Solver, bestSol::Solution, currSo
     end
 end
 
+"""Metropolis acceptance, then cool down: `temperature *= alpha`."""
 function accept!(criteria::Metropolis, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
@@ -63,9 +47,10 @@ function accept!(criteria::Metropolis, solver::Solver, bestSol::Solution, currSo
             copySolution!(currSol, candidateSol)
         end
     end
-    criteria.temperature *= criteria.alpha # Atualiza a temperatura do critério
+    criteria.temperature *= criteria.alpha # cool down
 end
 
+"""Metropolis acceptance with a temperature that decays with the elapsed time."""
 function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
@@ -87,6 +72,7 @@ function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, c
     end
 end
 
+"""Iteration-driven Metropolis acceptance; freezes (temperature 0) after enough cold iterations."""
 function accept!(criteria::MetropolisTimedIter, solver::Solver, currSol::Solution, bestSol::Solution)
     Δ = currSol.cost - bestSol.cost
     
@@ -96,7 +82,7 @@ function accept!(criteria::MetropolisTimedIter, solver::Solver, currSol::Solutio
     else
         # Metropolis
         if rand(solver.seed) < exp(-Δ / criteria.temperature)
-            # aceita pior solução (diversificação)
+            # accept a worse solution (diversification)
             copySolution!(bestSol, currSol)
         else
             # rejeita -> volta pro best

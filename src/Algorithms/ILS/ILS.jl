@@ -1,3 +1,8 @@
+"""
+Single-layer Iterated Local Search (`ILSAlgorithm`): perturb, local search (RVND), accept/reject; finishes
+with a Set Partitioning step. Its accept/stop criteria are specific to this module: use them qualified
+(`ILS.Metropolis`, ...).
+"""
 module ILS
 
 using Random, JuMP, Printf

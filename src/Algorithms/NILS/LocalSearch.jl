@@ -1,3 +1,7 @@
+"""
+Randomized Variable Neighborhood Descent: apply the neighborhoods in random order; every time one improves
+`sol` restart with all of them, and stop when none improves.
+"""
 function RVND!(solver::Solver, sol::Solution)
 
     neighs = solver.activeNeighs
@@ -30,7 +34,7 @@ function RVND!(solver::Solver, sol::Solution)
 
         else
 
-            # remove vizinhança (O(1))
+            # drop this neighborhood from the active list (O(1))
             neighs[pos] = neighs[n]
             n -= 1
 

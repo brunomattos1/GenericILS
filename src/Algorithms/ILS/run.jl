@@ -1,7 +1,9 @@
-getStopInfo(algo::ILSAlgorithm, ::Any) = NaN  # default (não tem temperatura)
+"""Number shown in the progress table for the stopping criterion (temperature or iteration counter)."""
+getStopInfo(algo::ILSAlgorithm, ::Any) = NaN
 getStopInfo(algo::ILSAlgorithm, c::ByIterMax) = algo.iter
 getStopInfo(algo::ILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
 
+"""Print one line of the progress table (a new header is printed every 10 seconds)."""
 function printInfo(algo::ILSAlgorithm, solver::Solver)
     totalAlgorithmTime = time() - algo.startTime
     stopInfo = getStopInfo(algo, algo.stopCriteria)
@@ -21,6 +23,10 @@ function printInfo(algo::ILSAlgorithm, solver::Solver)
         length(algo.routeStorage), totalAlgorithmTime)
 end
 
+"""
+Run the ILS: construct a solution and apply RVND, then repeat perturb + RVND + accept until the stopping
+criterion (or the time limit) triggers; finish with Set Partitioning.
+"""
 function run!(algo::ILSAlgorithm, solver::Solver)
     algo.bestSol.cost = Inf
     algo.startTime = time()

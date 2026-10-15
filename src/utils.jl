@@ -1,4 +1,4 @@
-﻿"""
+"""
 Exchange two blocks between routes: `k1` entries of `route1` starting at `i` go to `route2` at `j`, and
 `k2` entries of `route2` starting at `j` go to `route1` at `i` (`k1` or `k2` may be 0; sizes may differ).
 `buffer` is scratch space.

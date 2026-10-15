@@ -1,7 +1,9 @@
-getStopInfo(algo::NILSAlgorithm, ::Any) = NaN  # default (não tem temperatura)
+"""Number shown in the progress table for the stopping criterion (temperature or iteration counter)."""
+getStopInfo(algo::NILSAlgorithm, ::Any) = NaN
 getStopInfo(algo::NILSAlgorithm, c::ByIterMax) = algo.iter
 getStopInfo(algo::NILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
 
+"""Print one line of the progress table (a new header is printed every 10 seconds)."""
 function printInfo(algo::NILSAlgorithm, solver::Solver)
     totalAlgorithmTime = time() - algo.startTime
     stopInfo = getStopInfo(algo, algo.stopCriteria)
@@ -21,6 +23,10 @@ function printInfo(algo::NILSAlgorithm, solver::Solver)
         length(algo.routeStorage), totalAlgorithmTime)
 end
 
+"""
+Run the nested ILS: construct a solution, refine it, then repeat perturb + inner loop + accept until the
+stopping criterion (or the time limit) triggers; finish with Set Partitioning.
+"""
 function run!(algo::NILSAlgorithm, solver::Solver)
     algo.outerBestSol.cost = Inf
     algo.bestSol = newSolution(solver)

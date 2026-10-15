@@ -1,3 +1,8 @@
+"""
+Nested Iterated Local Search (`NILSAlgorithm`): an outer loop with accept/stop criteria and, for each candidate,
+an inner loop of local search and light perturbation; finishes with a Set Partitioning step.
+Its accept/stop criteria are specific to this module: use them qualified (`NILS.Metropolis`, ...).
+"""
 module NILS
 
 using Random, JuMP, Printf

@@ -1,3 +1,7 @@
+"""
+Inner loop of NILS: repeat RVND and a light perturbation, restarting the counter whenever the best
+inner solution improves, until `innerIterMax` iterations pass without improvement.
+"""
 function innerLoop!(solver::Solver, sol::Solution)
     algo = solver.algorithm
     it = 0
