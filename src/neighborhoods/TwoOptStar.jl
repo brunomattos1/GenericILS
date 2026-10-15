@@ -1,11 +1,14 @@
+"""2-opt* neighborhood: exchange the tails of two routes."""
 struct TwoOptStar end
 
+"""Distance after exchanging the tails of `route1` (after `i`) and `route2` (after `j`)."""
 function twoOptStarCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int)
     newCost = currCost - costMatrix[route1[i]+1, route1[i+1]+1] - costMatrix[route2[j]+1, route2[j+1]+1]
     newCost += costMatrix[route1[i]+1, route2[j+1]+1] + costMatrix[route2[j]+1, route1[i+1]+1]
     return newCost
 end
 
+"""Predicted violations of the two routes created by the exchange."""
 function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int)
     infeasR1, labelCostR1, warpR1Std1, warpR1Std2 = infeasArcs2optStar(solver, sol, r1, r2, i, j)
     infeasR2, labelCostR2, warpR2Std1, warpR2Std2 = infeasArcs2optStar(solver, sol, r2, r1, j, i)
@@ -13,6 +16,7 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     return violInfo, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2
 end
 
+"""Predicted penalized objective of a 2-opt* move."""
 function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Float64)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
@@ -21,6 +25,10 @@ function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Flo
     return cost
 end
 
+"""
+Evaluate every 2-opt* move between pairs of routes and apply, per route, the best one if it improves
+the solution. Returns `true` when `sol` improved.
+"""
 function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     improved = false
     copySolution!(solver.bufferSol, sol)
@@ -68,6 +76,7 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     return improved
 end
 
+"""Exchange the tails and refresh labels and bookkeeping of the two routes."""
 function apply!(neigh::TwoOptStar, solver::Solver, solution::Solution, move::BestMove)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx

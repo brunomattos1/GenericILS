@@ -1,3 +1,8 @@
+"""
+Predict, from the labels of route `r`, the effect of removing the `k` customers starting at `pos`.
+Returns `(infeas, labelCost, warpStd1, warpStd2)`; the warps are exact, `infeas` is a conservative
+estimate (zero exactly when the new route is feasible).
+"""
 function infeasArcsRemovalK(solver::Solver, sol::Solution, r::Int, pos::Int, k::Int)
     rt     = sol.routes[r]
     lenR   = length(rt.visits)
@@ -24,6 +29,7 @@ function infeasArcsRemovalK(solver::Solver, sol::Solution, r::Int, pos::Int, k::
     return (lenR - k - 1) - max(nFwd, nBwd), min(bridgeFwd.cost, bridgeBwd.cost), warpStd1, warpStd2
 end
 
+"""Same prediction for inserting `customers` before position `pos` of route `r`."""
 function infeasArcsInsertionK(solver::Solver, sol::Solution, r::Int, customers::AbstractVector{Int}, pos::Int)
     rt     = sol.routes[r]
     k      = length(customers)
@@ -64,6 +70,7 @@ function infeasArcsInsertionK(solver::Solver, sol::Solution, r::Int, customers::
     return (lenR + k - 1) - max(nFwd, nBwd), min(finalFwd.cost, finalBwd.cost), warpStd1, warpStd2
 end
 
+"""Same prediction for replacing `kRemove` customers starting at `pos` by `newCustomers` (used by swaps)."""
 function infeasArcsReplaceBlockK(solver::Solver, sol::Solution, r::Int, pos::Int, kRemove::Int, newCustomers::AbstractVector{Int})
     rt       = sol.routes[r]
     kInsert = length(newCustomers)
@@ -109,6 +116,10 @@ function infeasArcsReplaceBlockK(solver::Solver, sol::Solution, r::Int, pos::Int
     return totalArcs - max(nFwd, nBwd), min(finalFwd.cost, finalBwd.cost), warpStd1, warpStd2
 end
 
+"""
+Same prediction for the route made of the head of `rHead` (up to `posHead`) and the tail of `rTail`
+(after `posTail`) in a 2-opt* move.
+"""
 function infeasArcs2optStar(solver::Solver, sol::Solution,
                             rHead::Int, rTail::Int,
                             posHead::Int, posTail::Int)

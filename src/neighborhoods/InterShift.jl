@@ -1,5 +1,7 @@
+"""Neighborhood that moves a block of `k` consecutive customers to another route."""
 struct InterShift{k} end
 
+"""Distance after moving the `k` customers starting at `i` of `route1` to position `j` of `route2`."""
 function interShiftCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int, k::Int)
     newCost = currCost
     newCost -= costMatrix[route1[i-1]+1,   route1[i]+1]
@@ -11,6 +13,7 @@ function interShiftCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::
     return newCost
 end
 
+"""Predicted violations of both routes after moving `block` (removal from `r1`, insertion into `r2`)."""
 function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k::Int, block::Vector{Int})
     infeasR1, lc1, warpR1s1, warpR1s2 = infeasArcsRemovalK(solver, sol, r1, i, k)
     infeasR2, lc2, warpR2s1, warpR2s2 = infeasArcsInsertionK(solver, sol, r2, block, j)
@@ -18,6 +21,10 @@ function computeViolInterShiftK(solver::Solver, sol::Solution, r1::Int, r2::Int,
     return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
+"""
+Evaluate every move of a block of `k` customers between routes and apply, per route, the best one if it
+improves the solution. Returns `true` when `sol` improved.
+"""
 function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
     flag = false
     copySolution!(solver.bufferSol, sol)
@@ -75,6 +82,7 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
     return flag
 end
 
+"""Move the block and refresh labels and bookkeeping of the two routes."""
 function apply!(::InterShift{k}, solver::Solver, sol::Solution, bestMove::BestMove) where {k}
     r1, r2 = bestMove.firstRoute, bestMove.secondRoute
     i,  j  = bestMove.firstIdx,   bestMove.secondIdx

@@ -1,11 +1,17 @@
+"""Insert customer `customer` at position `pos` of route `route`."""
 struct Insertion <: Move
     route::Int
     customer::Int
     pos::Int
 end
 
+"""Greedy construction of an initial solution (see `bestParallelInsertion`)."""
 constructSol!(solver::Solver; r::Int = 0) = bestParallelInsertion(solver; r = r)
 
+"""
+Parallel greedy insertion: seed `maxNbRoutes + r` routes with random customers, then repeatedly insert the
+remaining customer/position with the lowest penalized cost. Also initializes the `lastEval` table.
+"""
 function bestParallelInsertion(solver::Solver; r::Int = 0)
     vertices = deepcopy(solver.data.vertices)
     nbRoutes = min(length(vertices), solver.data.maxNbRoutes + r)
@@ -63,6 +69,7 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     return sol
 end
 
+"""Apply an insertion to `solution`, updating labels and every bookkeeping field."""
 function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsertion)
     r  = move.route
     i  = move.pos
@@ -94,11 +101,13 @@ function applyMoveInsertion(solver::Solver, solution::Solution, move::BestInsert
     solution.cost = objectiveValue(solver, solution)
 end
 
+"""Distance of the route after inserting `customer` before position `j`, from the current distance."""
 function bestInsertionCost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector{Int}, customer::Int, j::Int)
     newCost = currCost - costMatrix[route[j-1]+1, route[j]+1] + costMatrix[route[j-1]+1, customer+1] + costMatrix[customer+1, route[j]+1]
     return newCost
 end
 
+"""Evaluate an insertion: returns `(dist, cost, infeas, warpStd1, warpStd2)` of the resulting solution."""
 function evalBestInsertion(solver::Solver, sol::Solution, insertion::Insertion)
     currCost = sol.dist
     r        = insertion.route
