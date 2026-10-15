@@ -7,6 +7,7 @@ using CPLEX
 
 const TIME_FACTOR = 10.0
 
+"""Print the routes and the cost of `sol`."""
 function printSol(sol::Solution)
     for r = 1:length(sol.routes)
         print("route $r: ")
@@ -18,6 +19,7 @@ function printSol(sol::Solution)
     println("Cost: $(round(sol.cost, digits=2))")
 end
 
+"""Arc-indexed demand matrix (entry `(i, j)` is the demand of `j`)."""
 function buildDemandMatrix(data::DataHVRP)
     n  = nbCustomers(data)
     d_ = zeros(Float64, n+1, n+1)
@@ -29,6 +31,7 @@ function buildDemandMatrix(data::DataHVRP)
     return d_
 end
 
+"""Distance matrix (index = vertex id + 1)."""
 function buildDistMatrix(data::DataHVRP)
     n    = length(data.G′.V′)
     dist = zeros(Float64, n, n)
@@ -38,6 +41,7 @@ function buildDistMatrix(data::DataHVRP)
     return dist
 end
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(data::DataHVRP, outerIterMax::Int, innerIterMax::Int, seed::Int, timeRef::Float64)
     n  = nbCustomers(data)
     nv = length(data.vehTypes)

@@ -5,6 +5,7 @@ include("data.jl")
 
 using CPLEX
 
+"""Print the routes and the cost of `sol`."""
 function printSol(sol::Solution)
     for r = 1:length(sol.routes)
         print("route $r: ")
@@ -16,6 +17,7 @@ function printSol(sol::Solution)
     println("Cost: $(round(sol.cost, digits=2))")
 end
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(data::DataCCVRP, outerIterMax::Int, innerIterMax::Int, seed::Int)
     dist = data.weights
     n    = size(dist, 1) - 1

@@ -1,3 +1,4 @@
+"""Instance data of the CCVRP."""
 struct DataCCVRP
     name::String
     weights::Matrix{Float64}
@@ -5,10 +6,12 @@ struct DataCCVRP
     demand::Vector{Float64}
 end
 
+"""Euclidean distance between two points."""
 function euclideanDistance(xi, yi, xj, yj)
     return sqrt((xi - xj)^2 + (yi - yj)^2)
 end
 
+"""Euclidean distance rounded to the nearest integer."""
 function nearestIntDistance(xi, yi, xj, yj)
     return round(euclideanDistance(xi, yi, xj, yj))
 end
@@ -21,6 +24,7 @@ const DISTANCE_FUNCTIONS = Dict(
     "ATT" => (xi, yi, xj, yj) -> ceil(sqrt(((xi - xj)^2 + (yi - yj)^2) / 10.0)),
 )
 
+"""Read an instance file into a `DataCCVRP`."""
 function readData(instance::String)
     path = if isfile(instance)
         instance
@@ -93,6 +97,7 @@ function readData(instance::String)
     )
 end
 
+"""Arc-indexed demand matrix: entry `(i, j)` is the demand of `j`."""
 function buildArcDemands(demands::Vector{Float64})
     n = length(demands)
     d = zeros(Float64, n, n)

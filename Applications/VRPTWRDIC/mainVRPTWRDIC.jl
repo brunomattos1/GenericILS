@@ -22,6 +22,7 @@ using CPLEX
 # end
 
 
+"""Read a Solomon-format instance file and derive the data used by `main` (demands, time windows, distance and time matrices)."""
 function readSolomon(path::String)
     lines = readlines(path)  # read all lines
     matrixLines = [split(strip(linha)) for linha in lines]  # split on whitespace
@@ -115,6 +116,7 @@ function readSolomon(path::String)
     return x, y, w, vehicles, capacity, customers, dist, time, dmat, readyTime, dueDate, release, inc
 end
 
+"""Print the routes with load and arrival times, and the cost of `sol`."""
 function printVRPTW(solver::Solver, sol::Solution)
     cont = 0
     dist = 0.0
@@ -147,6 +149,7 @@ function printVRPTW(solver::Solver, sol::Solution)
     # println("Violation: $(sol.resViolation)")
 end
 
+"""Independent check of `sol` against time windows and capacity (does not use the labels)."""
 function checkVRPTW(solver::Solver, sol::Solution)
     feasible = true
     for r = 1:length(sol.routes)
@@ -173,6 +176,7 @@ function checkVRPTW(solver::Solver, sol::Solution)
 end
 
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instance = joinpath(@__DIR__, splitpath(instance)...)
     x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release, inc = readSolomon(instance)

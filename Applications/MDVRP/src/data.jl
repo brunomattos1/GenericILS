@@ -1,6 +1,7 @@
 import Unicode
 
-mutable struct Vertex_
+"""A vertex (depot or customer) read from the instance file."""
+mutable struct InputVertex
     idVertex::Int
     posX::Float64
     posY::Float64
@@ -10,12 +11,14 @@ mutable struct Vertex_
     b::Float64
 end
 
+"""Vertices and arc costs of the instance."""
 mutable struct InputGraph
-    V′::Array{Vertex_}
+    V′::Array{InputVertex}
     A::Array{Tuple{Int64,Int64}}
     cost::Dict{Tuple{Int64,Int64},Float64}
 end
 
+"""Instance data of the MDVRP."""
 mutable struct DataMDVRP
     G′::InputGraph
     Q::Float64
@@ -27,13 +30,15 @@ mutable struct DataMDVRP
     name::String
 end
 
-function c(data::DataMDVRP, a::Tuple{Int64,Int64})
+"""Cost of arc `a` (a large value for arcs that are not in the graph)."""
+function arcCost(data::DataMDVRP, a::Tuple{Int64,Int64})
     if !(haskey(data.G′.cost, a))
         return 100000.0
     end
     return data.G′.cost[a]
 end
 
+"""Euclidean distance of `arc`, rounded to the nearest integer when `data.round` is set."""
 function arcDistance(data::DataMDVRP, arc::Tuple{Int64,Int64})
     u, v = arc
     xSq = (data.G′.V′[v+1].posX - data.G′.V′[u+1].posX)^2
@@ -43,6 +48,7 @@ end
 
 contains(p, s) = findnext(s, p, 1) !== nothing
 
+"""Read an instance file into a `DataMDVRP`."""
 function readData(instance::String; round::Bool = false)
     str = Unicode.normalize(read(instance, String); stripcc=true)
     aux = split(str, [' ', ':', '\n']; limit=0, keepempty=false)
@@ -63,7 +69,7 @@ function readData(instance::String; round::Bool = false)
         elseif contains(aux[i], "NODE_COORD_SECTION")
             j = i + 1
             while aux[j] != "DEMAND_SECTION"
-                v = Vertex_(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0, 0, 0, 0)
+                v = InputVertex(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0, 0, 0, 0)
                 push!(G′.V′, v)
                 j += 3
             end

@@ -7,6 +7,7 @@ Random.seed!(0)
 using CVRPLIB
 using CPLEX
 
+"""Print the routes (with accumulated demand) and the cost of `sol`."""
 function printCVRP(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
         demand = 0.
@@ -29,6 +30,7 @@ function printCVRP(solver::Solver, sol::Solution)
     println("\nCost: $(sol.dist)")
 end
 
+"""Arc-indexed demand matrix: entry `(i, j)` is the demand of `j` (0 for the depot)."""
 function createArcDemands(demands)
     n = length(demands)
     d = zeros(Float64, n, n)
@@ -46,6 +48,7 @@ function createArcDemands(demands)
     return d
 end
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instance = joinpath(normpath(joinpath(@__DIR__, "data")), string(instance[1]), instance)
 

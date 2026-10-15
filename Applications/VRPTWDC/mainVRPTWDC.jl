@@ -6,6 +6,7 @@ Random.seed!(0)
 
 using CPLEX
 
+"""Read a Solomon-format instance file and derive the data used by `main` (demands, time windows, distance and time matrices)."""
 function readSolomon(filename::String)
     open(filename, "r") do io
         text = open(filename, "r") do io
@@ -60,6 +61,7 @@ function readSolomon(filename::String)
     end
 end
 
+"""Print the routes with load and arrival times, and the cost of `sol`."""
 function printVRPTW(solver::Solver, sol::Solution)
     cont = 0
     dist = 0.0
@@ -91,6 +93,7 @@ function printVRPTW(solver::Solver, sol::Solution)
     println("\nDist: $(sol.dist). Cost: $(sol.cost)")
 end
 
+"""Independent check of `sol` against time windows and capacity (does not use the labels)."""
 function checkVRPTW(solver::Solver, sol::Solution)
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
@@ -121,6 +124,7 @@ function checkVRPTW(solver::Solver, sol::Solution)
     return true
 end
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(instance::String, duration, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instance = joinpath(@__DIR__, "Solomon", instance)
     @show instance
