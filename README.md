@@ -1,5 +1,9 @@
 # GenericILS
 
+[![CI](https://github.com/brunomattos1/GenericILS/actions/workflows/CI.yml/badge.svg)](https://github.com/brunomattos1/GenericILS/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/brunomattos1/GenericILS/graph/badge.svg)](https://codecov.io/gh/brunomattos1/GenericILS)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 `GenericILS` is a Julia package for building Iterated Local Search
 metaheuristics for Vehicle Routing Problems (VRP) and related resource-
 constrained routing problems, using a label-correcting (forward/backward)
@@ -198,3 +202,23 @@ path above doesn't work; the "Read ... and follow it" prompt always does.
 
 Answer its questions, confirm the modeling plan it proposes, and it will create and run the
 application. It should not commit anything unless you ask.
+
+## Contributing
+
+`main` is protected: all changes go through a branch and a pull request, and the CI checks must pass.
+
+```bash
+git config core.hooksPath .githooks     # once per clone: blocks commits, merges and pushes on main
+git switch -c my-change
+# ...work, commit...
+git push -u origin my-change            # then open a pull request
+```
+
+The hooks in [`.githooks/`](.githooks/) only protect your local clone (`git commit --no-verify` skips them).
+The real enforcement is the GitHub ruleset described in [`.github/rulesets/protect-main.json`](.github/rulesets/protect-main.json):
+in the repository go to *Settings → Rules → Rulesets → New ruleset → Import a ruleset* and upload that file. It
+forbids direct pushes, force pushes and deletion of `main`, and requires a pull request with the CI checks passing.
+
+## License
+
+GenericILS is released under the [MIT License](LICENSE).

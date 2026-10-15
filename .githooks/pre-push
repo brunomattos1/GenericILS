@@ -1,0 +1,12 @@
+#!/bin/sh
+# Blocks any push that updates or deletes the remote `main` branch (from any local branch).
+# Pushing other branches, tags and opening pull requests is fine.
+
+while read localRef localSha remoteRef remoteSha; do
+    if [ "$remoteRef" = "refs/heads/main" ]; then
+        echo "pre-push: pushing to 'main' is not allowed." >&2
+        echo "          push a branch and open a pull request:  git push -u origin <branch>" >&2
+        exit 1
+    fi
+done
+exit 0

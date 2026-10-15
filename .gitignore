@@ -39,3 +39,4 @@ out/
 .~lock.*
 ~$*
 *.xlsx#
+lcov.info
