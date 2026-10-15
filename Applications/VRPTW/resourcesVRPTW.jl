@@ -29,20 +29,20 @@ function initStateBackward(res::CustomResource)
 end
 
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
-    q_custom = label.state.q + res.d[(1, a[2])...]
-    if q_custom > res.Q + 1e-5
-        return (ForwardState(q_custom), Inf)
+    qCustom = label.state.q + res.d[(1, a[2])...]
+    if qCustom > res.Q + 1e-5
+        return (ForwardState(qCustom), Inf)
     else
-        return (ForwardState(q_custom), 0.0)
+        return (ForwardState(qCustom), 0.0)
     end
 end
 
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
-    q_custom = label.state.q + res.d[(1, a[1])...]
-    if q_custom > res.Q + 1e-5
-        return (BackwardState(q_custom), Inf)
+    qCustom = label.state.q + res.d[(1, a[1])...]
+    if qCustom > res.Q + 1e-5
+        return (BackwardState(qCustom), Inf)
     else
-        return (BackwardState(q_custom), 0.0)
+        return (BackwardState(qCustom), 0.0)
     end
 end
 

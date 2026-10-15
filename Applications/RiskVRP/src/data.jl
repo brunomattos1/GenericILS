@@ -1,9 +1,9 @@
 import Unicode
 
 mutable struct VertexRisk
-    id_vertex::Int
-    pos_x::Float64
-    pos_y::Float64
+    idVertex::Int
+    posX::Float64
+    posY::Float64
     demand::Float64
 end
 
@@ -18,12 +18,12 @@ mutable struct DataRiskVRP
     G′::InputGraph
     T::Int64       # risk threshold
     n::Int64       # number of customers
-    depot_id::Int
+    depotId::Int
     coord::Bool
     name::String
 end
 
-getCustomers(data::DataRiskVRP) = [i.id_vertex for i in data.G′.V′[2:end]]
+getCustomers(data::DataRiskVRP) = [i.idVertex for i in data.G′.V′[2:end]]
 
 contains(p, s) = findnext(s, p, 1) != nothing
 
@@ -34,16 +34,16 @@ function arcDistance(data::DataRiskVRP, arc::Tuple{Int64,Int64})
     elseif data.coord
         u, v = arc
         verts = data.G′.V′
-        x_sq = (verts[v+1].pos_x - verts[u+1].pos_x)^2
-        y_sq = (verts[v+1].pos_y - verts[u+1].pos_y)^2
-        return sqrt(x_sq + y_sq)
+        xSq = (verts[v+1].posX - verts[u+1].posX)^2
+        ySq = (verts[v+1].posY - verts[u+1].posY)^2
+        return sqrt(xSq + ySq)
     else
         return 0.0
     end
 end
 
 function readData(instance::String)
-    demands_sum = 0
+    demandsSum = 0
     str  = Unicode.normalize(read(instance, String); stripcc=true)
     aux  = split(str, [' ', ':', '\n']; limit=0, keepempty=false)
 
@@ -78,7 +78,7 @@ function readData(instance::String)
                 G′.V′[pos].demand = parse(Float64, aux[j+1])
                 j += 2
             end
-            data.depot_id = 0
+            data.depotId = 0
             break
         end
     end
@@ -92,7 +92,7 @@ function readData(instance::String)
     # data.T   = data.T / g
     # for i = 1:dim
     #     G′.V′[i].demand = G′.V′[i].demand / g
-    #     demands_sum    += G′.V′[i].demand
+    #     demandsSum    += G′.V′[i].demand
     # end
 
     if data.coord
@@ -104,7 +104,7 @@ function readData(instance::String)
                 push!(G′.E, (i, j))
                 G′.cost[(i,j)] = arcDistance(data, (i,j))
             end
-            for ep in [(data.depot_id, i), (i, data.depot_id)]
+            for ep in [(data.depotId, i), (i, data.depotId)]
                 push!(G′.E, ep)
                 G′.cost[ep] = arcDistance(data, ep)
             end
@@ -125,7 +125,7 @@ function readData(instance::String)
         end
     end
 
-    for i = 0:demands_sum
+    for i = 0:demandsSum
         push!(G′.D, i)
     end
     data.n = length(G′.V′) - 1

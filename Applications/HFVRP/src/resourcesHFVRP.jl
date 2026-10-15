@@ -79,14 +79,14 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
 end
 
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    conc_dist = forwardLabel.state.dist + backwardLabel.state.dist
-    conc_load = forwardLabel.state.load + backwardLabel.state.load - res.d[1, forwardLabel.last+1]
+    concDist = forwardLabel.state.dist + backwardLabel.state.dist
+    concLoad = forwardLabel.state.load + backwardLabel.state.load - res.d[1, forwardLabel.last+1]
 
-    k_ = findfirst(k -> conc_load < res.cap[k] + TOL, 1:res.nv)
+    k_ = findfirst(k -> concLoad < res.cap[k] + TOL, 1:res.nv)
     if isnothing(k_)
-        return (ForwardState(res.nv, 100000.0, conc_load, conc_dist), 100000.0)
+        return (ForwardState(res.nv, 100000.0, concLoad, concDist), 100000.0)
     else
-        conc_cost = res.fixed[k_] + res.factor[k_] * conc_dist
-        return (ForwardState(k_, conc_cost, conc_load, conc_dist), conc_cost)
+        concCost = res.fixed[k_] + res.factor[k_] * concDist
+        return (ForwardState(k_, concCost, concLoad, concDist), concCost)
     end
 end

@@ -1,5 +1,5 @@
 mutable struct Vertex_
-    id_vertex::Int
+    idVertex::Int
     p::Float64
     d::Float64
 end

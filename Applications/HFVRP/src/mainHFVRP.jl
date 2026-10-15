@@ -40,7 +40,7 @@ end
 
 function main(data::DataHVRP, outerIterMax::Int, innerIterMax::Int, seed::Int, timeRef::Float64)
     n  = nbCustomers(data)
-    nv = length(data.veh_types)
+    nv = length(data.vehTypes)
     Q  = [vehCapacity(data, k) for k = 1:nv]
 
     customers = Vector{Vertex}()

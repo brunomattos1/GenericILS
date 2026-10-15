@@ -6,7 +6,7 @@ Random.seed!(0)
 
 using CPLEX
 
-function read_solomon(filename::String)
+function readSolomon(filename::String)
     open(filename, "r") do io
         text = open(filename, "r") do io
             read(io, String)
@@ -17,10 +17,10 @@ function read_solomon(filename::String)
         id = Int[]
         customers = Vector{Vertex}()
         release = Int[]
-        ready_time = Int[]
-        due_date = Int[]
+        readyTime = Int[]
+        dueDate = Int[]
         demands = Int[]
-        service_time = Int[]
+        serviceTime = Int[]
         x = Int[]
         y = Int[]
         idIdx = 0
@@ -31,9 +31,9 @@ function read_solomon(filename::String)
             push!(x, parse(Int, tokens[i+1]))
             push!(y, parse(Int, tokens[i+2]))
             push!(demands, parse(Int, tokens[i+3]))
-            push!(ready_time, parse(Int, tokens[i+4]))
-            push!(due_date, parse(Int, tokens[i+5]))
-            push!(service_time, parse(Int, tokens[i+6]))
+            push!(readyTime, parse(Int, tokens[i+4]))
+            push!(dueDate, parse(Int, tokens[i+5]))
+            push!(serviceTime, parse(Int, tokens[i+6]))
             push!(release, parse(Int, tokens[i+7]))
             i += 8
             idIdx += 1
@@ -50,7 +50,7 @@ function read_solomon(filename::String)
                 xj, yj = x[j], y[j]
                 d = floor(10*sqrt((xi-xj)^2 + (yi-yj)^2)) / 10
                 dist[i,j] = d
-                time[i,j] = d + service_time[i]
+                time[i,j] = d + serviceTime[i]
                 if id[j] == 0
                     dmat[i,j] = 0
                 else
@@ -58,7 +58,7 @@ function read_solomon(filename::String)
                 end
             end
         end
-        return x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready_time, due_date, release
+        return x, y, demands, vehicles, capacity, customers, dist, time, dmat, readyTime, dueDate, release
     end
 end
 
@@ -116,7 +116,7 @@ end
 
 function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instance = joinpath(@__DIR__, splitpath(instance)...)
-    x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release = read_solomon(instance)
+    x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release = readSolomon(instance)
     deleteat!(customers, 1)
 
     maxNbRoute = vehicles

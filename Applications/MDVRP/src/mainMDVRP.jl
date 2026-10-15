@@ -26,7 +26,7 @@ end
 function findDepot(data::DataMDVRP,r::Vector{Int64})
     depot = 0
     cost = 100000.0
-    for k in data.depot_ids
+    for k in data.depotIds
         aux = c(data,(k,r[1])) + c(data,(r[end],k))
         if aux < cost
             cost = aux
@@ -40,28 +40,28 @@ function realSol(data::DataMDVRP, sol::Solution)
     R = sol.routes
     Real_R = Vector{Vector{Int64}}()
     Q = data.Q
-    m = data.nb_depots
+    m = data.nbDepots
     n = data.n
     V⁺ = [i for i=1:n]
 
     cost = 0.0
     for r in R
-        real_r = Vector{Int64}()
+        realR = Vector{Int64}()
         for k in r.visits
             if k > 0
-                push!(real_r,k+m-1)
+                push!(realR,k+m-1)
             end
         end
-        isempty(real_r) && continue
-        depot = findDepot(data,real_r)
-        pushfirst!(real_r, depot)
-        push!(real_r, depot)
-        push!(Real_R,real_r)
-        cost_r = 0.0
-        for k=1:length(real_r)-1
-            cost_r += c(data,(real_r[k],real_r[k+1]))
+        isempty(realR) && continue
+        depot = findDepot(data,realR)
+        pushfirst!(realR, depot)
+        push!(realR, depot)
+        push!(Real_R,realR)
+        costR = 0.0
+        for k=1:length(realR)-1
+            costR += c(data,(realR[k],realR[k+1]))
         end
-        cost += cost_r
+        cost += costR
 
     end
     return RealSolution(Real_R,cost)
@@ -70,8 +70,8 @@ end
 
 function CostDepotMatrix(data::DataMDVRP)
     n = data.n
-    m = data.nb_depots
-    D = data.depot_ids
+    m = data.nbDepots
+    D = data.depotIds
     Cost = zeros(Float64,n,n)
     for i=1:n
         for j=1:n
@@ -88,7 +88,7 @@ end
 
 function CostCustomers(data::DataMDVRP)
     n = data.n
-    m = data.nb_depots
+    m = data.nbDepots
     Cost = zeros(Float64,n,n)
     for i=1:n
         for j=1:n

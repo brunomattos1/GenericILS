@@ -24,7 +24,7 @@ function add(bs::FastBitSet32, x::Int)
     nblocks = length(bs.data)
     @assert x <= nblocks*32 "Elemento x maior que o tamanho do FastBitSet32"
 
-    # Cria uma cópia do FastBitSet32 original
+    # copy of the original FastBitSet32
     newbs = FastBitSet32(copy(bs.data))
 
     # Calcula bloco e bit
@@ -32,7 +32,7 @@ function add(bs::FastBitSet32, x::Int)
     pos   = (x - 1) % 32
     mask  = UInt32(1) << pos
 
-    # Ativa o bit na cópia
+    # set the bit in the copy
     newbs.data[block] |= mask
 
     return newbs
@@ -42,8 +42,8 @@ function has(bs::FastBitSet32, x::Int)
     if x == 0
         return false
     end
-    block = (x - 1) ÷ 32 + 1       # índice do bloco (1-based)
-    pos   = (x - 1) % 32           # posição do bit dentro do bloco
+    block = (x - 1) ÷ 32 + 1       # block index (1-based)
+    pos   = (x - 1) % 32           # bit position inside the block
     @assert block <= length(bs.data) "Elemento x maior que o tamanho do FastBitSet32"
     mask = UInt32(1) << pos
     return (bs.data[block] & mask) != 0
@@ -67,7 +67,7 @@ function Base.intersect(a::FastBitSet32, b::FastBitSet32)
     return result
 end
 
-function has_intersection(a::FastBitSet32, b::FastBitSet32)
+function hasIntersection(a::FastBitSet32, b::FastBitSet32)
     @inbounds for i in eachindex(a.data)
         if (a.data[i] & b.data[i]) != 0
             return true
@@ -76,7 +76,7 @@ function has_intersection(a::FastBitSet32, b::FastBitSet32)
     return false
 end
 
-function has_intersection(a::BitSet, b::BitSet)
+function hasIntersection(a::BitSet, b::BitSet)
     if length(a ∩ b) > 0
         return true
     end
@@ -171,7 +171,7 @@ end
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     if (max(forwardLabel.state.RD, backwardLabel.state.RD) <= min(backwardLabel.state.U - forwardLabel.state.T, forwardLabel.state.U)) &&
         (forwardLabel.state.cap + backwardLabel.state.cap <= res.Q) &&
-        (!has_intersection(forwardLabel.state.inc, backwardLabel.state.inVeh)) && (!has_intersection(backwardLabel.state.inc, forwardLabel.state.inVeh))
+        (!hasIntersection(forwardLabel.state.inc, backwardLabel.state.inVeh)) && (!hasIntersection(backwardLabel.state.inc, forwardLabel.state.inVeh))
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), 0.0)
     else
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), Inf)
