@@ -1,6 +1,13 @@
+"""
+Supertype of penalty managers. A penalty manager keeps one penalty per lane (custom resource,
+standard resource 1 and 2) and adapts them with `updatePenalty`.
+"""
 abstract type PenaltyManager end
 
-# Implementacao antiga: ajuste incremental a cada iteracao (sem janela).
+"""
+Incremental adjustment at every update: a lane's penalty decreases when the solution is feasible in
+that lane and increases otherwise, within `[0.1, 10000]`.
+"""
 mutable struct StandardPenaltyManager <: PenaltyManager
     penaltyCustom::Float64
     penaltyCustomIncrease::Float64
@@ -12,6 +19,7 @@ mutable struct StandardPenaltyManager <: PenaltyManager
     penaltyStandard2Increase::Float64
     penaltyStandard2Decrease::Float64
 end
+"""Keyword constructor with the default penalties and adjustment rates."""
 function StandardPenaltyManager(;
     penaltyCustom = 100.0,
     penaltyCustomIncrease = 0.01,
@@ -29,6 +37,7 @@ function StandardPenaltyManager(;
     )
 end
 
+"""Update the three penalties after evaluating `sol`."""
 function updatePenalty(pm::StandardPenaltyManager, sol::Solution)
     if sol.totalInfeas == 0
         pm.penaltyCustom = max((1 - pm.penaltyCustomDecrease)*pm.penaltyCustom, 0.1)
@@ -48,6 +57,10 @@ function updatePenalty(pm::StandardPenaltyManager, sol::Solution)
     return nothing
 end
 
+"""
+Window-based adjustment: after `updatePeriod` solutions each penalty moves to keep the share of
+feasible solutions near `targetFeasRate` (± `feasRateTolerance`); the counters are then reset.
+"""
 mutable struct TargetRatePenaltyManager <: PenaltyManager
     penaltyCustom::Float64
     penaltyCustomIncrease::Float64
@@ -66,6 +79,7 @@ mutable struct TargetRatePenaltyManager <: PenaltyManager
     standard2FeasCount::Int
     windowCount::Int
 end
+"""Keyword constructor with the default penalties, rates and target feasibility rate."""
 function TargetRatePenaltyManager(;
     penaltyCustom = 100.0,
     penaltyCustomIncrease = 0.4,
@@ -88,6 +102,7 @@ function TargetRatePenaltyManager(;
     )
 end
 
+"""Count the feasibility of `sol` and, when the window is full, adjust the penalties and reset the window."""
 function updatePenalty(pm::TargetRatePenaltyManager, sol::Solution)
     pm.customFeasCount    += sol.totalInfeas    <= 1e-6 ? 1 : 0
     pm.standard1FeasCount += sol.totalWarpStd1  <= 1e-6 ? 1 : 0

@@ -1,7 +1,11 @@
+"""
+Inner loop of NILS: repeat RVND and a light perturbation, restarting the counter whenever the best
+inner solution improves, until `innerIterMax` iterations pass without improvement.
+"""
 function innerLoop!(solver::Solver, sol::Solution)
     algo = solver.algorithm
     it = 0
-    copy_solution!(algo.bestSol, sol)
+    copySolution!(algo.bestSol, sol)
     while it < algo.innerIterMax
         it += 1
         RVND!(solver, sol)
@@ -9,11 +13,11 @@ function innerLoop!(solver::Solver, sol::Solution)
             registerRoutePool!(solver, sol)
         end
         if acceptSol(solver, sol, algo.bestSol)
-            copy_solution!(algo.bestSol, sol)
+            copySolution!(algo.bestSol, sol)
             it = 0
         end
-        copy_solution!(sol, algo.bestSol)
+        copySolution!(sol, algo.bestSol)
         innerPerturb!(solver, sol)
     end
-    copy_solution!(algo.outerCandidateSol, algo.bestSol)
+    copySolution!(algo.outerCandidateSol, algo.bestSol)
 end

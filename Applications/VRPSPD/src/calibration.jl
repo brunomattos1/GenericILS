@@ -28,6 +28,7 @@ const SEEDS    = [1, 2, 3]
 
 const OUTPUT_FILE = joinpath(@__DIR__, "..", "calibration_results.csv")
 
+"""Run one calibration configuration (instance, `alpha`, `innerIterMax`, `seed`); returns cost and time."""
 function runInstance(data::DataVRPSPD, alpha::Float64, innerIterMax::Int, seed::Int)
     n = data.n
     Q = data.Q
@@ -90,6 +91,7 @@ function runInstance(data::DataVRPSPD, alpha::Float64, innerIterMax::Int, seed::
     return sol.cost, t
 end
 
+"""One calibration run: instance, Metropolis `alpha`, `innerIterMax` and seed."""
 struct Job
     instancePath::String
     instanceName::String
@@ -98,6 +100,7 @@ struct Job
     seed::Int
 end
 
+"""All combinations of instance, `alpha`, `innerIterMax` and seed."""
 function buildJobs()
     jobs = Vector{Job}()
     for instancePath in INSTANCES
@@ -109,6 +112,7 @@ function buildJobs()
     return jobs
 end
 
+"""Run every job and write the results to the output CSV."""
 function main()
     jobs = buildJobs()
     nJobs = length(jobs)

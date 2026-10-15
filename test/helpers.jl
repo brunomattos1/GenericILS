@@ -223,8 +223,8 @@ end
 
 "Build a fully consistent `Solution` (labels, bookkeeping, lastEval) from raw routes."
 function makeSolution(solver, routes::Vector{Vector{Int}})
-    sol = new_solution(solver)
-    sol.routes = [new_route(solver, copy(v)) for v in routes]
+    sol = newSolution(solver)
+    sol.routes = [newRoute(solver, copy(v)) for v in routes]
     sol.lastEval = zeros(Int, length(solver.neighborhoods), length(routes), length(routes))
     computeLabels(solver, sol)
     return refreshBookkeeping!(solver, sol)

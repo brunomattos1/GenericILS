@@ -1,4 +1,8 @@
 
+"""
+Compute forward and backward labels of every route of `sol` and set the feasibility markers
+(`feasibleF/B`, `lastFeasibleF/B`).
+"""
 function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, BL}) where {N, R <: AbstractResources, PM, FL, BL, AL}
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
@@ -51,6 +55,7 @@ function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, B
     end
 end
 
+"""Same as above, restricted to the routes whose indices are listed (used after a move)."""
 function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, BL}, routes::Int...) where {N, R <: AbstractResources, PM, FL, BL, AL}
     for r in routes
         rt = sol.routes[r]
@@ -105,6 +110,7 @@ function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, B
     end
 end
 
+"""Custom-resource cost of a visit sequence (forward label cost at the end of the route)."""
 function computeRouteLabelCost(solver::Solver, route::Vector{Int})
     label = myInitStateForward(solver.res.customResource)
     for i = 2:length(route)
@@ -113,6 +119,7 @@ function computeRouteLabelCost(solver::Solver, route::Vector{Int})
     return label.cost
 end
 
+"""Compute the labels of a `UserSolution` (no feasibility markers are kept)."""
 function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::UserSolution{FL, BL}) where {N, R <: AbstractResources, PM, FL, BL, AL}
     for r = 1:length(sol.routes)
         rt = sol.routes[r]

@@ -97,6 +97,29 @@ solver API, algorithms, cost resources, block moves). Line coverage of `src/` is
 measure it, run the tests with `coverage = true` and summarize the generated `.cov` files with
 [Coverage.jl](https://github.com/JuliaCI/Coverage.jl) (`using Coverage; process_folder("src")`).
 
+## Repository layout and conventions
+
+```
+src/                    the package
+  GenericILS.jl           module, exports
+  Solver.jl, Solution.jl  solver state, routes and solutions
+  LabelsFunctions.jl      labels and the built-in StandardResource
+  Labels.jl, Infeasibility.jl   label computation and move evaluation
+  Construct.jl, PenaltyManager.jl, utils.jl
+  neighborhoods/          TwoOptStar, IntraShift, InterShift, InterSwap
+  Algorithms/NILS, Algorithms/ILS   the two algorithms (each is a self-contained submodule)
+test/                   test suite (see "Running the tests")
+docs/                   tutorial and reference pages
+Applications/<Problem>/ example applications: main<Problem>.jl, resources<Problem>.jl, data/
+skills/                 guide for AI assistants (see below)
+```
+
+- **Naming:** `camelCase` for functions, variables and file names of scripts, `PascalCase` for types and
+  modules, a trailing `!` for functions that mutate their first arguments.
+- **Documentation:** every type and function of `src/` has a short docstring (`?name` in the REPL).
+- **Generated files** (logs, result tables, spreadsheets, `Manifest.toml`, editor settings) are not
+  versioned; see `.gitignore`.
+
 ## Documentation
 
 - **[Tutorial](docs/tutorial.md)** — start here. Solves a CVRP from scratch,

@@ -8,13 +8,13 @@ using CPLEX
 
 # function fastbitset_str(bs::FastBitSet32)
 #     elems = Int[]
-#     for (block_idx, block) in enumerate(bs.data)
+#     for (blockIdx, block) in enumerate(bs.data)
 #         if block == 0
 #             continue
 #         end
 #         for bit in 0:31
 #             if (block & (UInt32(1) << bit)) != 0
-#                 push!(elems, (block_idx - 1) * 32 + bit + 1)
+#                 push!(elems, (blockIdx - 1) * 32 + bit + 1)
 #             end
 #         end
 #     end
@@ -22,47 +22,48 @@ using CPLEX
 # end
 
 
-function read_solomon(path::String)
-    lines = readlines(path)  # lê todas as linhas
-    matrix_lines = [split(strip(linha)) for linha in lines]  # separa por espaço/tab
+"""Read a Solomon-format instance file and derive the data used by `main` (demands, time windows, distance and time matrices)."""
+function readSolomon(path::String)
+    lines = readlines(path)  # read all lines
+    matrixLines = [split(strip(linha)) for linha in lines]  # split on whitespace
 
-    # ignora cabeçalho
-    matrix_lines = matrix_lines[2:end]
-    if length(matrix_lines[end]) == 0
-        matrix_lines = matrix_lines[1:end-1]
+    # skip the header
+    matrixLines = matrixLines[2:end]
+    if length(matrixLines[end]) == 0
+        matrixLines = matrixLines[1:end-1]
     end
     name = basename(path)[1:end-4]
     n = parse(Int, split(name, "_")[1])
     vehicles = n
-    capacity = parse(Float64, matrix_lines[1][end-1])
-    Vcap = parse(Float64, matrix_lines[1][end])
+    capacity = parse(Float64, matrixLines[1][end-1])
+    Vcap = parse(Float64, matrixLines[1][end])
     customers = Vector{Vertex}()
     id = Int[]
     x = Float64[]
     y = Float64[]
     release = Float64[]
-    due_date = Float64[]
-    ready_time = Float64[]
-    service_time = Float64[]
+    dueDate = Float64[]
+    readyTime = Float64[]
+    serviceTime = Float64[]
     w = Float64[]
     vol = Float64[]
     inc = Vector{BitSet}()
     for i = 0:n
-        row = matrix_lines[i+1]
+        row = matrixLines[i+1]
         push!(id, parse(Int, row[1]))
         push!(x, parse(Float64, row[3]))
         push!(y, parse(Float64, row[4]))
         push!(release, parse(Float64, row[5]))
-        push!(ready_time, parse(Int, row[6]))
-        push!(due_date, parse(Int, row[7]))
-        push!(service_time, parse(Int, row[8]))
+        push!(readyTime, parse(Int, row[6]))
+        push!(dueDate, parse(Int, row[7]))
+        push!(serviceTime, parse(Int, row[8]))
         push!(w, parse(Int, row[9]))
         push!(vol, parse(Int, row[10]))
 
         inc_ = BitSet([])
         
         if i != 0 && length(row) > 10
-            for k in row[11:end]  # todos os itens conflitantes (antes do Peso_Total e Volume_Total)
+            for k in row[11:end]  # all conflicting items (before Peso_Total and Volume_Total)
                 if !isempty(k)
                     Base.union!(inc_, parse(Int, k))
                 end
@@ -76,24 +77,24 @@ function read_solomon(path::String)
     time  = zeros(Float64, n, n)
     ready = zeros(Int, n, n)
     due   = zeros(Int, n, n)
-    dmat  = zeros(Float64, n, n)  # matriz de demandas
+    dmat  = zeros(Float64, n, n)  # demand matrix
 
     for i in 1:n, j in 1:n
         if i != j
-            # distância
+            # distance
             xi, yi = x[i], y[i]
             xj, yj = x[j], y[j]
             d = sqrt((xi-xj)^2 + (yi-yj)^2)
             dist[i,j] = d
             
-            # tempo = serviço no i + viagem até j
-            time[i,j] = d + service_time[i]
+            # time = service at i + travel to j
+            time[i,j] = d + serviceTime[i]
             
-            # janelas de tempo em função do destino j
-            ready[i,j] = ready_time[j]
-            due[i,j]   = due_date[j]
+            # time windows depend on the destination j
+            ready[i,j] = readyTime[j]
+            due[i,j]   = dueDate[j]
             
-            # demanda associada ao destino j (0 se retorno ao depósito)
+            # demand of the destination j (0 when returning to the depot)
             if id[j] == 0
                 dmat[i,j] = 0
             else
@@ -101,20 +102,21 @@ function read_solomon(path::String)
             end
         end
     end
-    function make_symmetric!(inc::Vector{BitSet})
+    function makeSymmetric!(inc::Vector{BitSet})
         n = length(inc)
         for i in 1:n
-            cliente_i = i - 1  # cliente correspondente à posição i
+            customerI = i - 1  # customer at position i
             for j in copy(inc[i])
-                # j é o cliente, precisa ajustar para índice do vetor
-                push!(inc[j+1], cliente_i)
+                # j is a customer id: shift to a vector index
+                push!(inc[j+1], customerI)
             end
         end
     end
-    make_symmetric!(inc)
-    return x, y, w, vehicles, capacity, customers, dist, time, dmat, ready_time, due_date, release, inc
+    makeSymmetric!(inc)
+    return x, y, w, vehicles, capacity, customers, dist, time, dmat, readyTime, dueDate, release, inc
 end
 
+"""Print the routes with load and arrival times, and the cost of `sol`."""
 function printVRPTW(solver::Solver, sol::Solution)
     cont = 0
     dist = 0.0
@@ -147,6 +149,7 @@ function printVRPTW(solver::Solver, sol::Solution)
     # println("Violation: $(sol.resViolation)")
 end
 
+"""Independent check of `sol` against time windows and capacity (does not use the labels)."""
 function checkVRPTW(solver::Solver, sol::Solution)
     feasible = true
     for r = 1:length(sol.routes)
@@ -173,9 +176,10 @@ function checkVRPTW(solver::Solver, sol::Solution)
 end
 
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
     instance = joinpath(@__DIR__, splitpath(instance)...)
-    x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release, inc = read_solomon(instance)
+    x, y, demands, vehicles, capacity, customers, dist, time, dmat, ready, due, release, inc = readSolomon(instance)
     deleteat!(customers, 1)
 
     maxNbRoute = vehicles

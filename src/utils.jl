@@ -1,4 +1,9 @@
-﻿function move_blocks!(route1::Vector{Int}, i::Int, k1::Int,
+"""
+Exchange two blocks between routes: `k1` entries of `route1` starting at `i` go to `route2` at `j`, and
+`k2` entries of `route2` starting at `j` go to `route1` at `i` (`k1` or `k2` may be 0; sizes may differ).
+`buffer` is scratch space.
+"""
+function moveBlocks!(route1::Vector{Int}, i::Int, k1::Int,
                       route2::Vector{Int}, j::Int, k2::Int,
                       buffer::Vector{Int})
     n1 = length(route1)
@@ -35,35 +40,42 @@
     end
 end
 
-function move_blocks_intra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::Vector{Int})
+"""
+Move the block of `k` entries starting at `i` inside `route`. For `i > j` the block starts at `j`; for
+`i < j` it ends right before the old entry `j`. `buffer` is scratch space.
+"""
+function moveBlocksIntra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::Vector{Int})
     if i == j || k == 0
         return nothing
     end
     resize!(buffer, k)
     copyto!(buffer, 1, route, i, k)
     if i < j
-        shift_len = j - i - k
-        if shift_len > 0
-            copyto!(route, i, route, i + k, shift_len)
+        shiftLen = j - i - k
+        if shiftLen > 0
+            copyto!(route, i, route, i + k, shiftLen)
         end
         copyto!(route, j - k, buffer, 1, k)
     else
-        shift_len = i - j
-        if shift_len > 0
-            copyto!(route, j + k, route, j, shift_len)
+        shiftLen = i - j
+        if shiftLen > 0
+            copyto!(route, j + k, route, j, shiftLen)
         end
         copyto!(route, j, buffer, 1, k)
     end
     return nothing
 end
 
+"""Seconds spent so far by `algo`. Each algorithm defines its own method."""
 totalTime(algo::Algorithm) = error("totalTime not implemented for $(typeof(algo))")
 
+"""Print one line of progress information for the running algorithm."""
 printInfo(solver::Solver) = printInfo(solver.algorithm, solver)
 printInfo(algo::Algorithm, solver::Solver) = nothing  # default: no-op for algorithms that don't define progress reporting
 
 
 
+"""Total distance of a solution, recomputed from its visit sequences."""
 function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float64})
     cost = 0.
     for r = 1:length(sol.routes)
@@ -75,6 +87,10 @@ function manualCost(sol::Union{Solution, UserSolution}, costMatrix::Matrix{Float
     return cost
 end
 
+"""
+Part of the penalized cost that does not change when routes `r1` and `r2` are modified. Used to prune
+moves by distance alone.
+"""
 function pruningFixedPenalty(solver::Solver, sol::Solution, r1::Int, r2::Int)
     rt1 = sol.routes[r1]
     rt2 = sol.routes[r2]
@@ -85,6 +101,7 @@ function pruningFixedPenalty(solver::Solver, sol::Solution, r1::Int, r2::Int)
     return fixedPenalty
 end
 
+"""Same as above for a move that touches the single route `r`."""
 function pruningFixedPenalty(solver::Solver, sol::Solution, r::Int)
     rt = sol.routes[r]
     fixedPenalty = sol.cost - sol.dist
@@ -94,8 +111,10 @@ function pruningFixedPenalty(solver::Solver, sol::Solution, r::Int)
     return fixedPenalty
 end
 
+"""Pruning moves by distance is only valid when the custom resource adds no cost."""
 canPruneByDist(solver::Solver) = !isCostResource()
 
+"""Penalized objective of `sol`: distance (+ custom cost) plus the penalty of each lane times its violation."""
 function objectiveValue(solver::Solver, sol::Solution)
     objVal = sol.dist
     if isCostResource()
@@ -108,6 +127,10 @@ function objectiveValue(solver::Solver, sol::Solution)
     return objVal
 end
 
+"""
+Objective of `sol` if route `r` were replaced by one with the given distance, infeasibility, label cost
+and warps.
+"""
 function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, labelCost::Float64, warpStd1::Float64, warpStd2::Float64)
     rt = sol.routes[r]
     objVal = dist
@@ -121,6 +144,7 @@ function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, in
     return objVal
 end
 
+"""Objective of `sol` after a move that changes two routes, described by `costing`."""
 function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     rt1 = sol.routes[costing.route1]
     rt2 = sol.routes[costing.route2]
@@ -134,10 +158,10 @@ function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     return objVal
 end
 
-# -------- Formata apenas os campos internos do state --------
-function format_state(state)
+"""Format the fields of a state as `Name: (field: value, ...)`."""
+function formatState(state)
     T = typeof(state)
-    state_name = nameof(T)
+    stateName = nameof(T)
 
     parts = String[]
     for f in fieldnames(T)
@@ -145,63 +169,65 @@ function format_state(state)
         push!(parts, "$(f): $(value)")
     end
 
-    return "$state_name: ($(join(parts, ", ")))"
+    return "$stateName: ($(join(parts, ", ")))"
 end
 
-# -------- Formata o label completo --------
-function print_label(route_prefix, label)
+"""Print a label together with the partial route it summarizes."""
+function printLabel(routePrefix, label)
 
-    # 1) imprime rota parcial
+    # 1) print the partial route
     print("Partial label: ")
-    println(join(route_prefix, " -> "))
+    println(join(routePrefix, " -> "))
 
-    state_parts = String[]
-    other_parts = String[]
+    stateParts = String[]
+    otherParts = String[]
 
     for fname in fieldnames(typeof(label))
         value = getfield(label, fname)
 
         if isstructtype(typeof(value))
-            push!(state_parts, format_state(value))
+            push!(stateParts, formatState(value))
         else
-            push!(other_parts, "$(fname): $(value)")
+            push!(otherParts, "$(fname): $(value)")
         end
     end
-    # 2) imprime states abaixo da rota
-    line = "  States: $(join(state_parts, ", "))"
+    # 2) print the states below the route
+    line = "  States: $(join(stateParts, ", "))"
 
-    if !isempty(other_parts)
-        line *= ", $(join(other_parts, ", "))"
+    if !isempty(otherParts)
+        line *= ", $(join(otherParts, ", "))"
     end
 
     println(line)
     println()
 end
 
-function print_label(label)
-    state_parts = String[]
-    other_parts = String[]
+"""Print a label (states and remaining fields)."""
+function printLabel(label)
+    stateParts = String[]
+    otherParts = String[]
 
     for fname in fieldnames(typeof(label))
         value = getfield(label, fname)
 
         if isstructtype(typeof(value))
-            push!(state_parts, format_state(value))
+            push!(stateParts, formatState(value))
         else
-            push!(other_parts, "$(fname): $(value)")
+            push!(otherParts, "$(fname): $(value)")
         end
     end
 
-    all_parts = vcat(
-        ["States: $(join(state_parts, ", "))"],
-        other_parts
+    allParts = vcat(
+        ["States: $(join(stateParts, ", "))"],
+        otherParts
     )
 
-    println("  " * join(all_parts, ", "))
+    println("  " * join(allParts, ", "))
     println()
 end
 
 
+"""Print forward and backward labels of every route of `sol`."""
 function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
     computeLabels(solver, sol)
     println("#"^100)
@@ -216,9 +242,9 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
         println("-"^100)
 
         for i = 1:length(rt.visits)
-            route_prefix = rt.visits[1:i]
+            routePrefix = rt.visits[1:i]
             label = rt.forwardLabels[i]
-            print_label(route_prefix, label)
+            printLabel(routePrefix, label)
         end
     end
     println("#"^100)
@@ -233,13 +259,14 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
         n = length(rt.visits)
         for i = 1:n
             start = n - i + 1
-            route_prefix = rt.visits[start:n]
+            routePrefix = rt.visits[start:n]
             label = rt.backwardLabels[i]
-            print_label(route_prefix, label)
+            printLabel(routePrefix, label)
         end
     end
 end
 
+"""Print the concatenation of the forward and backward labels at every position of every route."""
 function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
@@ -257,11 +284,15 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
                 rt.backwardLabels[lenR - i + 1]
             )
             println("Concatenating $(join(prefix, " -> ")) with $(join(suffix, " -> "))")
-            print_label(concat)
+            printLabel(concat)
         end
     end
 end
 
+"""
+Build a `UserSolution` from raw routes (vectors starting and ending at depot `0`), computing labels, distance
+and cost unless `dist`/`cost` are given.
+"""
 function createSolution(
     solver::Solver{N, R, PM, FL, BL, AL},
     routes::Vector{Vector{Int}};

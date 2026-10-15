@@ -1,3 +1,7 @@
+"""
+Light perturbation of the inner loop: with probability 1/2 apply `innerShift` random shifts, otherwise
+`innerSwap` random swaps.
+"""
 function innerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 0.5
@@ -11,6 +15,10 @@ function innerPerturb!(solver::Solver, solution::Solution)
     end
 end
 
+"""
+Perturbation of the outer loop: with probability 1/2 apply `outerShift` random shifts, otherwise
+`outerSwap` random swaps.
+"""
 function outerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 0.5
@@ -24,6 +32,7 @@ function outerPerturb!(solver::Solver, solution::Solution)
     end
 end
 
+"""Move one random customer to a random position of another route. Returns `false` if no valid pair is found."""
 function randomInterShift10!(solver::Solver, solution::Solution)
     routes = solution.routes
     r1 = rand(solver.seed, 1:length(routes))
@@ -51,6 +60,7 @@ function randomInterShift10!(solver::Solver, solution::Solution)
     return true
 end
 
+"""Swap one random customer of a route with one of another route. Returns `false` if no valid pair is found."""
 function randomInterSwap11!(solver::Solver, solution::Solution)
     routes = solution.routes
     r1 = rand(solver.seed, 1:length(routes))

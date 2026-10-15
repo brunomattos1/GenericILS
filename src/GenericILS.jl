@@ -1,3 +1,10 @@
+"""
+GenericILS: Iterated Local Search for vehicle routing and other resource-constrained routing problems.
+
+The user defines a custom resource (`extendAlongArc`, `concatenationCost`, ...); the package provides
+labels, local-search neighborhoods, greedy construction, penalty management, a Set Partitioning step and
+pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). See the README and `docs/` for a tutorial.
+"""
 module GenericILS
 
 using Random, JuMP, HiGHS, Printf
@@ -46,7 +53,7 @@ export
     Solution, UserSolution, Route,
     getCurrSol, getBestSol, getBestRoutes, getRoutes, getCost, getDistance, getCostMatrix,
     createSolution, computeLabels,
-    new_solution, new_route, copy_solution!, updateBestFeasSol!,
+    newSolution, newRoute, copySolution!, updateBestFeasSol!,
 
     # reusable building blocks for custom algorithms (construction, local search)
     constructSol!, search!,

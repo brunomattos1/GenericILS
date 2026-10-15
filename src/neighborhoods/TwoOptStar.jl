@@ -1,11 +1,14 @@
+"""2-opt* neighborhood: exchange the tails of two routes."""
 struct TwoOptStar end
 
+"""Distance after exchanging the tails of `route1` (after `i`) and `route2` (after `j`)."""
 function twoOptStarCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int)
     newCost = currCost - costMatrix[route1[i]+1, route1[i+1]+1] - costMatrix[route2[j]+1, route2[j+1]+1]
     newCost += costMatrix[route1[i]+1, route2[j+1]+1] + costMatrix[route2[j]+1, route1[i+1]+1]
     return newCost
 end
 
+"""Predicted violations of the two routes created by the exchange."""
 function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int)
     infeasR1, labelCostR1, warpR1Std1, warpR1Std2 = infeasArcs2optStar(solver, sol, r1, r2, i, j)
     infeasR2, labelCostR2, warpR2Std1, warpR2Std2 = infeasArcs2optStar(solver, sol, r2, r1, j, i)
@@ -13,6 +16,7 @@ function computeViolTwoOptStar(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     return violInfo, warpR1Std1, warpR2Std1, warpR1Std2, warpR2Std2
 end
 
+"""Predicted penalized objective of a 2-opt* move."""
 function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Float64)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
@@ -21,15 +25,19 @@ function evalTwoOptStar!(solver::Solver, sol::Solution, move::OptStar, dist::Flo
     return cost
 end
 
+"""
+Evaluate every 2-opt* move between pairs of routes and apply, per route, the best one if it improves
+the solution. Returns `true` when `sol` improved.
+"""
 function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     improved = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)
     routesIdx = solver.buffer
-    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
+    neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
@@ -59,15 +67,16 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 improved = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
     return improved
 end
 
+"""Exchange the tails and refresh labels and bookkeeping of the two routes."""
 function apply!(neigh::TwoOptStar, solver::Solver, solution::Solution, move::BestMove)
     r1, r2 = move.firstRoute, move.secondRoute
     i,  j  = move.firstIdx,   move.secondIdx
@@ -82,18 +91,18 @@ function apply!(neigh::TwoOptStar, solver::Solver, solution::Solution, move::Bes
 
     v1 = rt1.visits
     v2 = rt2.visits
-    seg1_len = length(v1) - i
-    seg2_len = length(v2) - j
+    seg1Len = length(v1) - i
+    seg2Len = length(v2) - j
 
     buffer = solver.buffer2opt
-    resize!(buffer, seg1_len)
-    copyto!(buffer, 1, v1, i+1, seg1_len)
+    resize!(buffer, seg1Len)
+    copyto!(buffer, 1, v1, i+1, seg1Len)
 
-    resize!(v1, i + seg2_len)
-    copyto!(v1, i+1, v2, j+1, seg2_len)
+    resize!(v1, i + seg2Len)
+    copyto!(v1, i+1, v2, j+1, seg2Len)
 
-    resize!(v2, j + seg1_len)
-    copyto!(v2, j+1, buffer, 1, seg1_len)
+    resize!(v2, j + seg1Len)
+    copyto!(v2, j+1, buffer, 1, seg1Len)
 
     computeLabels(solver, solution, r1, r2)
 

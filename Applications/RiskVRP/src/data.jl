@@ -1,32 +1,36 @@
 import Unicode
 
-mutable struct VertexRisk
-    id_vertex::Int
-    pos_x::Float64
-    pos_y::Float64
+"""A vertex (depot or customer) read from the instance file."""
+mutable struct InputVertex
+    idVertex::Int
+    posX::Float64
+    posY::Float64
     demand::Float64
 end
 
+"""Vertices of the instance."""
 mutable struct InputGraph
-    V′::Array{VertexRisk}
+    V′::Array{InputVertex}
     E::Array{Tuple{Int64,Int64}}
     D::Array{Int64}
     cost::Dict{Tuple{Int64,Int64},Float64}
 end
 
+"""Instance data of the risk-constrained VRP."""
 mutable struct DataRiskVRP
     G′::InputGraph
     T::Int64       # risk threshold
     n::Int64       # number of customers
-    depot_id::Int
+    depotId::Int
     coord::Bool
     name::String
 end
 
-getCustomers(data::DataRiskVRP) = [i.id_vertex for i in data.G′.V′[2:end]]
+getCustomers(data::DataRiskVRP) = [i.idVertex for i in data.G′.V′[2:end]]
 
 contains(p, s) = findnext(s, p, 1) != nothing
 
+"""Distance of `arc`."""
 function arcDistance(data::DataRiskVRP, arc::Tuple{Int64,Int64})
     e = (arc[1] < arc[2]) ? arc : (arc[2], arc[1])
     if haskey(data.G′.cost, e)
@@ -34,16 +38,17 @@ function arcDistance(data::DataRiskVRP, arc::Tuple{Int64,Int64})
     elseif data.coord
         u, v = arc
         verts = data.G′.V′
-        x_sq = (verts[v+1].pos_x - verts[u+1].pos_x)^2
-        y_sq = (verts[v+1].pos_y - verts[u+1].pos_y)^2
-        return sqrt(x_sq + y_sq)
+        xSq = (verts[v+1].posX - verts[u+1].posX)^2
+        ySq = (verts[v+1].posY - verts[u+1].posY)^2
+        return sqrt(xSq + ySq)
     else
         return 0.0
     end
 end
 
+"""Read an instance file into a `DataRiskVRP`."""
 function readData(instance::String)
-    demands_sum = 0
+    demandsSum = 0
     str  = Unicode.normalize(read(instance, String); stripcc=true)
     aux  = split(str, [' ', ':', '\n']; limit=0, keepempty=false)
 
@@ -57,7 +62,7 @@ function readData(instance::String)
         elseif contains(aux[i], "EDGE_WEIGHT_SECTION")
             if !data.coord
                 for j = 1:dim
-                    v = VertexRisk(j-1, 0, 0, 0)
+                    v = InputVertex(j-1, 0, 0, 0)
                     push!(G′.V′, v)
                 end
             end
@@ -67,7 +72,7 @@ function readData(instance::String)
             data.coord = true
             j = i + 1
             while aux[j] != "DEMAND_SECTION"
-                v = VertexRisk(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0)
+                v = InputVertex(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0)
                 push!(G′.V′, v)
                 j += 3
             end
@@ -78,7 +83,7 @@ function readData(instance::String)
                 G′.V′[pos].demand = parse(Float64, aux[j+1])
                 j += 2
             end
-            data.depot_id = 0
+            data.depotId = 0
             break
         end
     end
@@ -92,7 +97,7 @@ function readData(instance::String)
     # data.T   = data.T / g
     # for i = 1:dim
     #     G′.V′[i].demand = G′.V′[i].demand / g
-    #     demands_sum    += G′.V′[i].demand
+    #     demandsSum    += G′.V′[i].demand
     # end
 
     if data.coord
@@ -104,7 +109,7 @@ function readData(instance::String)
                 push!(G′.E, (i, j))
                 G′.cost[(i,j)] = arcDistance(data, (i,j))
             end
-            for ep in [(data.depot_id, i), (i, data.depot_id)]
+            for ep in [(data.depotId, i), (i, data.depotId)]
                 push!(G′.E, ep)
                 G′.cost[ep] = arcDistance(data, ep)
             end
@@ -125,13 +130,14 @@ function readData(instance::String)
         end
     end
 
-    for i = 0:demands_sum
+    for i = 0:demandsSum
         push!(G′.D, i)
     end
     data.n = length(G′.V′) - 1
     return data
 end
 
+"""Distance matrix (index = vertex id + 1)."""
 function buildDistMatrix(data::DataRiskVRP)
     n = length(data.G′.V′)
     D = zeros(Float64, n, n)
@@ -143,6 +149,7 @@ function buildDistMatrix(data::DataRiskVRP)
     return D
 end
 
+"""Matrix with the demand of the tail vertex of each arc."""
 function createDtDemands(data::DataRiskVRP)
     n = length(data.G′.V′)
     d = zeros(Float64, n, n)

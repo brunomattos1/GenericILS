@@ -1,5 +1,7 @@
+"""Neighborhood that swaps a block of `k1` customers of one route with a block of `k2` of another."""
 struct InterSwap{k1,k2} end
 
+"""Distance after swapping `k1` customers starting at `i` of `route1` with `k2` starting at `j` of `route2`."""
 function interSwapCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::Vector{Int}, route2::Vector{Int}, i::Int, j::Int, k1::Int, k2::Int)
     newCost = currCost
     newCost -= costMatrix[route1[i-1]+1,    route1[i]+1]
@@ -13,6 +15,7 @@ function interSwapCost(currCost::Float64, costMatrix::Matrix{Float64}, route1::V
     return newCost
 end
 
+"""Predicted violations of both routes after swapping the two blocks."""
 function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, i::Int, j::Int, k1::Int, k2::Int)
     buf1 = solver.bufferRoute
     buf2 = solver.buffer2opt
@@ -26,11 +29,15 @@ function computeViolInterSwapK(solver::Solver, sol::Solution, r1::Int, r2::Int, 
     return violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2
 end
 
+"""
+Evaluate every swap of a `k1`-block with a `k2`-block between routes and apply, per route, the best one
+if it improves the solution. Returns `true` when `sol` improved.
+"""
 function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {k1,k2}
     flag = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(typeof(solver), InterSwap{k1,k2})
+    neighborhoodId = neighIndex(typeof(solver), InterSwap{k1,k2})
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)
@@ -75,15 +82,16 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 flag = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
     return flag
 end
 
+"""Swap the blocks and refresh labels and bookkeeping of the two routes."""
 function apply!(::InterSwap{k1,k2}, solver::Solver, sol::Solution, bestMove::BestMove) where {k1,k2}
     r1, r2 = bestMove.firstRoute, bestMove.secondRoute
     i,  j  = bestMove.firstIdx,   bestMove.secondIdx
@@ -96,7 +104,7 @@ function apply!(::InterSwap{k1,k2}, solver::Solver, sol::Solution, bestMove::Bes
     sol.totalWarpStd2   -= rt1.warpStd2 + rt2.warpStd2
     sol.totalLabelCost  -= rt1.labelCost + rt2.labelCost
 
-    move_blocks!(rt1.visits, i, k1, rt2.visits, j, k2, solver.bufferRoute)
+    moveBlocks!(rt1.visits, i, k1, rt2.visits, j, k2, solver.bufferRoute)
 
     computeLabels(solver, sol, r1, r2)
 

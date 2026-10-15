@@ -1,8 +1,10 @@
+"""Neighborhood that moves one customer to another position of its own route."""
 struct IntraShift end
 
-# Move customer `route[i]` inside its route:
-#   * i < j: it goes right AFTER `route[j]` (j == i+1 is a swap of two adjacent customers);
-#   * i > j: it goes right BEFORE `route[j]`.
+"""
+Distance after moving customer `route[i]` inside its route: right after `route[j]` when `i < j`
+(`j == i+1` is a swap of adjacent customers) and right before `route[j]` when `i > j`.
+"""
 function intraShift10Cost(currCost::Float64, costMatrix::Matrix{Float64}, route::Vector{Int}, i::Int, j::Int)
     if i < j
         newCost = currCost - costMatrix[route[i-1]+1, route[i]+1] - costMatrix[route[i]+1, route[i+1]+1] - costMatrix[route[j]+1, route[j+1]+1]
@@ -14,9 +16,11 @@ function intraShift10Cost(currCost::Float64, costMatrix::Matrix{Float64}, route:
     return newCost
 end
 
-# The labels of the route WITHOUT customer i are built incrementally while j sweeps the route
-# (`solver.prevLabelF` going forward, `solver.prevLabelB` going backward). This must be called for
-# every j, including those pruned by distance, or the chain would be left behind.
+"""
+Advance the incremental labels of the route WITHOUT customer `i` (`prevLabelF` going forward,
+`prevLabelB` going backward) to the position of move `(i, j)`. It must be called for every `j`,
+including moves pruned by distance, or the chain would be left behind.
+"""
 function advanceIntraShift10!(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
     rt = sol.routes[r]
     if i < j
@@ -35,7 +39,10 @@ function advanceIntraShift10!(solver::Solver, sol::Solution, r::Int, i::Int, j::
     return nothing
 end
 
-# Requires `advanceIntraShift10!(solver, sol, r, i, j)` to have been called for this (i, j).
+"""
+Predicted violations of route `r` after the move `(i, j)`. Requires `advanceIntraShift10!` to have been
+called for the same `(i, j)`.
+"""
 function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, j::Int)
     rt = sol.routes[r]
     if i < j
@@ -58,6 +65,7 @@ function computeViolIntraShift10(solver::Solver, sol::Solution, r::Int, i::Int, 
     end
 end
 
+"""Predicted penalized objective of an intra-route shift, plus its resource violation flag."""
 function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift, dist::Float64)
     r = shift.routeFrom
     i = shift.fromIdx
@@ -67,11 +75,15 @@ function evalIntraShift10(solver::Solver, sol::Solution, shift::Shift, dist::Flo
     return cost, resViol
 end
 
+"""
+Evaluate every one-customer shift inside each route and apply the best one per route if it improves
+the solution. Returns `true` when `sol` improved.
+"""
 function search!(neigh::IntraShift, solver::Solver, sol::Solution)
     improved = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
+    neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
         if sol.lastEval[neighborhoodId, r, r] > rt.lastModif
@@ -117,15 +129,16 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 improved = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
     return improved
 end
 
+"""Move the customer and refresh labels and bookkeeping of the route."""
 function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove)
     r  = move.firstRoute
     i, j = move.firstIdx, move.secondIdx
@@ -139,9 +152,9 @@ function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove
 
     route = rt.visits
     if i < j
-        move_blocks_intra!(route, i, 1, j + 1, solver.bufferRoute)   # lands right after the old route[j]
+        moveBlocksIntra!(route, i, 1, j + 1, solver.bufferRoute)   # lands right after the old route[j]
     else
-        move_blocks_intra!(route, i, 1, j, solver.bufferRoute)       # lands right before the old route[j]
+        moveBlocksIntra!(route, i, 1, j, solver.bufferRoute)       # lands right before the old route[j]
     end
 
     computeLabels(solver, solution, r)

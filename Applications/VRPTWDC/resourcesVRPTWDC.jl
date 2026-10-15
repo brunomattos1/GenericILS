@@ -3,6 +3,7 @@ using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
     extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
+"""Time windows (`l`, `u`), capacity `Q` and a route duration limit `D`."""
 struct CustomResource <: AbstractResource
     d::Matrix{Float64}  # demand matrix
     t::Matrix{Float64}  # time matrix
@@ -16,6 +17,7 @@ GenericILS.isSymmetric() = false
 
 GenericILS.isCostResource() = false
 
+"""Load `q` and the time quantities (`ET`, `RD`, `TB`) used to check windows and duration for the prefix."""
 struct ForwardState
     q::Float64
     ET::Float64
@@ -23,6 +25,7 @@ struct ForwardState
     TB::Float64
 end
 
+"""Load `q` and the time quantities (`ET`, `RD`, `TB`) for the suffix."""
 struct BackwardState
     q::Float64
     ET::Float64
@@ -30,14 +33,17 @@ struct BackwardState
     TB::Float64
 end
 
+"""Forward state of the empty prefix."""
 function initStateForward(res::CustomResource)
     return (ForwardState(0.0, 0.0, 0.0, res.u[1]), 0.0)
 end
 
+"""Backward state of the empty suffix."""
 function initStateBackward(res::CustomResource)
     return (BackwardState(0.0, res.u[1], 0.0, res.u[1]), 0.0)
 end
 
+"""Forward extension along `a = (i, j)` (matrix indices): appends `j`. The returned cost is `0.0`, or `Inf` when a rule is violated."""
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
     TB = label.state.TB
     RD = label.state.RD
@@ -61,6 +67,7 @@ function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, 
     end
 end
 
+"""Backward extension along `a = (next, cur)`: prepends `cur` to the suffix that starts at `next`. The returned cost is `0.0`, or `Inf` when a rule is violated."""
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
     TB = label.state.TB
     RD = label.state.RD
@@ -84,6 +91,7 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     end
 end
 
+"""Join the forward and the backward label at the same vertex: cost/feasibility of the whole route."""
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     W = max(0, (backwardLabel.state.ET - backwardLabel.state.TB) - (forwardLabel.state.ET + forwardLabel.state.TB))
     if forwardLabel.cost == Inf || backwardLabel.cost == Inf

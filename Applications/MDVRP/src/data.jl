@@ -1,48 +1,54 @@
 import Unicode
 
-mutable struct Vertex_
-    id_vertex::Int
-    pos_x::Float64
-    pos_y::Float64
+"""A vertex (depot or customer) read from the instance file."""
+mutable struct InputVertex
+    idVertex::Int
+    posX::Float64
+    posY::Float64
     demand::Float64
     st::Float64
     a::Float64
     b::Float64
 end
 
+"""Vertices and arc costs of the instance."""
 mutable struct InputGraph
-    V′::Array{Vertex_}
+    V′::Array{InputVertex}
     A::Array{Tuple{Int64,Int64}}
     cost::Dict{Tuple{Int64,Int64},Float64}
 end
 
+"""Instance data of the MDVRP."""
 mutable struct DataMDVRP
     G′::InputGraph
     Q::Float64
     n::Int
-    nb_depots::Int
-    depot_ids::Array{Int,1}
+    nbDepots::Int
+    depotIds::Array{Int,1}
     round::Bool
     tw::Bool
     name::String
 end
 
-function c(data::DataMDVRP, a::Tuple{Int64,Int64})
+"""Cost of arc `a` (a large value for arcs that are not in the graph)."""
+function arcCost(data::DataMDVRP, a::Tuple{Int64,Int64})
     if !(haskey(data.G′.cost, a))
         return 100000.0
     end
     return data.G′.cost[a]
 end
 
+"""Euclidean distance of `arc`, rounded to the nearest integer when `data.round` is set."""
 function arcDistance(data::DataMDVRP, arc::Tuple{Int64,Int64})
     u, v = arc
-    x_sq = (data.G′.V′[v+1].pos_x - data.G′.V′[u+1].pos_x)^2
-    y_sq = (data.G′.V′[v+1].pos_y - data.G′.V′[u+1].pos_y)^2
-    return data.round ? floor(sqrt(x_sq + y_sq) + 0.5) : sqrt(x_sq + y_sq)
+    xSq = (data.G′.V′[v+1].posX - data.G′.V′[u+1].posX)^2
+    ySq = (data.G′.V′[v+1].posY - data.G′.V′[u+1].posY)^2
+    return data.round ? floor(sqrt(xSq + ySq) + 0.5) : sqrt(xSq + ySq)
 end
 
 contains(p, s) = findnext(s, p, 1) !== nothing
 
+"""Read an instance file into a `DataMDVRP`."""
 function readData(instance::String; round::Bool = false)
     str = Unicode.normalize(read(instance, String); stripcc=true)
     aux = split(str, [' ', ':', '\n']; limit=0, keepempty=false)
@@ -63,7 +69,7 @@ function readData(instance::String; round::Bool = false)
         elseif contains(aux[i], "NODE_COORD_SECTION")
             j = i + 1
             while aux[j] != "DEMAND_SECTION"
-                v = Vertex_(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0, 0, 0, 0)
+                v = InputVertex(parse(Int, aux[j])-1, parse(Float64, aux[j+1]), parse(Float64, aux[j+2]), 0, 0, 0, 0)
                 push!(G′.V′, v)
                 j += 3
             end
@@ -92,26 +98,26 @@ function readData(instance::String; round::Bool = false)
         elseif contains(aux[i], "DEPOT_SECTION")
             j = i + 1
             while aux[j] != "EOF" && aux[j] != "-1"
-                depot_id = parse(Int, aux[j]) - 1
-                push!(data.depot_ids, depot_id)
-                data.nb_depots += 1
+                depotId = parse(Int, aux[j]) - 1
+                push!(data.depotIds, depotId)
+                data.nbDepots += 1
                 j += 1
             end
         end
     end
 
     for v1 in G′.V′, v2 in G′.V′
-        i, j = v1.id_vertex, v2.id_vertex
-        (i in data.depot_ids && j in data.depot_ids) && continue
+        i, j = v1.idVertex, v2.idVertex
+        (i in data.depotIds && j in data.depotIds) && continue
         if i != j
             push!(G′.A, (i, j))
             G′.cost[(i, j)] = arcDistance(data, (i, j))
         end
     end
 
-    data.n = length(G′.V′) - data.nb_depots
+    data.n = length(G′.V′) - data.nbDepots
     for i = 1:data.n
-        G′.cost[(i + data.nb_depots - 1, i + data.nb_depots - 1)] = 0.0
+        G′.cost[(i + data.nbDepots - 1, i + data.nbDepots - 1)] = 0.0
     end
 
     return data
@@ -121,7 +127,7 @@ end
 # d[i,j] = demand of customer j-1 for all arcs arriving at customer j.
 function buildDemandMatrix(data::DataMDVRP)
     n  = data.n
-    m  = data.nb_depots
+    m  = data.nbDepots
     d_ = zeros(Float64, n+1, n+1)
     for i = 1:n+1, j = 2:n+1
         i == j && continue
@@ -134,12 +140,12 @@ end
 # Depot↔customer costs use the minimum over all physical depots.
 function buildDistMatrix(data::DataMDVRP)
     n   = data.n
-    m   = data.nb_depots
+    m   = data.nbDepots
     D   = zeros(Float64, n+1, n+1)
     for j = 2:n+1
         vjId   = j + m - 2   # 0-indexed vertex id of customer j-1
-        D[1,j] = minimum(data.G′.cost[(dk, vjId)] for dk in data.depot_ids)
-        D[j,1] = minimum(data.G′.cost[(vjId, dk)] for dk in data.depot_ids)
+        D[1,j] = minimum(data.G′.cost[(dk, vjId)] for dk in data.depotIds)
+        D[j,1] = minimum(data.G′.cost[(vjId, dk)] for dk in data.depotIds)
     end
     for i = 2:n+1, j = 2:n+1
         i == j && continue

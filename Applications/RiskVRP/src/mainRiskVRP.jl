@@ -7,6 +7,7 @@ using CPLEX
 
 const TIME_FACTOR = 10.0
 
+"""Read the reference run times of the literature from a CSV table (instance name -> time)."""
 function loadLiteratureTimes(path::String)
     times = Dict{String, Float64}()
     open(path) do io
@@ -26,6 +27,7 @@ end
 
 const LITERATURE_TIMES = loadLiteratureTimes(joinpath(@__DIR__, "..", "..", "..", "literature", "RiskVRP_literature.csv"))
 
+"""Print the routes and the cost of `sol`."""
 function printSol(sol::Solution)
     for r = 1:length(sol.routes)
         print("route $r: ")
@@ -37,6 +39,7 @@ function printSol(sol::Solution)
     println("Cost: $(round(sol.cost, digits=2))")
 end
 
+"""Solve one instance with NILS (build resources, solver and algorithm, run, report the result)."""
 function main(data::DataRiskVRP, outerIterMax::Int, innerIterMax::Int, seed::Int)
     n    = data.n
     Rmax = data.T

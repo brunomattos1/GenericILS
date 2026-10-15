@@ -1,8 +1,12 @@
+"""Supertype of local-search moves."""
 abstract type Move end
+"""Supertype of search algorithms. A new algorithm implements `run!(algo, solver)`."""
 abstract type Algorithm end
 
+"""Fallback: algorithms must define their own `run!`."""
 run!(algo::Algorithm, solver) = error("run! not implemented for $(typeof(algo))")
 
+"""Best customer insertion found by the greedy construction (with its predicted violations)."""
 struct BestInsertion
     cost::Float64
     dist::Float64
@@ -15,6 +19,7 @@ struct BestInsertion
 end
 BestInsertion() = BestInsertion(Inf, Inf, 0, 0, 0, typemax(Int), Inf, Inf)
 
+"""Best move found by a neighborhood: objective `cost`, distance, the two routes and the two positions."""
 struct BestMove
     cost::Float64
     dist::Float64
@@ -32,6 +37,7 @@ BestMove(;
     secondIdx::Int = 0
 ) = BestMove(cost, dist, firstRoute, secondRoute, firstIdx, secondIdx)
 
+"""Move a customer from `fromIdx` of `routeFrom` to `toIdx` of `routeTo`."""
 struct Shift <: Move
     routeFrom::Int
     routeTo::Int
@@ -39,6 +45,7 @@ struct Shift <: Move
     toIdx::Int
 end
 
+"""2-opt* move: swap the tails of two routes after positions `firstIdx` and `secondIdx`."""
 struct OptStar <: Move
     firstRoute::Int
     secondRoute::Int
@@ -46,6 +53,7 @@ struct OptStar <: Move
     secondIdx::Int
 end
 
+"""Predicted infeasibility and label cost of the two routes touched by a move."""
 struct ViolationInfo
     firstRouteInfeas::Int
     secondRouteInfeas::Int
@@ -53,6 +61,7 @@ struct ViolationInfo
     secondRouteLabelCost::Float64
 end
 
+"""Predicted effect of a move on two routes (distance, violations, std1/std2 warps)."""
 struct Cost
     dist::Float64
     route1::Int
@@ -62,6 +71,7 @@ struct Cost
     warpStd2::Tuple{Float64, Float64}
 end
 
+"""A customer identified by `id` (the depot, id `0`, is not part of `ProblemData.vertices`)."""
 mutable struct Vertex
     id::Int
 end
@@ -69,13 +79,16 @@ end
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
 Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
 
+"""Problem data: customers, distance cost matrix (index = id + 1) and maximum number of routes."""
 struct ProblemData
     vertices::Vector{Vertex}
     costMatrix::Matrix{Float64}
     maxNbRoutes::Int
 end
+"""Empty `ProblemData`, a placeholder until `setData!` is called."""
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)
 
+"""Run statistics: best feasible cost (before/after Set Partitioning), when and where it was found."""
 mutable struct Statistics
     bestFeasCost::Float64
     bestFeasCostBefSP::Float64
@@ -88,6 +101,10 @@ end
 
 Statistics() = Statistics(Inf, Inf, NaN, NaN, 0, 0, NaN)
 
+"""
+Holds the problem, the resources, the algorithm and every buffer reused by the local search.
+Build it with the keyword constructor `Solver(; res, data, neighborhoods, algorithm, ...)`.
+"""
 mutable struct Solver{N, R <: AbstractResources, PM <: PenaltyManager, FL, BL, AL <: Algorithm}
     seed::Random.MersenneTwister
     algorithm::AL
@@ -96,7 +113,7 @@ mutable struct Solver{N, R <: AbstractResources, PM <: PenaltyManager, FL, BL, A
     bestFeasSol::Solution{FL, BL}
     currSol::Solution{FL, BL}
     neighborhoods::N
-    active_neighs::Vector{Int}
+    activeNeighs::Vector{Int}
     res::R
 
     forwardLabels::Vector{Vector{FL}}
@@ -112,6 +129,10 @@ mutable struct Solver{N, R <: AbstractResources, PM <: PenaltyManager, FL, BL, A
     statistics::Statistics
 end
 
+"""
+Build a solver. `res`, `neighborhoods` and `algorithm` fix its type parameters; seed, penalty manager,
+data and MIP solver can be changed later with the setters.
+"""
 function Solver(;
     seed = 1,
     algorithm::Algorithm,
@@ -122,7 +143,7 @@ function Solver(;
     ),
     data = ProblemData(),
     neighborhoods = (),
-    active_neighs = Int[],
+    activeNeighs = Int[],
     res,
     timeStamp = 0,
     MIPSolver = HiGHS.Optimizer)
@@ -140,7 +161,7 @@ function Solver(;
     Solver(
         Random.MersenneTwister(seed), algorithm, penaltyManager, data,
         bestFeasSol, Solution{FL, BL}(),
-        neighborhoods, active_neighs, res,
+        neighborhoods, activeNeighs, res,
         Vector{Vector{FL}}(), Vector{Vector{BL}}(),
         prevLabelF, prevLabelB,
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
@@ -150,12 +171,13 @@ function Solver(;
     )
 end
 
-new_solution(::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = Solution{FL, BL}()
+newSolution(::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = Solution{FL, BL}()
 
-new_route(::Solver{N, R, PM, FL, BL, AL}, visits::Vector{Int}) where {N, R, PM, FL, BL, AL} = Route{FL, BL}(visits)
+newRoute(::Solver{N, R, PM, FL, BL, AL}, visits::Vector{Int}) where {N, R, PM, FL, BL, AL} = Route{FL, BL}(visits)
 
 getCurrSol(solver::Solver) = solver.currSol
 
+"""Print the routes and cost of the best feasible solution found and return it."""
 function getBestSol(solver::Solver)
     sol = solver.bestFeasSol
     r = 0
@@ -207,18 +229,20 @@ getDistance(sol::Union{Solution, UserSolution}) = sol.dist
 
 getCostMatrix(solver::Solver) = solver.data.costMatrix
 
-# Generic result reporting: any algorithm can call this to publish its best
-# feasible solution, independently of algorithm-specific bookkeeping (iter,
-# temperature, statistics, ...).
+"""
+Store `sol` as the best feasible solution if it is feasible and cheaper. Any algorithm can use this
+to publish results, independently of its own bookkeeping. Returns `true` when it was stored.
+"""
 function updateBestFeasSol!(solver::Solver, sol::Solution)
     if sol.cost < solver.bestFeasSol.cost - 1e-6 &&
        sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd2 <= 1e-6
-        copy_solution!(solver.bestFeasSol, sol)
+        copySolution!(solver.bestFeasSol, sol)
         return true
     end
     return false
 end
 
+"""Record the best feasible cost reached before the Set Partitioning step."""
 function registerBestFeasibleBefSP!(solver::Solver)
     solver.statistics.bestFeasCostBefSP = solver.bestFeasSol.cost
 end

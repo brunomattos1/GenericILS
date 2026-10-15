@@ -5,6 +5,10 @@ import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackw
 
 const TOL = 0.0001
 
+"""
+Heterogeneous fleet: `nv` vehicle types (`fixed` cost, `factor` on distance, capacity `cap`), demands `d` and
+distances `dist`. The whole route cost lives in this resource.
+"""
 struct CustomResource <: AbstractResource
     nv::Int64
     fixed::Vector{Float64}
@@ -18,6 +22,7 @@ GenericILS.isSymmetric() = false
 
 GenericILS.isCostResource() = true
 
+"""Vehicle type `v`, accumulated cost, load and distance of the prefix."""
 struct ForwardState
     v::Int64
     cost::Float64
@@ -25,6 +30,7 @@ struct ForwardState
     dist::Float64
 end
 
+"""Vehicle type `v`, accumulated cost, load and distance of the suffix."""
 struct BackwardState
     v::Int64
     cost::Float64
@@ -32,14 +38,17 @@ struct BackwardState
     dist::Float64
 end
 
+"""Forward state of the empty prefix."""
 function initStateForward(res::CustomResource)
     return (ForwardState(1, res.fixed[1], 0.0, 0.0), res.fixed[1])
 end
 
+"""Backward state of the empty suffix."""
 function initStateBackward(res::CustomResource)
     return (BackwardState(1, res.fixed[1], 0.0, 0.0), res.fixed[1])
 end
 
+"""Forward extension along `a = (i, j)` (matrix indices): appends `j`. The returned cost is the accumulated cost of the partial route."""
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
     load_ = label.state.load + res.d[a[1], a[2]]
     dist_ = label.state.dist + res.dist[a[1], a[2]]
@@ -59,6 +68,7 @@ function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, 
         (ForwardState(k_, cost_, load_, dist_), cost_)
 end
 
+"""Backward extension along `a = (next, cur)`: prepends `cur` to the suffix that starts at `next`. The returned cost is the accumulated cost of the partial route."""
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
     load_ = label.state.load + res.d[a[1], a[2]]
     dist_ = label.state.dist + res.dist[a[1], a[2]]
@@ -78,15 +88,16 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
         (BackwardState(k_, cost_, load_, dist_), cost_)
 end
 
+"""Join the forward and the backward label at the same vertex: cost/feasibility of the whole route."""
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
-    conc_dist = forwardLabel.state.dist + backwardLabel.state.dist
-    conc_load = forwardLabel.state.load + backwardLabel.state.load - res.d[1, forwardLabel.last+1]
+    concDist = forwardLabel.state.dist + backwardLabel.state.dist
+    concLoad = forwardLabel.state.load + backwardLabel.state.load - res.d[1, forwardLabel.last+1]
 
-    k_ = findfirst(k -> conc_load < res.cap[k] + TOL, 1:res.nv)
+    k_ = findfirst(k -> concLoad < res.cap[k] + TOL, 1:res.nv)
     if isnothing(k_)
-        return (ForwardState(res.nv, 100000.0, conc_load, conc_dist), 100000.0)
+        return (ForwardState(res.nv, 100000.0, concLoad, concDist), 100000.0)
     else
-        conc_cost = res.fixed[k_] + res.factor[k_] * conc_dist
-        return (ForwardState(k_, conc_cost, conc_load, conc_dist), conc_cost)
+        concCost = res.fixed[k_] + res.factor[k_] * concDist
+        return (ForwardState(k_, concCost, concLoad, concDist), concCost)
     end
 end

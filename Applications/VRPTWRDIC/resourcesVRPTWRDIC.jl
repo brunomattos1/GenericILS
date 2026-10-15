@@ -3,15 +3,18 @@ using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
     extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
+"""Bit set of customer ids stored in 32-bit blocks (fast union/intersection tests)."""
 mutable struct FastBitSet32
     data::Vector{UInt32}
 end
 
+"""Empty set able to hold ids up to `n`."""
 function FastBitSet32(n::Int)
     nblocks = cld(n, 32)
     FastBitSet32(fill(UInt32(0), nblocks))
 end
 
+"""Insert `x` in place."""
 function add!(bs::FastBitSet32, x::Int)
     block = (x - 1) >>> 5 + 1     # divide por 32
     mask  = UInt32(1) << ((x - 1) & 0x1f)
@@ -19,12 +22,13 @@ function add!(bs::FastBitSet32, x::Int)
     return bs
 end
 
+"""Copy of `bs` with `x` inserted."""
 function add(bs::FastBitSet32, x::Int)
     @assert x >= 1 "Elemento x deve ser >= 1"
     nblocks = length(bs.data)
     @assert x <= nblocks*32 "Elemento x maior que o tamanho do FastBitSet32"
 
-    # Cria uma cópia do FastBitSet32 original
+    # copy of the original FastBitSet32
     newbs = FastBitSet32(copy(bs.data))
 
     # Calcula bloco e bit
@@ -32,23 +36,25 @@ function add(bs::FastBitSet32, x::Int)
     pos   = (x - 1) % 32
     mask  = UInt32(1) << pos
 
-    # Ativa o bit na cópia
+    # set the bit in the copy
     newbs.data[block] |= mask
 
     return newbs
 end
 
+"""Whether `x` belongs to `bs` (the depot, `0`, never does)."""
 function has(bs::FastBitSet32, x::Int)
     if x == 0
         return false
     end
-    block = (x - 1) ÷ 32 + 1       # índice do bloco (1-based)
-    pos   = (x - 1) % 32           # posição do bit dentro do bloco
+    block = (x - 1) ÷ 32 + 1       # block index (1-based)
+    pos   = (x - 1) % 32           # bit position inside the block
     @assert block <= length(bs.data) "Elemento x maior que o tamanho do FastBitSet32"
     mask = UInt32(1) << pos
     return (bs.data[block] & mask) != 0
 end
 
+"""Union of two sets."""
 function Base.union(a::FastBitSet32, b::FastBitSet32)
     nblocks = length(a.data)
     result = FastBitSet32(fill(UInt32(0), nblocks))
@@ -58,6 +64,7 @@ function Base.union(a::FastBitSet32, b::FastBitSet32)
     return result
 end
 
+"""Intersection of two sets."""
 function Base.intersect(a::FastBitSet32, b::FastBitSet32)
     nblocks = length(a.data)
     result = FastBitSet32(fill(UInt32(0), nblocks))
@@ -67,7 +74,8 @@ function Base.intersect(a::FastBitSet32, b::FastBitSet32)
     return result
 end
 
-function has_intersection(a::FastBitSet32, b::FastBitSet32)
+"""Whether the two sets share an element."""
+function hasIntersection(a::FastBitSet32, b::FastBitSet32)
     @inbounds for i in eachindex(a.data)
         if (a.data[i] & b.data[i]) != 0
             return true
@@ -76,7 +84,8 @@ function has_intersection(a::FastBitSet32, b::FastBitSet32)
     return false
 end
 
-function has_intersection(a::BitSet, b::BitSet)
+"""Whether the two sets share an element."""
+function hasIntersection(a::BitSet, b::BitSet)
     if length(a ∩ b) > 0
         return true
     end
@@ -85,6 +94,7 @@ end
 
 
 
+"""Release dates and due dates as in VRPTWRD, plus customer incompatibilities `inc` (bit sets indexed by vertex + 1)."""
 struct CustomResource <: AbstractResource
     t::Matrix{Float64} # time cost
     u::Vector{Int}     # upper window (due dates)
@@ -98,6 +108,7 @@ GenericILS.isSymmetric() = false
 
 GenericILS.isCostResource() = false
 
+"""Elapsed time `T`, slack `U`, latest release date `RD`, load `cap`, forbidden customers `inc` and visited customers `inVeh`."""
 struct ForwardState
     T::Float64
     U::Float64
@@ -107,6 +118,7 @@ struct ForwardState
     inVeh::FastBitSet32 # customers already visited
 end
 
+"""Same quantities for the suffix."""
 struct BackwardState
     T::Float64
     U::Float64
@@ -116,14 +128,17 @@ struct BackwardState
     inVeh::FastBitSet32
 end
 
+"""Forward state of the empty prefix."""
 function initStateForward(res::CustomResource)
     return (ForwardState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
 
+"""Backward state of the empty suffix."""
 function initStateBackward(res::CustomResource)
     return (BackwardState(0.0, Inf, 0.0, 0.0, FastBitSet32(100), FastBitSet32(100)), 0.0)
 end
 
+"""Forward extension along `a = (i, j)` (matrix indices): appends `j`. The returned cost is `0.0`, or `Inf` when a rule is violated."""
 function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int})
     T′ = label.state.T + res.t[a...]
     U′ = min(label.state.U, res.u[a[2]] - T′)
@@ -146,6 +161,7 @@ function extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, 
     return (state, 0.0)
 end
 
+"""Backward extension along `a = (next, cur)`: prepends `cur` to the suffix that starts at `next`. The returned cost is `0.0`, or `Inf` when a rule is violated."""
 function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int})
     T′ = 0.0
     U′ = min(label.state.U - res.t[a...], res.u[a[2]])
@@ -168,10 +184,11 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     return (state, 0.0)
 end
 
+"""Join the forward and the backward label at the same vertex: cost/feasibility of the whole route."""
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     if (max(forwardLabel.state.RD, backwardLabel.state.RD) <= min(backwardLabel.state.U - forwardLabel.state.T, forwardLabel.state.U)) &&
         (forwardLabel.state.cap + backwardLabel.state.cap <= res.Q) &&
-        (!has_intersection(forwardLabel.state.inc, backwardLabel.state.inVeh)) && (!has_intersection(backwardLabel.state.inc, forwardLabel.state.inVeh))
+        (!hasIntersection(forwardLabel.state.inc, backwardLabel.state.inVeh)) && (!hasIntersection(backwardLabel.state.inc, forwardLabel.state.inVeh))
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), 0.0)
     else
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), Inf)

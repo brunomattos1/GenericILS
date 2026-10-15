@@ -1,10 +1,15 @@
+"""
+Nested Iterated Local Search (`NILSAlgorithm`): an outer loop with accept/stop criteria and, for each candidate,
+an inner loop of local search and light perturbation; finishes with a Set Partitioning step.
+Its accept/stop criteria are specific to this module: use them qualified (`NILS.Metropolis`, ...).
+"""
 module NILS
 
 using Random, JuMP, Printf
 import ..GenericILS
 using ..GenericILS:
     Solver, Solution, AbstractResources, Algorithm,
-    new_solution, new_route,
+    newSolution, newRoute,
     objectiveValue, computeLabels, computeRouteLabelCost,
     isSymmetric, isCostResource,
     apply!, InterShift, InterSwap, interShiftCost, interSwapCost,
@@ -12,7 +17,7 @@ using ..GenericILS:
     updateBestFeasSol!, updatePenalty, registerBestFeasibleBefSP!,
     Cost, BestMove,
     myInitStateForward, myInitStateBackward,
-    constructSol!, search!, copy_solution!
+    constructSol!, search!, copySolution!
 import ..GenericILS: run!, totalTime, printInfo
 
 export NILSAlgorithm, run!, RVND!,

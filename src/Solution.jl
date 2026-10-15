@@ -1,6 +1,11 @@
+"""Supertype of solutions."""
 abstract type AbstractSolution
 end
 
+"""
+A route: its visit sequence (depot id `0` at both ends), forward/backward labels and the
+incremental bookkeeping (infeasibility, warps, label cost) used by the local search.
+"""
 mutable struct Route{FL, BL}
     visits::Vector{Int}
     infeas::Int
@@ -16,14 +21,20 @@ mutable struct Route{FL, BL}
     lastModif::Int
 end
 
+"""Empty route."""
 function Route{FL, BL}() where {FL, BL}
     Route{FL, BL}(Int[], 0, 0.0, 0.0, 0.0, FL[], BL[], -1, -1, -1, -1, 0)
 end
 
+"""Route over `visits`; its labels are filled in by `computeLabels`."""
 function Route{FL, BL}(visits::Vector{Int}) where {FL, BL}
     Route{FL, BL}(visits, 0, 0.0, 0.0, 0.0, FL[], BL[], -1, -1, -1, -1, 0)
 end
 
+"""
+Solution manipulated by the search: routes, total distance, penalized `cost`, per-lane
+infeasibility/warp totals and the `lastEval` table that avoids re-evaluating unchanged route pairs.
+"""
 mutable struct Solution{FL, BL}
     routes::Vector{Route{FL, BL}}
     dist::Float64
@@ -36,6 +47,7 @@ mutable struct Solution{FL, BL}
     timeStamp::Int
 end
 
+"""Empty solution."""
 function Solution{FL, BL}() where {FL, BL}
     Solution{FL, BL}(
         Vector{Route{FL, BL}}(),
@@ -50,17 +62,20 @@ function Solution{FL, BL}() where {FL, BL}
     )
 end
 
+"""Solution built by the user with `createSolution`; carries routes, distance and cost only."""
 mutable struct UserSolution{FL, BL}
     routes::Vector{Route{FL, BL}}
     dist::Float64
     cost::Float64
 end
 
-function UserSolution{FL, BL}(raw_routes::Vector{Vector{Int}}, dist::Float64, cost::Float64) where {FL, BL}
-    UserSolution{FL, BL}([Route{FL, BL}(r) for r in raw_routes], dist, cost)
+"""Build a `UserSolution` from raw visit vectors (labels are computed later)."""
+function UserSolution{FL, BL}(rawRoutes::Vector{Vector{Int}}, dist::Float64, cost::Float64) where {FL, BL}
+    UserSolution{FL, BL}([Route{FL, BL}(r) for r in rawRoutes], dist, cost)
 end
 
-function copy_solution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL, BL}
+"""Deep-copy `src` into `dest` (routes, labels, bookkeeping and `lastEval`), reusing the memory of `dest`."""
+function copySolution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL, BL}
     dest.dist = src.dist
     dest.cost = src.cost
     dest.totalInfeas = src.totalInfeas

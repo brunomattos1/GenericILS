@@ -1,11 +1,13 @@
-get_stop_info(algo::NILSAlgorithm, ::Any) = NaN  # default (não tem temperatura)
-get_stop_info(algo::NILSAlgorithm, c::ByIterMax) = algo.iter
-get_stop_info(algo::NILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
+"""Number shown in the progress table for the stopping criterion (temperature or iteration counter)."""
+getStopInfo(algo::NILSAlgorithm, ::Any) = NaN
+getStopInfo(algo::NILSAlgorithm, c::ByIterMax) = algo.iter
+getStopInfo(algo::NILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
 
+"""Print one line of the progress table (a new header is printed every 10 seconds)."""
 function printInfo(algo::NILSAlgorithm, solver::Solver)
-    total_algorithm_time = time() - algo.startTime
-    stopInfo = get_stop_info(algo, algo.stopCriteria)
-    if mod(total_algorithm_time, 10.0) == 0
+    totalAlgorithmTime = time() - algo.startTime
+    stopInfo = getStopInfo(algo, algo.stopCriteria)
+    if mod(totalAlgorithmTime, 10.0) == 0
         println("-"^135)
         @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
             "Temp.", "Best Feas", "Best", "Candidate",
@@ -18,14 +20,18 @@ function printInfo(algo::NILSAlgorithm, solver::Solver)
         solver.bestFeasSol.cost, algo.outerBestSol.cost, algo.outerCandidateSol.cost,
         solver.penaltyManager.penaltyCustom,
         solver.penaltyManager.penaltyStandard1, solver.penaltyManager.penaltyStandard2,
-        length(algo.route_storage), total_algorithm_time)
+        length(algo.routeStorage), totalAlgorithmTime)
 end
 
+"""
+Run the nested ILS: construct a solution, refine it, then repeat perturb + inner loop + accept until the
+stopping criterion (or the time limit) triggers; finish with Set Partitioning.
+"""
 function run!(algo::NILSAlgorithm, solver::Solver)
     algo.outerBestSol.cost = Inf
-    algo.bestSol = new_solution(solver)
+    algo.bestSol = newSolution(solver)
     algo.startTime = time()
-    solver.bestFeasSol = new_solution(solver)
+    solver.bestFeasSol = newSolution(solver)
     solver.bestFeasSol.cost = Inf
 
     algo.outerCurrSol = constructSol!(solver)
@@ -35,7 +41,7 @@ function run!(algo::NILSAlgorithm, solver::Solver)
     accept!(AcceptBest(), solver, algo.outerBestSol, algo.outerCurrSol, algo.outerCandidateSol)
     while !(stop(algo.stopCriteria, solver))
         algo.iter += 1
-        copy_solution!(algo.outerCandidateSol, algo.outerCurrSol)
+        copySolution!(algo.outerCandidateSol, algo.outerCurrSol)
         outerPerturb!(solver, algo.outerCandidateSol)
         innerLoop!(solver, algo.outerCandidateSol)
         updatePenalty(solver.penaltyManager, algo.outerCandidateSol)
