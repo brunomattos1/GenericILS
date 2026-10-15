@@ -1,4 +1,4 @@
-# Run in its own Julia process by test_cost_resource.jl: isSymmetric()/isCostResource() are global
+# Run in its own Julia process by testCostResource.jl: isSymmetric()/isCostResource() are global
 # to a process, and the other tests need isCostResource() == false.
 #
 # Problem: CVRP where the whole route cost lives in the custom resource (like HFVRP/MDVRP), so
