@@ -66,9 +66,9 @@ mutable struct NILSAlgorithm{AC <: AcceptCriteria, SC <: StoppingCriteria, FL, B
     timeLimitILS::Float64
     timeLimitSP::Float64
     aggressivePool::Bool
-    route_storage::Vector{Vector{Int}}
-    cost_storage::Vector{Float64}
-    route_lookup::Dict{Vector{Int}, Int}
+    routeStorage::Vector{Vector{Int}}
+    costStorage::Vector{Float64}
+    routeLookup::Dict{Vector{Int}, Int}
 end
 
 function NILSAlgorithm(res::AbstractResources;
@@ -134,7 +134,7 @@ function registerBestFeasible!(solver::Solver, sol::Solution)
 end
 
 function registerPoolSize!(solver::Solver)
-    solver.statistics.poolSize = length(solver.algorithm.route_storage)
+    solver.statistics.poolSize = length(solver.algorithm.routeStorage)
 end
 
 function registerTotalTime!(solver::Solver)

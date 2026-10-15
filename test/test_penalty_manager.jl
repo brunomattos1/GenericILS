@@ -1,7 +1,7 @@
 @testset "Penalty managers" begin
     solver, _, _ = buildCVRP(nilsAlgorithm())
     function newSol(; infeas = 0, w1 = 0.0, w2 = 0.0)
-        s = new_solution(solver)
+        s = newSolution(solver)
         s.totalInfeas = infeas
         s.totalWarpStd1 = w1
         s.totalWarpStd2 = w2

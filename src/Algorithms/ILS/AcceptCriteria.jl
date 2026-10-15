@@ -14,7 +14,7 @@ end
 
 function accept!(criteria::RandomWalk, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     if currSol.cost < bestSol.cost - 1e-6
-        copy_solution!(bestSol, currSol)
+        copySolution!(bestSol, currSol)
         updateBestFeasible!(solver, currSol)
     elseif currSol.cost < solver.bestFeasSol.cost - 1e-6
         updateBestFeasible!(solver, currSol)
@@ -24,7 +24,7 @@ end
 function accept!(criteria::AcceptBest, solver::Solver, bestSol::Solution, currSol::Solution, candidateSol::Solution)
     updateBestFeasible!(solver, candidateSol)
     if candidateSol.cost < bestSol.cost - 1e-6
-        copy_solution!(bestSol, candidateSol)
+        copySolution!(bestSol, candidateSol)
     end
 end
 
@@ -32,14 +32,14 @@ function accept!(criteria::Metropolis, solver::Solver, bestSol::Solution, currSo
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
     if candidateSol.cost < bestSol.cost - 1e-6
-        copy_solution!(bestSol, candidateSol)
+        copySolution!(bestSol, candidateSol)
     end
     if Δ < -1e-6
-        copy_solution!(currSol, candidateSol)
+        copySolution!(currSol, candidateSol)
     else
         # Metropolis
         if rand(solver.seed) < exp(-Δ / criteria.temperature)
-            copy_solution!(currSol, candidateSol)
+            copySolution!(currSol, candidateSol)
         end
     end
     criteria.temperature *= criteria.alpha # Atualiza a temperatura do critério
@@ -49,14 +49,14 @@ function accept!(criteria::MetropolisTimed, solver::Solver, bestSol::Solution, c
     Δ = candidateSol.cost - currSol.cost
     updateBestFeasible!(solver, candidateSol)
     if candidateSol.cost < bestSol.cost - 1e-6
-        copy_solution!(bestSol, candidateSol)
+        copySolution!(bestSol, candidateSol)
     end
     if Δ < -1e-6
-        copy_solution!(currSol, candidateSol)
+        copySolution!(currSol, candidateSol)
     else
         # Metropolis
         if rand(solver.seed) < exp(-Δ / criteria.temperature)
-            copy_solution!(currSol, candidateSol)
+            copySolution!(currSol, candidateSol)
         end
     end
     totalTime = time() - solver.algorithm.startTime
@@ -71,15 +71,15 @@ function accept!(criteria::MetropolisTimedIter, solver::Solver, currSol::Solutio
 
     if Δ < -1e-6
         # melhorou -> aceita sempre
-        copy_solution!(bestSol, currSol)
+        copySolution!(bestSol, currSol)
     else
         # Metropolis
         if rand(solver.seed) < exp(-Δ / criteria.temperature)
             # aceita pior solução (diversificação)
-            copy_solution!(bestSol, currSol)
+            copySolution!(bestSol, currSol)
         else
             # rejeita -> volta pro best
-            copy_solution!(currSol, bestSol)
+            copySolution!(currSol, bestSol)
         end
     end
     updateBestFeasible!(solver, bestSol)

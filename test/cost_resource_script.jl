@@ -91,8 +91,8 @@ expected = dist[1, 2] + dist[2, 3] + dist[3, 1] + dist[1, 4] + dist[4, 1]
 # Move evaluation with a cost resource: the label cost predicted for a move must equal the true
 # distance of the resulting route (this resource never returns Inf, so it is exact for every move).
 function labelled(solver, routes)
-    sol = new_solution(solver)
-    sol.routes = [new_route(solver, copy(v)) for v in routes]
+    sol = newSolution(solver)
+    sol.routes = [newRoute(solver, copy(v)) for v in routes]
     computeLabels(solver, sol)
     return sol
 end

@@ -1,24 +1,24 @@
 @testset "Solutions and construction" begin
     @testset "Route and Solution constructors" begin
         solver, = buildCVRP(nilsAlgorithm())
-        rt = new_route(solver, [0, 1, 0])
+        rt = newRoute(solver, [0, 1, 0])
         @test rt.visits == [0, 1, 0]
         @test (rt.infeas, rt.warpStd1, rt.warpStd2, rt.lastModif) == (0, 0.0, 0.0, 0)
         @test isempty(rt.forwardLabels) && isempty(rt.backwardLabels)
         @test rt.feasibleF == -1 && rt.lastFeasibleB == -1
 
-        sol = new_solution(solver)
+        sol = newSolution(solver)
         @test isempty(sol.routes)
         @test (sol.dist, sol.cost, sol.totalInfeas, sol.timeStamp) == (0.0, 0.0, 0, 0)
     end
 
-    @testset "copy_solution! is a deep copy" begin
+    @testset "copySolution! is a deep copy" begin
         solver, = buildCVRP(nilsAlgorithm())
         src = makeSolution(solver, [[0, 1, 2, 0], [0, 3, 0]])
         src.timeStamp = 7
         src.lastEval[1, 1, 2] = 5
-        dest = new_solution(solver)
-        copy_solution!(dest, src)
+        dest = newSolution(solver)
+        copySolution!(dest, src)
 
         @test dest.dist == src.dist && dest.cost == src.cost && dest.timeStamp == 7
         @test [r.visits for r in dest.routes] == [r.visits for r in src.routes]
@@ -39,9 +39,9 @@
 
         # copying onto a solution with a different number of routes and a different lastEval shape
         small = makeSolution(solver, [[0, 4, 0]])
-        copy_solution!(small, dest)
+        copySolution!(small, dest)
         @test length(small.routes) == 2 && size(small.lastEval) == size(dest.lastEval)
-        copy_solution!(dest, makeSolution(solver, [[0, 5, 0]]))
+        copySolution!(dest, makeSolution(solver, [[0, 5, 0]]))
         @test length(dest.routes) == 1
     end
 

@@ -4,7 +4,7 @@ using Random, JuMP, Printf
 import ..GenericILS
 using ..GenericILS:
     Solver, Solution, AbstractResources, Algorithm,
-    new_solution, new_route,
+    newSolution, newRoute,
     objectiveValue, computeLabels, computeRouteLabelCost,
     isSymmetric, isCostResource,
     apply!, InterShift, InterSwap, interShiftCost, interSwapCost,
@@ -12,7 +12,7 @@ using ..GenericILS:
     updateBestFeasSol!, updatePenalty, registerBestFeasibleBefSP!,
     Cost, BestMove,
     myInitStateForward, myInitStateBackward,
-    constructSol!, search!, copy_solution!
+    constructSol!, search!, copySolution!
 import ..GenericILS: run!, totalTime, printInfo
 
 export NILSAlgorithm, run!, RVND!,

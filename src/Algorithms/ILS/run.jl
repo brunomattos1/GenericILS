@@ -1,11 +1,11 @@
-get_stop_info(algo::ILSAlgorithm, ::Any) = NaN  # default (não tem temperatura)
-get_stop_info(algo::ILSAlgorithm, c::ByIterMax) = algo.iter
-get_stop_info(algo::ILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
+getStopInfo(algo::ILSAlgorithm, ::Any) = NaN  # default (não tem temperatura)
+getStopInfo(algo::ILSAlgorithm, c::ByIterMax) = algo.iter
+getStopInfo(algo::ILSAlgorithm, c::ByTemperature) = algo.acceptCriteria.temperature
 
 function printInfo(algo::ILSAlgorithm, solver::Solver)
-    total_algorithm_time = time() - algo.startTime
-    stopInfo = get_stop_info(algo, algo.stopCriteria)
-    if mod(total_algorithm_time, 10.0) == 0
+    totalAlgorithmTime = time() - algo.startTime
+    stopInfo = getStopInfo(algo, algo.stopCriteria)
+    if mod(totalAlgorithmTime, 10.0) == 0
         println("-"^135)
         @printf("| %10s | %10s | %12s | %12s | %10s | %15s | %15s | %6s | %10s |\n",
             "Temp.", "Best Feas", "Best", "Candidate",
@@ -18,24 +18,24 @@ function printInfo(algo::ILSAlgorithm, solver::Solver)
         solver.bestFeasSol.cost, algo.bestSol.cost, algo.candidateSol.cost,
         solver.penaltyManager.penaltyCustom,
         solver.penaltyManager.penaltyStandard1, solver.penaltyManager.penaltyStandard2,
-        length(algo.route_storage), total_algorithm_time)
+        length(algo.routeStorage), totalAlgorithmTime)
 end
 
 function run!(algo::ILSAlgorithm, solver::Solver)
     algo.bestSol.cost = Inf
     algo.startTime = time()
-    solver.bestFeasSol = new_solution(solver)
+    solver.bestFeasSol = newSolution(solver)
     solver.bestFeasSol.cost = Inf
 
     algo.currSol = constructSol!(solver)
     registerRoutePool!(solver, algo.currSol)
     RVND!(solver, algo.currSol)
-    copy_solution!(algo.candidateSol, algo.currSol)
+    copySolution!(algo.candidateSol, algo.currSol)
 
     accept!(AcceptBest(), solver, algo.bestSol, algo.currSol, algo.candidateSol)
     while !(stop(algo.stopCriteria, solver))
         algo.iter += 1
-        copy_solution!(algo.candidateSol, algo.currSol)
+        copySolution!(algo.candidateSol, algo.currSol)
         perturb!(solver, algo.candidateSol)
         RVND!(solver, algo.candidateSol)
         updatePenalty(solver.penaltyManager, algo.candidateSol)

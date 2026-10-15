@@ -96,7 +96,7 @@ mutable struct Solver{N, R <: AbstractResources, PM <: PenaltyManager, FL, BL, A
     bestFeasSol::Solution{FL, BL}
     currSol::Solution{FL, BL}
     neighborhoods::N
-    active_neighs::Vector{Int}
+    activeNeighs::Vector{Int}
     res::R
 
     forwardLabels::Vector{Vector{FL}}
@@ -122,7 +122,7 @@ function Solver(;
     ),
     data = ProblemData(),
     neighborhoods = (),
-    active_neighs = Int[],
+    activeNeighs = Int[],
     res,
     timeStamp = 0,
     MIPSolver = HiGHS.Optimizer)
@@ -140,7 +140,7 @@ function Solver(;
     Solver(
         Random.MersenneTwister(seed), algorithm, penaltyManager, data,
         bestFeasSol, Solution{FL, BL}(),
-        neighborhoods, active_neighs, res,
+        neighborhoods, activeNeighs, res,
         Vector{Vector{FL}}(), Vector{Vector{BL}}(),
         prevLabelF, prevLabelB,
         Vector{Int}(), Vector{Int}(), Vector{Int}(),
@@ -150,9 +150,9 @@ function Solver(;
     )
 end
 
-new_solution(::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = Solution{FL, BL}()
+newSolution(::Solver{N, R, PM, FL, BL, AL}) where {N, R, PM, FL, BL, AL} = Solution{FL, BL}()
 
-new_route(::Solver{N, R, PM, FL, BL, AL}, visits::Vector{Int}) where {N, R, PM, FL, BL, AL} = Route{FL, BL}(visits)
+newRoute(::Solver{N, R, PM, FL, BL, AL}, visits::Vector{Int}) where {N, R, PM, FL, BL, AL} = Route{FL, BL}(visits)
 
 getCurrSol(solver::Solver) = solver.currSol
 
@@ -213,7 +213,7 @@ getCostMatrix(solver::Solver) = solver.data.costMatrix
 function updateBestFeasSol!(solver::Solver, sol::Solution)
     if sol.cost < solver.bestFeasSol.cost - 1e-6 &&
        sol.totalInfeas == 0 && sol.totalWarpStd1 <= 1e-6 && sol.totalWarpStd2 <= 1e-6
-        copy_solution!(solver.bestFeasSol, sol)
+        copySolution!(solver.bestFeasSol, sol)
         return true
     end
     return false

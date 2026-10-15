@@ -56,11 +56,11 @@ mutable struct UserSolution{FL, BL}
     cost::Float64
 end
 
-function UserSolution{FL, BL}(raw_routes::Vector{Vector{Int}}, dist::Float64, cost::Float64) where {FL, BL}
-    UserSolution{FL, BL}([Route{FL, BL}(r) for r in raw_routes], dist, cost)
+function UserSolution{FL, BL}(rawRoutes::Vector{Vector{Int}}, dist::Float64, cost::Float64) where {FL, BL}
+    UserSolution{FL, BL}([Route{FL, BL}(r) for r in rawRoutes], dist, cost)
 end
 
-function copy_solution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL, BL}
+function copySolution!(dest::Solution{FL, BL}, src::Solution{FL, BL}) where {FL, BL}
     dest.dist = src.dist
     dest.cost = src.cost
     dest.totalInfeas = src.totalInfeas

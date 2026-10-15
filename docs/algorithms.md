@@ -14,7 +14,7 @@ outer-loop candidate, an inner loop (`innerIterMax` iterations) refines it
 via local search (`RVND!`) plus light perturbation, before handing the
 result back to the outer loop. At the end of the outer loop, a **Set
 Partitioning** step runs — exactly solving, via MIP, the best combination of
-routes visited and stored in the algorithm's `route_storage`, which
+routes visited and stored in the algorithm's `routeStorage`, which
 typically improves the final solution beyond what local search alone
 reaches.
 

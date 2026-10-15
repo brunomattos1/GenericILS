@@ -35,49 +35,49 @@ initStateBackward(res::AbstractResource) = error("not implemented")
 isSymmetric() = error("not implemented")
 isCostResource() = error("not implemented")
 
-@inline function get_state(label::ForwardLabel, ::Val{1})
+@inline function getState(label::ForwardLabel, ::Val{1})
     return label.std1State
 end
 
-@inline function get_state(label::BackwardLabel, ::Val{1})
+@inline function getState(label::BackwardLabel, ::Val{1})
     return label.std1State
 end
 
-@inline function get_state(label::ForwardLabel, ::Val{2})
+@inline function getState(label::ForwardLabel, ::Val{2})
     return label.std2State
 end
 
-@inline function get_state(label::BackwardLabel, ::Val{2})
+@inline function getState(label::BackwardLabel, ::Val{2})
     return label.std2State
 end
 
 function extendAlongArc(res::StandardResource{ID}, label::ForwardLabel, a::Tuple{Int, Int}) where ID
-    state = get_state(label, Val(ID))
+    state = getState(label, Val(ID))
 
-    q_new = max(min(state.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
-    warp_new = state.stdWarp + max(state.q + res.d[a...] - res.ub[a[2]], 0.0)
-    return (StandardState(q_new, warp_new))
+    qNew = max(min(state.q + res.d[a...], res.ub[a[2]]), res.lb[a[2]])
+    warpNew = state.stdWarp + max(state.q + res.d[a...] - res.ub[a[2]], 0.0)
+    return (StandardState(qNew, warpNew))
 end
 
 function extendAlongArc(res::StandardResource{ID}, label::BackwardLabel, a::Tuple{Int, Int}) where ID
     a = (a[2], a[1])
-    state = get_state(label, Val(ID))
+    state = getState(label, Val(ID))
 
-    q_new = min(state.q - res.d[a...], res.ub[a[1]])
-    warp_new = state.stdWarp
-    if q_new < res.lb[a[1]]
-        warp_new += res.lb[a[1]] - q_new
-        q_new = res.lb[a[1]]
+    qNew = min(state.q - res.d[a...], res.ub[a[1]])
+    warpNew = state.stdWarp
+    if qNew < res.lb[a[1]]
+        warpNew += res.lb[a[1]] - qNew
+        qNew = res.lb[a[1]]
     end
-    return (StandardState(q_new, warp_new))
+    return (StandardState(qNew, warpNew))
 end
 
 function concatenationCost(res::StandardResource{ID}, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel) where ID
-    fwState = get_state(forwardLabel, Val(ID))
-    bwState = get_state(backwardLabel, Val(ID))
-    q_std = min(fwState.q, bwState.q)
-    q_warp = max(fwState.q - bwState.q, 0) + (fwState.stdWarp + bwState.stdWarp)
-    return StandardState(q_std, q_warp)
+    fwState = getState(forwardLabel, Val(ID))
+    bwState = getState(backwardLabel, Val(ID))
+    qStd = min(fwState.q, bwState.q)
+    qWarp = max(fwState.q - bwState.q, 0) + (fwState.stdWarp + bwState.stdWarp)
+    return StandardState(qStd, qWarp)
 end
 
 function myInitStateForward(res::AbstractResource)

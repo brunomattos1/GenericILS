@@ -28,9 +28,9 @@ end
 
 function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {k1,k2}
     flag = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(typeof(solver), InterSwap{k1,k2})
+    neighborhoodId = neighIndex(typeof(solver), InterSwap{k1,k2})
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)
@@ -75,9 +75,9 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 flag = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
@@ -96,7 +96,7 @@ function apply!(::InterSwap{k1,k2}, solver::Solver, sol::Solution, bestMove::Bes
     sol.totalWarpStd2   -= rt1.warpStd2 + rt2.warpStd2
     sol.totalLabelCost  -= rt1.labelCost + rt2.labelCost
 
-    move_blocks!(rt1.visits, i, k1, rt2.visits, j, k2, solver.bufferRoute)
+    moveBlocks!(rt1.visits, i, k1, rt2.visits, j, k2, solver.bufferRoute)
 
     computeLabels(solver, sol, r1, r2)
 

@@ -34,7 +34,7 @@ function infeasArcsInsertionK(solver::Solver, sol::Solution, r::Int, customers::
     nFwd = min(pos - 2,    rt.lastFeasibleF - 1)
     nBwd = min(lenR - pos, rt.lastFeasibleB - 1)
 
-    # forward chain: forwardLabels[pos-1] → c[1] → … → c[k] → v_pos
+    # forward chain: forwardLabels[pos-1] → c[1] → … → c[k] → vPos
     currFwd = myExtendAlongArc(res, rt.forwardLabels[pos-1],
                   (rt.visits[pos-1]+1, customers[1]+1))
     currFwd.cost < Inf && (nFwd += 1)
@@ -64,40 +64,40 @@ function infeasArcsInsertionK(solver::Solver, sol::Solution, r::Int, customers::
     return (lenR + k - 1) - max(nFwd, nBwd), min(finalFwd.cost, finalBwd.cost), warpStd1, warpStd2
 end
 
-function infeasArcsReplaceBlockK(solver::Solver, sol::Solution, r::Int, pos::Int, k_remove::Int, new_customers::AbstractVector{Int})
+function infeasArcsReplaceBlockK(solver::Solver, sol::Solution, r::Int, pos::Int, kRemove::Int, newCustomers::AbstractVector{Int})
     rt       = sol.routes[r]
-    k_insert = length(new_customers)
+    kInsert = length(newCustomers)
     lenR     = length(rt.visits)
     res      = solver.res
-    bwdIdx   = lenR - pos - k_remove + 1
+    bwdIdx   = lenR - pos - kRemove + 1
 
     nFwd = min(pos - 2,               rt.lastFeasibleF - 1)
-    nBwd = min(lenR - pos - k_remove, rt.lastFeasibleB - 1)
+    nBwd = min(lenR - pos - kRemove, rt.lastFeasibleB - 1)
 
-    # forward chain: forwardLabels[pos-1] → new_customers[1..k_insert] → v_{pos+k_remove}
+    # forward chain: forwardLabels[pos-1] → newCustomers[1..kInsert] → v_{pos+kRemove}
     currFwd = myExtendAlongArc(res, rt.forwardLabels[pos-1],
-                  (rt.visits[pos-1]+1, new_customers[1]+1))
+                  (rt.visits[pos-1]+1, newCustomers[1]+1))
     currFwd.cost < Inf && (nFwd += 1)
-    for m in 2:k_insert
+    for m in 2:kInsert
         currFwd = myExtendAlongArc(res, currFwd,
-                      (new_customers[m-1]+1, new_customers[m]+1))
+                      (newCustomers[m-1]+1, newCustomers[m]+1))
         currFwd.cost < Inf && (nFwd += 1)
     end
     finalFwd = myExtendAlongArc(res, currFwd,
-                   (new_customers[k_insert]+1, rt.visits[pos+k_remove]+1))
+                   (newCustomers[kInsert]+1, rt.visits[pos+kRemove]+1))
     finalFwd.cost < Inf && (nFwd += 1)
 
-    # backward chain: backwardLabels[bwdIdx] → new_customers[k_insert..1] → v_{pos-1}
+    # backward chain: backwardLabels[bwdIdx] → newCustomers[kInsert..1] → v_{pos-1}
     currBwd = myExtendAlongArc(res, rt.backwardLabels[bwdIdx],
-                  (rt.visits[pos+k_remove]+1, new_customers[k_insert]+1))
+                  (rt.visits[pos+kRemove]+1, newCustomers[kInsert]+1))
     currBwd.cost < Inf && (nBwd += 1)
-    for m in 2:k_insert
+    for m in 2:kInsert
         currBwd = myExtendAlongArc(res, currBwd,
-                      (new_customers[k_insert-m+2]+1, new_customers[k_insert-m+1]+1))
+                      (newCustomers[kInsert-m+2]+1, newCustomers[kInsert-m+1]+1))
         currBwd.cost < Inf && (nBwd += 1)
     end
     finalBwd = myExtendAlongArc(res, currBwd,
-                   (new_customers[1]+1, rt.visits[pos-1]+1))
+                   (newCustomers[1]+1, rt.visits[pos-1]+1))
     finalBwd.cost < Inf && (nBwd += 1)
 
     L = myConcatenationCost(res, rt.backwardLabels[bwdIdx].last,
@@ -105,8 +105,8 @@ function infeasArcsReplaceBlockK(solver::Solver, sol::Solution, r::Int, pos::Int
     warpStd1, warpStd2 = L.std1State.stdWarp, L.std2State.stdWarp
     L.cost < Inf && return 0, L.cost, warpStd1, warpStd2
 
-    total_arcs = (lenR - 1) + (k_insert - k_remove)
-    return total_arcs - max(nFwd, nBwd), min(finalFwd.cost, finalBwd.cost), warpStd1, warpStd2
+    totalArcs = (lenR - 1) + (kInsert - kRemove)
+    return totalArcs - max(nFwd, nBwd), min(finalFwd.cost, finalBwd.cost), warpStd1, warpStd2
 end
 
 function infeasArcs2optStar(solver::Solver, sol::Solution,

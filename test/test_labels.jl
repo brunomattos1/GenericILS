@@ -44,8 +44,8 @@
     @testset "computeLabels variants agree" begin
         routes = [[0, 1, 2, 0], [0, 3, 4, 5, 6, 7, 0], [0, 0]]
         full = makeSolution(solver, routes)
-        partial = new_solution(solver)
-        partial.routes = [new_route(solver, copy(v)) for v in routes]
+        partial = newSolution(solver)
+        partial.routes = [newRoute(solver, copy(v)) for v in routes]
         computeLabels(solver, partial, 1, 2, 3)               # explicit route list
         for (a, b) in zip(full.routes, partial.routes)
             @test a.forwardLabels == b.forwardLabels

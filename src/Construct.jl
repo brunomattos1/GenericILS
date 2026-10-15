@@ -10,11 +10,11 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     vertices = deepcopy(solver.data.vertices)
     nbRoutes = min(length(vertices), solver.data.maxNbRoutes + r)
     costMatrix = getCostMatrix(solver)
-    sol = new_solution(solver)
+    sol = newSolution(solver)
     for r = 1:nbRoutes
         selectedIdx = rand(solver.seed, r:length(vertices))
         selected = vertices[selectedIdx]
-        push!(sol.routes, new_route(solver, Int[0, selected.id, 0]))
+        push!(sol.routes, newRoute(solver, Int[0, selected.id, 0]))
         sol.dist += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         sol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
@@ -46,14 +46,14 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
         end
     end
     R = length(sol.routes)
-    nVizinhas = length(solver.neighborhoods)
+    nNeighborhoods = length(solver.neighborhoods)
     sol.timeStamp = 0
-    sol.lastEval = zeros(Int, nVizinhas, R, R)
+    sol.lastEval = zeros(Int, nNeighborhoods, R, R)
 
     for r in 1:R
         sol.lastEval[1, r, r] = 0
     end
-    for move = 2:nVizinhas
+    for move = 2:nNeighborhoods
         for r1 in 1:R-1
             for r2 in r1+1:R
                 sol.lastEval[move, r1, r2] = 0

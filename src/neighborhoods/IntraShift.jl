@@ -69,9 +69,9 @@ end
 
 function search!(neigh::IntraShift, solver::Solver, sol::Solution)
     improved = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
-    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
+    neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
         if sol.lastEval[neighborhoodId, r, r] > rt.lastModif
@@ -117,9 +117,9 @@ function search!(neigh::IntraShift, solver::Solver, sol::Solution)
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 improved = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
@@ -139,9 +139,9 @@ function apply!(::IntraShift, solver::Solver, solution::Solution, move::BestMove
 
     route = rt.visits
     if i < j
-        move_blocks_intra!(route, i, 1, j + 1, solver.bufferRoute)   # lands right after the old route[j]
+        moveBlocksIntra!(route, i, 1, j + 1, solver.bufferRoute)   # lands right after the old route[j]
     else
-        move_blocks_intra!(route, i, 1, j, solver.bufferRoute)       # lands right before the old route[j]
+        moveBlocksIntra!(route, i, 1, j, solver.bufferRoute)       # lands right before the old route[j]
     end
 
     computeLabels(solver, solution, r)

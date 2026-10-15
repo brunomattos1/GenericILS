@@ -48,7 +48,7 @@
 
     @testset "acceptSol compares costs with a tolerance" begin
         solver, _, _ = buildCVRP(nilsAlgorithm())
-        better, worse = new_solution(solver), new_solution(solver)
+        better, worse = newSolution(solver), newSolution(solver)
         better.cost, worse.cost = 10.0, 11.0
         @test NILS.acceptSol(solver, better, worse)
         @test !NILS.acceptSol(solver, worse, better)
@@ -60,7 +60,7 @@
     @testset "$M MetropolisTimedIter cools down and eventually freezes" for M in (NILS, ILS)
         solver, _, _ = buildCVRP(M === NILS ? nilsAlgorithm() : ilsAlgorithm())
         crit = M.MetropolisTimedIter(1.0, 1.0, 10.0, 0.5, 0)
-        cur, best = new_solution(solver), new_solution(solver)
+        cur, best = newSolution(solver), newSolution(solver)
         cur.cost, best.cost = 5.0, 10.0          # improvement: always taken
         M.accept!(crit, solver, cur, best)
         @test best.cost == 5.0

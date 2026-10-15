@@ -1,6 +1,6 @@
 function RVND!(solver::Solver, sol::Solution)
 
-    neighs = solver.active_neighs
+    neighs = solver.activeNeighs
     src = solver.neighborhoods
 
     nsrc = length(src)

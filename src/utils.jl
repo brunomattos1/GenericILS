@@ -1,4 +1,4 @@
-﻿function move_blocks!(route1::Vector{Int}, i::Int, k1::Int,
+﻿function moveBlocks!(route1::Vector{Int}, i::Int, k1::Int,
                       route2::Vector{Int}, j::Int, k2::Int,
                       buffer::Vector{Int})
     n1 = length(route1)
@@ -35,22 +35,22 @@
     end
 end
 
-function move_blocks_intra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::Vector{Int})
+function moveBlocksIntra!(route::Vector{Int}, i::Int, k::Int, j::Int, buffer::Vector{Int})
     if i == j || k == 0
         return nothing
     end
     resize!(buffer, k)
     copyto!(buffer, 1, route, i, k)
     if i < j
-        shift_len = j - i - k
-        if shift_len > 0
-            copyto!(route, i, route, i + k, shift_len)
+        shiftLen = j - i - k
+        if shiftLen > 0
+            copyto!(route, i, route, i + k, shiftLen)
         end
         copyto!(route, j - k, buffer, 1, k)
     else
-        shift_len = i - j
-        if shift_len > 0
-            copyto!(route, j + k, route, j, shift_len)
+        shiftLen = i - j
+        if shiftLen > 0
+            copyto!(route, j + k, route, j, shiftLen)
         end
         copyto!(route, j, buffer, 1, k)
     end
@@ -135,9 +135,9 @@ function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
 end
 
 # -------- Formata apenas os campos internos do state --------
-function format_state(state)
+function formatState(state)
     T = typeof(state)
-    state_name = nameof(T)
+    stateName = nameof(T)
 
     parts = String[]
     for f in fieldnames(T)
@@ -145,59 +145,59 @@ function format_state(state)
         push!(parts, "$(f): $(value)")
     end
 
-    return "$state_name: ($(join(parts, ", ")))"
+    return "$stateName: ($(join(parts, ", ")))"
 end
 
 # -------- Formata o label completo --------
-function print_label(route_prefix, label)
+function printLabel(routePrefix, label)
 
     # 1) imprime rota parcial
     print("Partial label: ")
-    println(join(route_prefix, " -> "))
+    println(join(routePrefix, " -> "))
 
-    state_parts = String[]
-    other_parts = String[]
+    stateParts = String[]
+    otherParts = String[]
 
     for fname in fieldnames(typeof(label))
         value = getfield(label, fname)
 
         if isstructtype(typeof(value))
-            push!(state_parts, format_state(value))
+            push!(stateParts, formatState(value))
         else
-            push!(other_parts, "$(fname): $(value)")
+            push!(otherParts, "$(fname): $(value)")
         end
     end
     # 2) imprime states abaixo da rota
-    line = "  States: $(join(state_parts, ", "))"
+    line = "  States: $(join(stateParts, ", "))"
 
-    if !isempty(other_parts)
-        line *= ", $(join(other_parts, ", "))"
+    if !isempty(otherParts)
+        line *= ", $(join(otherParts, ", "))"
     end
 
     println(line)
     println()
 end
 
-function print_label(label)
-    state_parts = String[]
-    other_parts = String[]
+function printLabel(label)
+    stateParts = String[]
+    otherParts = String[]
 
     for fname in fieldnames(typeof(label))
         value = getfield(label, fname)
 
         if isstructtype(typeof(value))
-            push!(state_parts, format_state(value))
+            push!(stateParts, formatState(value))
         else
-            push!(other_parts, "$(fname): $(value)")
+            push!(otherParts, "$(fname): $(value)")
         end
     end
 
-    all_parts = vcat(
-        ["States: $(join(state_parts, ", "))"],
-        other_parts
+    allParts = vcat(
+        ["States: $(join(stateParts, ", "))"],
+        otherParts
     )
 
-    println("  " * join(all_parts, ", "))
+    println("  " * join(allParts, ", "))
     println()
 end
 
@@ -216,9 +216,9 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
         println("-"^100)
 
         for i = 1:length(rt.visits)
-            route_prefix = rt.visits[1:i]
+            routePrefix = rt.visits[1:i]
             label = rt.forwardLabels[i]
-            print_label(route_prefix, label)
+            printLabel(routePrefix, label)
         end
     end
     println("#"^100)
@@ -233,9 +233,9 @@ function printLabels(solver::Solver, sol::Union{Solution, UserSolution})
         n = length(rt.visits)
         for i = 1:n
             start = n - i + 1
-            route_prefix = rt.visits[start:n]
+            routePrefix = rt.visits[start:n]
             label = rt.backwardLabels[i]
-            print_label(route_prefix, label)
+            printLabel(routePrefix, label)
         end
     end
 end
@@ -257,7 +257,7 @@ function printConcatenations(solver::Solver, sol::Union{Solution, UserSolution})
                 rt.backwardLabels[lenR - i + 1]
             )
             println("Concatenating $(join(prefix, " -> ")) with $(join(suffix, " -> "))")
-            print_label(concat)
+            printLabel(concat)
         end
     end
 end

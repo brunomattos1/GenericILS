@@ -46,7 +46,7 @@ export
     Solution, UserSolution, Route,
     getCurrSol, getBestSol, getBestRoutes, getRoutes, getCost, getDistance, getCostMatrix,
     createSolution, computeLabels,
-    new_solution, new_route, copy_solution!, updateBestFeasSol!,
+    newSolution, newRoute, copySolution!, updateBestFeasSol!,
 
     # reusable building blocks for custom algorithms (construction, local search)
     constructSol!, search!,

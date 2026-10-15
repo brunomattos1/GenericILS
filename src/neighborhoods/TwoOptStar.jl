@@ -23,13 +23,13 @@ end
 
 function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     improved = false
-    copy_solution!(solver.bufferSol, sol)
+    copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
     resize!(solver.buffer, length(sol.routes))
     copyto!(solver.buffer, 1:length(sol.routes))
     shuffle!(solver.seed, solver.buffer)
     routesIdx = solver.buffer
-    neighborhoodId = neigh_index(typeof(solver), typeof(neigh))
+    neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
@@ -59,9 +59,9 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
             apply!(neigh, solver, sol, bestMove)
             if sol.cost < prevCost - 1e-6
                 improved = true
-                copy_solution!(oldSol, sol)
+                copySolution!(oldSol, sol)
             else
-                copy_solution!(sol, oldSol)
+                copySolution!(sol, oldSol)
             end
         end
     end
@@ -82,18 +82,18 @@ function apply!(neigh::TwoOptStar, solver::Solver, solution::Solution, move::Bes
 
     v1 = rt1.visits
     v2 = rt2.visits
-    seg1_len = length(v1) - i
-    seg2_len = length(v2) - j
+    seg1Len = length(v1) - i
+    seg2Len = length(v2) - j
 
     buffer = solver.buffer2opt
-    resize!(buffer, seg1_len)
-    copyto!(buffer, 1, v1, i+1, seg1_len)
+    resize!(buffer, seg1Len)
+    copyto!(buffer, 1, v1, i+1, seg1Len)
 
-    resize!(v1, i + seg2_len)
-    copyto!(v1, i+1, v2, j+1, seg2_len)
+    resize!(v1, i + seg2Len)
+    copyto!(v1, i+1, v2, j+1, seg2Len)
 
-    resize!(v2, j + seg1_len)
-    copyto!(v2, j+1, buffer, 1, seg1_len)
+    resize!(v2, j + seg1Len)
+    copyto!(v2, j+1, buffer, 1, seg1Len)
 
     computeLabels(solver, solution, r1, r2)
 
