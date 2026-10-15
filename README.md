@@ -217,7 +217,10 @@ git push -u origin my-change            # then open a pull request
 The hooks in [`.githooks/`](.githooks/) only protect your local clone (`git commit --no-verify` skips them).
 The real enforcement is the GitHub ruleset described in [`.github/rulesets/protect-main.json`](.github/rulesets/protect-main.json):
 in the repository go to *Settings → Rules → Rulesets → New ruleset → Import a ruleset* and upload that file. It
-forbids direct pushes, force pushes and deletion of `main`, and requires a pull request with the CI checks passing.
+forbids direct pushes, force pushes and deletion of `main`, and requires a pull request with the CI checks passing
+and the approval of the code owner ([`.github/CODEOWNERS`](.github/CODEOWNERS)); new pushes dismiss earlier approvals.
+Repository admins may merge their own pull requests (GitHub does not let anyone approve their own PR), but still only
+through a pull request, never by pushing to `main`.
 
 ## License
 
