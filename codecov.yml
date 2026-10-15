@@ -1,0 +1,18 @@
+coverage:
+  status:
+    project:
+      default:
+        # fail the check when the coverage of the whole package drops below 80%
+        target: 80%
+        threshold: 1%
+    patch:
+      default:
+        # coverage of the lines changed by a PR is reported but does not fail the check
+        informational: true
+
+# Only the package itself counts (applications, tests and the skill are examples/support code).
+ignore:
+  - "test"
+  - "Applications"
+  - "skills"
+  - "docs"

@@ -1,2 +1,5 @@
 # Shell scripts must keep LF line endings (also when checked out on Windows)
 *.sh text eol=lf
+
+# Git hooks are executed by sh: keep LF line endings
+.githooks/* text eol=lf

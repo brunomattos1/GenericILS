@@ -1,0 +1,10 @@
+#!/bin/sh
+# Blocks merge commits created locally on `main` (merge through a pull request instead).
+# Fast-forward updates of main (git pull) are not merge commits and are unaffected.
+
+branch=$(git symbolic-ref --short -q HEAD)
+if [ "$branch" = "main" ]; then
+    echo "pre-merge-commit: merging locally into 'main' is not allowed; use a pull request." >&2
+    exit 1
+fi
+exit 0

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Blocks commits made directly on `main`: work on a branch and open a pull request.
+# Enabled with: git config core.hooksPath .githooks   (see "Contributing" in the README)
+
+branch=$(git symbolic-ref --short -q HEAD)
+if [ "$branch" = "main" ]; then
+    echo "pre-commit: direct commits to 'main' are not allowed." >&2
+    echo "            create a branch first:  git switch -c <name>" >&2
+    exit 1
+fi
+exit 0
