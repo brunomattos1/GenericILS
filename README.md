@@ -225,3 +225,5 @@ through a pull request, never by pushing to `main`.
 ## License
 
 GenericILS is released under the [MIT License](LICENSE).
+
+Teste de proteção da branch main.
