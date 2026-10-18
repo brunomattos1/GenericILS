@@ -41,10 +41,13 @@
     end
 
     @testset "Vertex, ProblemData and Statistics" begin
-        @test Vertex(3) == Vertex(3)
-        @test Vertex(3) != Vertex(4)
-        @test hash(Vertex(3)) == hash(Vertex(3))
-        @test length(Set([Vertex(1), Vertex(1), Vertex(2)])) == 2
+        v(id) = Vertex(id, Group(id, 1, false))
+        @test v(3) == v(3)
+        @test v(3) != v(4)
+        @test hash(v(3)) == hash(v(3))
+        @test length(Set([v(1), v(1), v(2)])) == 2
+        # vertices are identified by their id alone
+        @test Vertex(3, Group(1, 1, false)) == Vertex(3, Group(2, 2, true))
         @test isempty(ProblemData().vertices)
         @test GenericILS.Statistics().bestFeasCost == Inf
     end

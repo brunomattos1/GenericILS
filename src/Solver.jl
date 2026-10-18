@@ -71,19 +71,59 @@ struct Cost
     warpStd2::Tuple{Float64, Float64}
 end
 
-"""A customer identified by `id` (the depot, id `0`, is not part of `ProblemData.vertices`)."""
+"""
+A customer identified by `id` that belongs to `group` (the depot, id `0`, is not part of
+`ProblemData.vertices`). A plain customer is `Vertex(id, Group(groupId, 1, false))`.
+"""
 mutable struct Vertex
     id::Int
+    group::Group
 end
 
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
 Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
 
-"""Problem data: customers, distance cost matrix (index = id + 1) and maximum number of routes."""
+"""
+Problem data: customers, distance cost matrix (index = id + 1) and maximum number of routes.
+
+The groups come from the vertices: `groups[g]` is the group with `groupId == g`, `members[g]` the ids of its
+vertices and `groupOf[id]` the `groupId` of vertex `id`. Vertex ids must be positive and unique, group ids
+must be `1:G`, every vertex of a group must carry the same `Group`, and `1 ≤ numVisits ≤ length(members[g])`.
+"""
 struct ProblemData
     vertices::Vector{Vertex}
     costMatrix::Matrix{Float64}
     maxNbRoutes::Int
+    groups::Vector{Group}
+    members::Vector{Vector{Int}}
+    groupOf::Vector{Int}
+
+    function ProblemData(vertices, costMatrix, maxNbRoutes)
+        maxId   = isempty(vertices) ? 0 : maximum(v -> v.id, vertices)
+        nGroups = isempty(vertices) ? 0 : maximum(v -> v.group.groupId, vertices)
+        groupOf = zeros(Int, maxId)
+        groups  = Vector{Union{Nothing, Group}}(nothing, nGroups)
+        members = [Int[] for _ in 1:nGroups]
+        for v in vertices
+            v.id >= 1 || throw(ArgumentError("vertex ids must be positive, got $(v.id)"))
+            groupOf[v.id] == 0 || throw(ArgumentError("vertex id $(v.id) appears more than once"))
+            g = v.group
+            g.groupId >= 1 || throw(ArgumentError("group ids must be positive, got $(g.groupId) at vertex $(v.id)"))
+            if isnothing(groups[g.groupId])
+                groups[g.groupId] = g
+            elseif groups[g.groupId] != g
+                throw(ArgumentError("vertices of group $(g.groupId) carry different groups: $(groups[g.groupId]) and $g"))
+            end
+            groupOf[v.id] = g.groupId
+            push!(members[g.groupId], v.id)
+        end
+        for g in 1:nGroups
+            isnothing(groups[g]) && throw(ArgumentError("group ids must be 1:$nGroups, group $g has no vertices"))
+            1 <= groups[g].numVisits <= length(members[g]) || throw(ArgumentError(
+                "group $g needs $(groups[g].numVisits) visits but has $(length(members[g])) vertices"))
+        end
+        new(vertices, costMatrix, maxNbRoutes, convert(Vector{Group}, groups), members, groupOf)
+    end
 end
 """Empty `ProblemData`, a placeholder until `setData!` is called."""
 ProblemData() = ProblemData(Vector{Vertex}(), zeros(2,2), 0)

@@ -28,6 +28,7 @@ Run the ILS: construct a solution and apply RVND, then repeat perturb + RVND + a
 criterion (or the time limit) triggers; finish with Set Partitioning.
 """
 function run!(algo::ILSAlgorithm, solver::Solver)
+    assertGroupsSupported(solver.data)
     algo.bestSol.cost = Inf
     algo.startTime = time()
     solver.bestFeasSol = newSolution(solver)

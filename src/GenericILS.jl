@@ -13,6 +13,7 @@ import Base: split
 include("LabelsFunctions.jl")
 include("Resources.jl")
 include("Solution.jl")
+include("Groups.jl")
 include("PenaltyManager.jl")
 include("Solver.jl")
 include("Construct.jl")
@@ -38,7 +39,7 @@ export
     extendAlongArc, concatenationCost,
 
     # problem / solver setup
-    Vertex, ProblemData,
+    Group, Vertex, ProblemData, groupViolations,
     StandardPenaltyManager, TargetRatePenaltyManager,
     Solver,
 

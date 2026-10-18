@@ -37,7 +37,8 @@ which works for any problem where the route-set structure holds.
 | Backhauls / ordering rules | Direct | State with a "phase" flag |
 | Open routes | Likely direct | Zero the return-to-depot arc costs; verify with the checker |
 | Fixed number of vehicles | Direct | `maxNbRoutes` in `ProblemData`; check behavior when it is tight |
-| Optional customers / prize collecting | **Partial** | Every vertex in `ProblemData.customers` must be visited; needs package changes or a reformulation |
+| Visit one of several alternatives (generalized VRP) | **Partial** | `Group` with `numVisits < length(group)`; construction supports it, the local search keeps the counts but cannot swap the chosen vertex yet |
+| Optional customers / prize collecting | **Partial** | Visits are fixed by the groups (`numVisits`), no per-vertex prizes; needs package changes or a reformulation |
 | Objective coupling routes (min-max, balance, makespan) | **No** (or reformulate) | Not decomposable per route |
 | Shared resources across routes, synchronization, multi-trip with one vehicle | **No** | Routes are evaluated independently |
 | Time-dependent travel times | **Unlikely** | Backward labels can't evaluate arrival-time-dependent travel without extra machinery; ask first |

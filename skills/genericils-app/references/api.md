@@ -84,6 +84,10 @@ exact constructors before using one you haven't seen.
 
 - `ProblemData` costMatrix: distance cost between ids (index id+1). Zero matrix if all cost is in
   the resource.
+- Vertices: `Vertex(id, Group(groupId, numVisits, sameRoute))`. A plain customer is its own group,
+  `Vertex(i, Group(i, 1, false))`. A group needs exactly `numVisits` of its vertices visited, all in one
+  route if `sameRoute`. Group ids are `1:G`. The search does not support `sameRoute` with
+  `numVisits > 1` yet (`solve!` errors); construction does.
 - `maxNbRoutes`: upper bound on routes (e.g. `ceil(sum(demand)/Q) + 3`, or `n`).
 - After `solve!`: `solver.algorithm.outerBestSol` holds the final solution too.
 - Set Partitioning time limit: `timeLimitSP`; the cutoff hint is CPLEX-only and silently skipped

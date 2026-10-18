@@ -17,7 +17,7 @@ using ..GenericILS:
     updateBestFeasSol!, updatePenalty, registerBestFeasibleBefSP!,
     Cost, BestMove,
     myInitStateForward, myInitStateBackward,
-    constructSol!, search!, copySolution!
+    constructSol!, search!, copySolution!, assertGroupsSupported
 import ..GenericILS: run!, totalTime, printInfo
 
 export ILSAlgorithm, run!, RVND!,

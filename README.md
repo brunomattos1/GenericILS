@@ -76,6 +76,8 @@ algorithm = NILSAlgorithm(res;
 )
 
 # 3. Build the solver and run it
+#    `customers` are `Vertex(id, Group(groupId, numVisits, sameRoute))`; a plain customer is
+#    `Vertex(i, Group(i, 1, false))`
 solver = Solver(
     res = res,
     data = ProblemData(customers, costMatrix, maxNbRoutes),
