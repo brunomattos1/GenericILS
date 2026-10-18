@@ -24,11 +24,6 @@ function registerRoutePool!(solver::Solver, solution::Solution)
     end
 end
 
-"""Whether customer `i` is visited by `route`."""
-function visitsCustomer(i::Int, route::Vector{Int})
-    return i in route
-end
-
 """Cost of a route: distance plus the custom-resource cost when there is one."""
 function routeCost(solver::Solver, r::Vector{Int})
     cost = 0.
@@ -42,8 +37,9 @@ function routeCost(solver::Solver, r::Vector{Int})
 end
 
 """
-Solve the Set Partitioning MIP over the pooled routes (each customer exactly once, at most `maxNbRoutes`
-routes) and keep the result if it beats the best feasible solution. `cutOff` is an upper-bound hint.
+Solve the Set Partitioning MIP over the pooled routes (each group visited `numVisits` times and each vertex at
+most once, at most `maxNbRoutes` routes; see `addPartitioningConstraints!`) and keep the result if it beats the
+best feasible solution. `cutOff` is an upper-bound hint.
 """
 function setPartitioning(solver::Solver, cutOff::Float64)
     sp = Model(solver.MIPSolver)
@@ -62,8 +58,8 @@ function setPartitioning(solver::Solver, cutOff::Float64)
 
     @objective(sp, Min, sum(routeCost(solver, routes[r])*λ[r] for r = 1:length(routes)))
 
-    @constraint(sp, [i = 1:length(solver.data.vertices)], sum(visitsCustomer(i, routes[r]) * λ[r] for r = 1:length(routes)) == 1)
-    @constraint(sp, sum(λ[r] for r = 1:length(routes)) <= solver.data.maxNbRoutes)
+    # a group that no route of the pool can serve makes the problem infeasible
+    addPartitioningConstraints!(sp, solver, routes, λ) || return solver.bestFeasSol
 
     nonEmptyRoutes = filter(rt -> length(rt.visits) > 2, solver.bestFeasSol.routes)
     warmStartIds = [get(solver.algorithm.routeLookup, rt.visits, 0) for rt in nonEmptyRoutes]
@@ -79,7 +75,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
             solver.bestFeasSol.routes = [newRoute(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
             solver.bestFeasSol.cost = objective_value(sp)
-            solver.bestFeasSol.dist = 0
+            solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
 
             computeLabels(solver, solver.bestFeasSol)
             registerBestFeasible!(solver, solver.bestFeasSol)
@@ -93,7 +89,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
             if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
                 solver.bestFeasSol.routes = [newRoute(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
                 solver.bestFeasSol.cost = objective_value(sp)
-                solver.bestFeasSol.dist = 0
+                solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
                 computeLabels(solver, solver.bestFeasSol)
                 registerBestFeasible!(solver, solver.bestFeasSol)
             end

@@ -17,6 +17,7 @@ include("Groups.jl")
 include("PenaltyManager.jl")
 include("Solver.jl")
 include("Construct.jl")
+include("SetPartitioning.jl")
 
 include("Labels.jl")
 include("Infeasibility.jl")
