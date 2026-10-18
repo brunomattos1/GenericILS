@@ -94,7 +94,8 @@ end
 Variant with time windows in `StandardResource{1}` (travel time = distance / 10) and capacity in
 `StandardResource{2}`. Returns `(solver, demands, Q, t, lb, ub)`.
 """
-function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSeed = 3)
+function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSeed = 3,
+                 vertices = plainVertices(nCust), neighborhoods = NEIGHBORHOODS)
     dist, demands, Q = randomInstance(nCust; seed = instanceSeed, Q = Q)
     t = dist ./ 10
     n = nCust + 1
@@ -109,8 +110,8 @@ function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSee
     )
     solver = Solver(
         res = res,
-        data = ProblemData(plainVertices(nCust), dist, ceil(Int, sum(demands) / Q) + 3),
-        neighborhoods = NEIGHBORHOODS,
+        data = ProblemData(vertices, dist, ceil(Int, sum(demands) / Q) + 3),
+        neighborhoods = neighborhoods,
         algorithm = algorithmFor(res),
     )
     setSeed!(solver, MersenneTwister(2))

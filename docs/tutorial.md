@@ -217,7 +217,9 @@ solver = Solver(
   algorithm's `RVND!` will consider, in whatever order/composition you
   want. Neighborhoods available today: `TwoOptStar`, `IntraShift`,
   `InterShift{k}` (moves a block of `k` customers between routes),
-  `InterSwap{k1,k2}` (swaps blocks of size `k1`/`k2` between routes).
+  `InterSwap{k1,k2}` (swaps blocks of size `k1`/`k2` between routes),
+  `IntraGroupExchange` (replaces a visited vertex by an unvisited member of its group; only useful when
+  some group has `numVisits` below its size).
 
 ### Visit groups
 
@@ -234,9 +236,10 @@ a whole cluster served by one vehicle is `numVisits = length(cluster)` with `sam
 Group ids must be `1:G`, and every vertex of a group must carry the same `Group`.
 `groupViolations(solver.data, sol)` lists the group constraints a solution breaks.
 
-> **Current limitation:** the greedy construction handles every kind of group, but the local search and
-> perturbation do not yet keep a `sameRoute` group with `numVisits > 1` together, so `solve!` rejects such
-> problems for now.
+The construction, the neighborhoods and the perturbation never split a group that has `sameRoute` and
+needs several visits: a visit of such a group cannot move to another route alone, only together with the
+rest of the group (as a block of `InterShift`/`InterSwap` that holds all its visits, or in a tail of
+`TwoOptStar`). With `IntraGroupExchange` it can still be replaced, in place, by an unvisited member.
 
 `res`, `algorithm` and `neighborhoods` fix type parameters of the `Solver`
 — that's why they're passed at construction time. Everything else (seed,

@@ -26,6 +26,7 @@ include("neighborhoods/IntraShift.jl")
 include("neighborhoods/TwoOptStar.jl")
 include("neighborhoods/InterShift.jl")
 include("neighborhoods/InterSwap.jl")
+include("neighborhoods/IntraGroupExchange.jl")
 include("Neighborhoods.jl")
 
 export
@@ -44,7 +45,7 @@ export
     Solver,
 
     # neighborhoods
-    TwoOptStar, IntraShift, InterShift, InterSwap,
+    TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange,
 
     # algorithms (abstract contract; each Algorithm submodule -- NILS, ILS, ... --
     # provides its own concrete Algorithm type + criteria vocabulary + run! method)

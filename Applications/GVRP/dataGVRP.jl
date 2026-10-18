@@ -1,19 +1,42 @@
 """
-Partition customers `1:n` into clusters of (at most) `clusterSize` vertices, greedily: each cluster starts at
-the unassigned customer farthest from the depot and takes its nearest unassigned neighbors. `dist` has the
-depot at index 1. Returns the vertex ids of each cluster.
+Read a GVRP instance in the format of Bektaş et al. (2011): TSPLIB header (`CAPACITY`, `VEHICLES`),
+`NODE_COORD_SECTION`, `DEMAND_SECTION` and `MUTUALLY_EXCLUSIVE_GROUP_SECTION` (one line per cluster, exactly one
+of its nodes must be visited). Node 1 is the depot. Returns `(name, capacity, vehicles, coords, demand, clusters)`
+with `demand` indexed by node (depot first) and `clusters` holding vertex ids (node number - 1).
 """
-function buildClusters(dist::Matrix{Float64}, clusterSize::Int)
-    free = collect(1:size(dist, 1) - 1)
+function readGVRP(path::String)
+    name, capacity, vehicles = "", 0.0, 0
+    coords = Vector{Tuple{Float64, Float64}}()
+    demand = Float64[]
     clusters = Vector{Vector{Int}}()
-    while !isempty(free)
-        seed = free[argmax(dist[1, free .+ 1])]
-        byDistance = sortperm(dist[seed + 1, free .+ 1]; alg = MergeSort)
-        members = free[byDistance[1:min(clusterSize, length(free))]]
-        push!(clusters, members)
-        filter!(v -> !(v in members), free)
+    section = ""
+    for line in eachline(path)
+        tokens = split(line)
+        isempty(tokens) && continue
+        if tokens[1] == "EOF"
+            break
+        elseif occursin(':', line) && !(tokens[1] in ("NODE_COORD_SECTION", "DEMAND_SECTION"))
+            key, value = strip.(split(line, ':'; limit = 2))
+            key == "NAME" && (name = value)
+            key == "CAPACITY" && (capacity = parse(Float64, value))
+            key == "VEHICLES" && (vehicles = parse(Int, value))
+        elseif endswith(tokens[1], "SECTION")
+            section = tokens[1]
+        elseif section == "NODE_COORD_SECTION"
+            push!(coords, (parse(Float64, tokens[2]), parse(Float64, tokens[3])))
+        elseif section == "DEMAND_SECTION"
+            push!(demand, parse(Float64, tokens[2]))
+        elseif section == "MUTUALLY_EXCLUSIVE_GROUP_SECTION"
+            push!(clusters, [parse(Int, t) - 1 for t in tokens[2:end]])
+        end
     end
-    return clusters
+    return (; name, capacity, vehicles, coords, demand, clusters)
+end
+
+"""Distance matrix (depot first) rounded to the nearest integer, as `EUC_2D` of TSPLIB prescribes."""
+function euclideanMatrix(coords::Vector{Tuple{Float64, Float64}})
+    n = length(coords)
+    return [round(hypot(coords[i][1] - coords[j][1], coords[i][2] - coords[j][2])) for i in 1:n, j in 1:n]
 end
 
 """
@@ -27,19 +50,4 @@ function buildVertices(clusters::Vector{Vector{Int}}, numVisits::Int)
         append!(vertices, Vertex(id, group) for id in members)
     end
     return sort!(vertices; by = v -> v.id)
-end
-
-"""
-Demand of each vertex (depot first, demand 0): whichever vertices of a cluster are visited, the visits carry
-the demand of the whole cluster, i.e. the sum of the original demands of its customers split among the visits.
-"""
-function clusterDemands(demand::Vector{Float64}, clusters::Vector{Vector{Int}}, vertices::Vector{Vertex})
-    q = zeros(Float64, length(demand))
-    for (g, members) in enumerate(clusters)
-        visits = vertices[members[1]].group.numVisits
-        for id in members
-            q[id + 1] = sum(demand[m + 1] for m in members) / visits
-        end
-    end
-    return q
 end

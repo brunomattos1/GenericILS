@@ -11,18 +11,56 @@ struct Group
 end
 
 """
-Whether the neighborhoods and the perturbation of the package can break the group constraints of `groups`.
-They are only group-aware for groups whose constraints they preserve by construction: a group that
-needs several visits in the same route cannot be split by moving a single customer.
+Whether the visits of `group` have to stay in a single route: it needs several of them and `sameRoute`. With a
+single visit there is nothing to keep together.
 """
-supportsGroups(groups::AbstractVector{Group}) = !any(g -> g.sameRoute && g.numVisits > 1, groups)
+mustStayInRoute(group::Group) = group.sameRoute && group.numVisits > 1
 
-"""Throw if the group constraints of `data` are not supported by the search yet (see `supportsGroups`)."""
-function assertGroupsSupported(data)
-    supportsGroups(data.groups) || error(
-        "The local search does not support groups that require several visits in the same route yet " *
-        "(`sameRoute = true` with `numVisits > 1`). Construction works; use `groupViolations` to validate solutions.")
-    return nothing
+"""
+Whether the block of `k` entries of `route` starting at `i` can go to another route without splitting a group:
+for every group that must stay in one route, the block holds either none of its visits or all of them. (The
+visits of such a group are all in `route`, so a block that holds only some of them would leave the others
+behind.) `data` is the `ProblemData`.
+"""
+function canLeaveRoute(data, route::Vector{Int}, i::Int, k::Int)
+    for p in i:i+k-1
+        g = data.groupOf[route[p]]
+        group = data.groups[g]
+        mustStayInRoute(group) || continue
+        inBlock = 0
+        for q in i:i+k-1
+            data.groupOf[route[q]] == g && (inBlock += 1)
+        end
+        inBlock == group.numVisits || return false
+    end
+    return true
+end
+
+"""
+Fill `safe[i]` for `i in 1:length(visits)` with whether cutting `visits` after position `i` (head `1:i`, tail
+`i+1:end`) keeps every group that must stay in one route on one side of the cut. `seen` is scratch space with one
+zero per group, and is left zeroed.
+"""
+function safeCuts!(safe::Vector{Bool}, seen::Vector{Int}, data, visits::Vector{Int})
+    n = length(visits)
+    resize!(safe, n)
+    open = 0
+    safe[1] = true
+    for p in 2:n-1
+        g = data.groupOf[visits[p]]
+        group = data.groups[g]
+        if mustStayInRoute(group)
+            seen[g] += 1
+            seen[g] == 1 && (open += 1)
+            seen[g] == group.numVisits && (open -= 1)
+        end
+        safe[p] = open == 0
+    end
+    safe[n] = true
+    for p in 2:n-1
+        seen[data.groupOf[visits[p]]] = 0
+    end
+    return safe
 end
 
 """

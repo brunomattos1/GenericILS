@@ -38,17 +38,23 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     shuffle!(solver.seed, solver.buffer)
     routesIdx = solver.buffer
     neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
+    safe1, safe2 = Bool[], Bool[]
+    seen = zeros(Int, length(solver.data.groups))
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
+        safeCuts!(safe1, seen, solver.data, sol.routes[r1].visits)
         for r2 in routesIdx
             r1 == r2 && continue
             lastEval = sol.lastEval[neighborhoodId, r1, r2]
             lastEval > max(sol.routes[r1].lastModif, sol.routes[r2].lastModif) && continue
             canPrune = canPruneByDist(solver)
             fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
+            safeCuts!(safe2, seen, solver.data, sol.routes[r2].visits)
             for i = 1:length(sol.routes[r1].visits) - 2
+                safe1[i] || continue
                 for j = 1:length(sol.routes[r2].visits) - 2
+                    safe2[j] || continue
                     dist = twoOptStarCost(sol.dist, solver.data.costMatrix, sol.routes[r1].visits, sol.routes[r2].visits, i, j)
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue

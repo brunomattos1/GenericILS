@@ -1,5 +1,4 @@
 [deps]
-CVRPLIB = "6232a4dd-6c48-4603-a2a7-0046d401e3d1"
 GenericILS = "264616b9-4ba5-42b2-a769-b189edc0be0a"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"

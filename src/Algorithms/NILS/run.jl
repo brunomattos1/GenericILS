@@ -28,7 +28,6 @@ Run the nested ILS: construct a solution, refine it, then repeat perturb + inner
 stopping criterion (or the time limit) triggers; finish with Set Partitioning.
 """
 function run!(algo::NILSAlgorithm, solver::Solver)
-    assertGroupsSupported(solver.data)
     algo.outerBestSol.cost = Inf
     algo.bestSol = newSolution(solver)
     algo.startTime = time()

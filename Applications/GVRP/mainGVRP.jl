@@ -1,10 +1,9 @@
 using GenericILS
 using Random
+using Printf
 include("resourcesGVRP.jl")
 include("dataGVRP.jl")
 Random.seed!(0)
-
-using CVRPLIB
 
 """Arc-indexed demand matrix: entry `(i, j)` is the demand of `j` (0 for the depot)."""
 function createArcDemands(demands)
@@ -31,24 +30,19 @@ function printGVRP(solver::Solver, sol::Solution, demands::Vector{Float64})
 end
 
 """
-Solve a generalized VRP built from a CVRP instance: customers are clustered by proximity into groups of
-`clusterSize` and the solution visits `numVisits` customers per cluster (one by default), serving the demand
-of the whole cluster.
+Solve a GVRP instance of `data/` (Bektaş et al. format): the solution visits `numVisits` vertices of each
+cluster (one by default), with at most `vehicles` routes. Every vertex carries the demand of its cluster. Returns the solver.
 """
-function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
-              clusterSize::Int = 3, numVisits::Int = 1)
-    instance = joinpath(normpath(joinpath(@__DIR__, "..", "CVRP", "data")), string(instance[1]), instance)
-
-    cvrp = CVRPLIB.readCVRP(instance)
-    dist = Float64.(cvrp.weights)
-    clusters = buildClusters(dist, clusterSize)
-    customers = buildVertices(clusters, numVisits)
-    demands = clusterDemands(Float64.(cvrp.demand), clusters, customers)
-    maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
+function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int; numVisits::Int = 1)
+    gvrp = readGVRP(joinpath(@__DIR__, "data", instance))
+    dist = euclideanMatrix(gvrp.coords)
+    customers = buildVertices(gvrp.clusters, numVisits)
+    demands = gvrp.demand
+    maxNbRoute = gvrp.vehicles
     d = createArcDemands(demands)
-    customRes = CustomResource(d, cvrp.capacity)
+    customRes = CustomResource(d, gvrp.capacity)
     n = length(customers) + 1
-    stdRes1 = StandardResource{1}(d, zeros(Float64, n), Float64[cvrp.capacity for _ in 1:n])
+    stdRes1 = StandardResource{1}(d, zeros(Float64, n), Float64[gvrp.capacity for _ in 1:n])
     stdRes2 = StandardResource{2}(zeros(Float64, n, n), zeros(Float64, n), fill(Inf, n))
 
     res = Resources(customRes, stdRes1, stdRes2)
@@ -70,7 +64,8 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
             InterShift{2}(),
             InterSwap{1, 1}(),
             InterSwap{2, 1}(),
-            InterSwap{2, 2}()
+            InterSwap{2, 2}(),
+            IntraGroupExchange()
         ),
         algorithm = algorithm
     )
@@ -86,15 +81,14 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
     @time solve!(solver)
     sol = getBestSol(solver)
     printGVRP(solver, sol, demands)
-    return sol.cost
+    return solver
 end
 
-set = "A"
-n = 37
-k = 5
-instance = "$set-n$n-k$k.vrp"
-seed = 2
-outerIterMax = 200
-innerIterMax = 5
+if abspath(PROGRAM_FILE) == @__FILE__
+    instance = "M-n101-k10-C34-V4.vrp"
+    seed = 2
+    outerIterMax = 200
+    innerIterMax = 5
 
-main(instance, outerIterMax, innerIterMax, seed)
+    main(instance, outerIterMax, innerIterMax, seed)
+end

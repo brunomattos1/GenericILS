@@ -48,6 +48,7 @@ function search!(neigh::InterShift{k}, solver::Solver, sol::Solution) where {k}
             canPrune = canPruneByDist(solver)
             fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
             for i = 2:(len1 - k)
+                canLeaveRoute(solver.data, route1, i, k) || continue
                 resize!(solver.bufferRoute, k)
                 copyto!(solver.bufferRoute, 1, route1, i, k)
                 for j = 2:len2

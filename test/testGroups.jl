@@ -112,16 +112,14 @@ visitedBy(sol) = customersOf(sol)
         checkCVRP(sol, demands, Q, 20)
     end
 
-    @testset "the search refuses groups it cannot keep together yet" begin
-        for make in (nilsAlgorithm(), ilsAlgorithm())
-            solver, = buildCVRP(make; vertices = groupedVertices(CLUSTER_SPEC))
-            @test_throws ErrorException quiet(() -> solve!(solver))
-            solver, = buildCVRP(make; vertices = groupedVertices(MIXED_SPEC))
-            @test_throws ErrorException quiet(() -> solve!(solver))
+    @testset "solving keeps groups together, also those that need several visits in one route" begin
+        for make in (nilsAlgorithm(), ilsAlgorithm()), spec in (CLUSTER_SPEC, MIXED_SPEC)
+            solver, = buildCVRP(make; vertices = groupedVertices(spec))
+            quiet(() -> solve!(solver))
+            best = solver.bestFeasSol
+            @test best.cost < Inf
+            @test groupViolations(solver.data, best) == String[]
         end
-        @test GenericILS.supportsGroups(ProblemData(groupedVertices(GVRP_SPEC), zeros(13, 13), 3).groups)
-        # one visit in a single route is no constraint at all
-        @test GenericILS.supportsGroups([Group(1, 1, true)])
     end
 
     @testset "solving a problem with optional customers keeps the visit counts" begin
