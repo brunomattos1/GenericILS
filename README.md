@@ -20,9 +20,16 @@ The package separates two concerns:
   infeasibility penalization.
 
 Everything reusable — label computation, local search neighborhoods
-(`TwoOptStar`, `IntraShift`, `InterShift`, `InterSwap`), greedy construction,
-and an exact Set Partitioning step (via JuMP/MIP) — is provided by the
-package. You only implement the parts specific to your problem.
+(`TwoOptStar`, `IntraShift`, `InterShift`, `InterSwap`, `IntraGroupExchange`),
+greedy construction, and an exact Set Partitioning step (via JuMP/MIP) — is
+provided by the package. You only implement the parts specific to your problem.
+
+Customers belong to **visit groups** (`Group(groupId, numVisits, sameRoute)`):
+a group asks for `numVisits` of its vertices to be visited, all in the same
+route when `sameRoute` is set. A classic VRP is one group per customer with one
+visit; one visit per cluster is the generalized VRP (GVRP); several visits per
+family is the family capacitated VRP (F-CVRP); a whole cluster served by one
+vehicle is `numVisits = length(cluster)` with `sameRoute = true`.
 
 ## Installation
 
@@ -99,7 +106,7 @@ Pkg.test("GenericILS")                  # or Pkg.test(coverage = true)
 ```
 
 The suite lives in [`test/`](test/) and is split by area (penalty managers, accept/stop criteria,
-solver API, algorithms, cost resources, block moves). Line coverage of `src/` is above 90%. To
+solver API, algorithms, cost resources, block moves, visit groups and their moves, Set Partitioning). Line coverage of `src/` is above 90%. To
 measure it, run the tests with `coverage = true` and summarize the generated `.cov` files with
 [Coverage.jl](https://github.com/JuliaCI/Coverage.jl) (`using Coverage; process_folder("src")`).
 
@@ -111,12 +118,14 @@ src/                    the package
   Solver.jl, Solution.jl  solver state, routes and solutions
   LabelsFunctions.jl      labels and the built-in StandardResource
   Labels.jl, Infeasibility.jl   label computation and move evaluation
-  Construct.jl, PenaltyManager.jl, utils.jl
-  neighborhoods/          TwoOptStar, IntraShift, InterShift, InterSwap
+  Groups.jl               visit groups: Group, group-aware move checks, groupViolations
+  Construct.jl, SetPartitioning.jl, PenaltyManager.jl, utils.jl
+  neighborhoods/          TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange
   Algorithms/NILS, Algorithms/ILS   the two algorithms (each is a self-contained submodule)
 test/                   test suite (see "Running the tests")
 docs/                   tutorial and reference pages
-Applications/<Problem>/ example applications: main<Problem>.jl, resources<Problem>.jl, data/
+Applications/<Problem>/ example applications (CVRP, VRPTW and variants, VRPSPD, CCVRP, HFVRP, MDVRP,
+                        RiskVRP, GVRP, FCVRP): main<Problem>.jl, resources<Problem>.jl, data/
 skills/                 guide for AI assistants (see below)
 ```
 

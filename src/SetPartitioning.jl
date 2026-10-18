@@ -18,9 +18,10 @@ function addPartitioningConstraints!(sp, solver::Solver, routes::Vector{Vector{I
     vertexRoutes = [Int[] for _ in eachindex(data.groupOf)]
     groupRoutes = [Tuple{Int, Int}[] for _ in 1:nGroups]     # (route, visits of the group in it)
     count = zeros(Int, nGroups)
+    touched = Int[]
 
     for (r, route) in enumerate(routes)
-        touched = Int[]
+        empty!(touched)
         for v in route
             v == 0 && continue
             push!(vertexRoutes[v], r)

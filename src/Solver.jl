@@ -89,6 +89,8 @@ Problem data: customers, distance cost matrix (index = id + 1) and maximum numbe
 The groups come from the vertices: `groups[g]` is the group with `groupId == g`, `members[g]` the ids of its
 vertices and `groupOf[id]` the `groupId` of vertex `id`. Vertex ids must be positive and unique, group ids
 must be `1:G`, every vertex of a group must carry the same `Group`, and `1 ≤ numVisits ≤ length(members[g])`.
+`hasLockedGroups` tells whether some group has to stay in one route (`mustStayInRoute`); when none does, the
+moves skip the checks that keep such groups together.
 """
 struct ProblemData
     vertices::Vector{Vertex}
@@ -97,6 +99,7 @@ struct ProblemData
     groups::Vector{Group}
     members::Vector{Vector{Int}}
     groupOf::Vector{Int}
+    hasLockedGroups::Bool
 
     function ProblemData(vertices, costMatrix, maxNbRoutes)
         maxId   = isempty(vertices) ? 0 : maximum(v -> v.id, vertices)
@@ -122,7 +125,8 @@ struct ProblemData
             1 <= groups[g].numVisits <= length(members[g]) || throw(ArgumentError(
                 "group $g needs $(groups[g].numVisits) visits but has $(length(members[g])) vertices"))
         end
-        new(vertices, costMatrix, maxNbRoutes, convert(Vector{Group}, groups), members, groupOf)
+        groups = convert(Vector{Group}, groups)
+        new(vertices, costMatrix, maxNbRoutes, groups, members, groupOf, any(mustStayInRoute, groups))
     end
 end
 """Empty `ProblemData`, a placeholder until `setData!` is called."""

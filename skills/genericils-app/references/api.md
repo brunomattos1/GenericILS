@@ -88,6 +88,8 @@ exact constructors before using one you haven't seen.
   `Vertex(i, Group(i, 1, false))`. A group needs exactly `numVisits` of its vertices visited, all in one
   route if `sameRoute`. Group ids are `1:G`. The search never splits a `sameRoute` group with
   `numVisits > 1`.
+- `IntraGroupExchange()` replaces a visited vertex by an unvisited member of its group; add it to
+  `neighborhoods` when some group has `numVisits` below its size (GVRP, FCVRP). It does nothing otherwise.
 - `maxNbRoutes`: upper bound on routes (e.g. `ceil(sum(demand)/Q) + 3`, or `n`).
 - After `solve!`: `solver.algorithm.outerBestSol` holds the final solution too.
 - Set Partitioning time limit: `timeLimitSP`; the cutoff hint is CPLEX-only and silently skipped

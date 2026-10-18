@@ -3,7 +3,9 @@ GenericILS: Iterated Local Search for vehicle routing and other resource-constra
 
 The user defines a custom resource (`extendAlongArc`, `concatenationCost`, ...); the package provides
 labels, local-search neighborhoods, greedy construction, penalty management, a Set Partitioning step and
-pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). See the README and `docs/` for a tutorial.
+pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). Customers belong to visit groups (`Group`): a classic VRP
+is one group per customer, and groups also express the generalized and family capacitated VRPs. See the README
+and `docs/` for a tutorial.
 """
 module GenericILS
 

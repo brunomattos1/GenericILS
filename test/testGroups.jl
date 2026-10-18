@@ -21,9 +21,17 @@ visitedBy(sol) = customersOf(sol)
         @test data.members == [[1, 2], [3, 4, 5, 6], [7, 8, 9, 10], [11], [12]]
         @test data.groupOf == [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 5]
 
+        # only groups that need several visits in one route make the moves check for splits
+        @test data.hasLockedGroups
+        @test !ProblemData(groupedVertices(GVRP_SPEC), zeros(13, 13), 3).hasLockedGroups
+        @test !ProblemData(groupedVertices([(1:12, 12, false)]), zeros(13, 13), 3).hasLockedGroups
+        @test  ProblemData(groupedVertices([(1:12, 12, true)]), zeros(13, 13), 3).hasLockedGroups
+        @test !ProblemData(groupedVertices([(1:12, 1, true)]), zeros(13, 13), 3).hasLockedGroups
+
         # a classic VRP is one group per customer, each needing one visit
         plain = ProblemData(plainVertices(4), zeros(5, 5), 2)
         @test all(g -> g.numVisits == 1 && !g.sameRoute, plain.groups)
+        @test !plain.hasLockedGroups
         @test plain.members == [[1], [2], [3], [4]]
         @test plain.groupOf == 1:4
 

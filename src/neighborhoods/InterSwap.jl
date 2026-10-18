@@ -61,11 +61,11 @@ function search!(neigh::InterSwap{k1,k2}, solver::Solver, sol::Solution) where {
             for i = 2:(len1 - k1)
                 canLeaveRoute(solver.data, route1, i, k1) || continue
                 for j = 2:(len2 - k2)
-                    canLeaveRoute(solver.data, route2, j, k2) || continue
                     dist = interSwapCost(sol.dist, solver.data.costMatrix, route1, route2, i, j, k1, k2)
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue
                     end
+                    canLeaveRoute(solver.data, route2, j, k2) || continue
                     violInfo, warpR1s1, warpR2s1, warpR1s2, warpR2s2 =
                         computeViolInterSwapK(solver, sol, r1, r2, i, j, k1, k2)
                     cost = objectiveValue(solver, sol,

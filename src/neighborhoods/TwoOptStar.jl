@@ -40,6 +40,7 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
     neighborhoodId = neighIndex(typeof(solver), typeof(neigh))
     safe1, safe2 = Bool[], Bool[]
     seen = zeros(Int, length(solver.data.groups))
+    locked = solver.data.hasLockedGroups
 
     for r1 in routesIdx
         bestMove = BestMove(cost = sol.cost, dist = sol.dist)
@@ -52,9 +53,9 @@ function search!(neigh::TwoOptStar, solver::Solver, sol::Solution)
             fixedPenalty = canPrune ? pruningFixedPenalty(solver, sol, r1, r2) : 0.0
             safeCuts!(safe2, seen, solver.data, sol.routes[r2].visits)
             for i = 1:length(sol.routes[r1].visits) - 2
-                safe1[i] || continue
+                locked && !safe1[i] && continue
                 for j = 1:length(sol.routes[r2].visits) - 2
-                    safe2[j] || continue
+                    locked && !safe2[j] && continue
                     dist = twoOptStarCost(sol.dist, solver.data.costMatrix, sol.routes[r1].visits, sol.routes[r2].visits, i, j)
                     if canPrune && dist + fixedPenalty >= bestMove.cost - 1e-6
                         continue

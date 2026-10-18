@@ -23,6 +23,7 @@ visits of such a group are all in `route`, so a block that holds only some of th
 behind.) `data` is the `ProblemData`.
 """
 function canLeaveRoute(data, route::Vector{Int}, i::Int, k::Int)
+    data.hasLockedGroups || return true
     for p in i:i+k-1
         g = data.groupOf[route[p]]
         group = data.groups[g]
@@ -44,6 +45,10 @@ zero per group, and is left zeroed.
 function safeCuts!(safe::Vector{Bool}, seen::Vector{Int}, data, visits::Vector{Int})
     n = length(visits)
     resize!(safe, n)
+    if !data.hasLockedGroups
+        fill!(safe, true)
+        return safe
+    end
     open = 0
     safe[1] = true
     for p in 2:n-1
