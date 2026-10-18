@@ -70,7 +70,7 @@ function readSolomon(path::String)
             end
         end
         push!(inc, inc_)
-        push!(customers, Vertex(parse(Int, row[1])))
+        push!(customers, Vertex(parse(Int, row[1]), Group(parse(Int, row[1]), 1, false)))   # alone in its group, which needs one visit: a classic VRP
     end
     n = length(customers)
     dist  = zeros(Float64, n, n)
