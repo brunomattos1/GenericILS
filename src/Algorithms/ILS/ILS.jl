@@ -17,7 +17,7 @@ using ..GenericILS:
     updateBestFeasSol!, updatePenalty, registerBestFeasibleBefSP!,
     Cost, BestMove,
     myInitStateForward, myInitStateBackward,
-    constructSol!, search!, copySolution!, canLeaveRoute, addPartitioningConstraints!, manualCost
+    constructSol!, search!, copySolution!, canLeaveRoute, addPartitioningConstraints!, manualCost, randomToggleOptional!
 import ..GenericILS: run!, totalTime, printInfo
 
 export ILSAlgorithm, run!, RVND!,

@@ -219,7 +219,8 @@ solver = Solver(
   `InterShift{k}` (moves a block of `k` customers between routes),
   `InterSwap{k1,k2}` (swaps blocks of size `k1`/`k2` between routes),
   `IntraGroupExchange` (replaces a visited vertex by an unvisited member of its group; only useful when
-  some group has `numVisits` below its size).
+  some group has `numVisits` below its size), `AddOptional` and `RemoveOptional` (visit or drop optional
+  vertices; only useful when there are any, see below).
 
 ### Visit groups
 
@@ -240,6 +241,26 @@ The construction, the neighborhoods and the perturbation never split a group tha
 needs several visits: a visit of such a group cannot move to another route alone, only together with the
 rest of the group (as a block of `InterShift`/`InterSwap` that holds all its visits, or in a tail of
 `TwoOptStar`). With `IntraGroupExchange` it can still be replaced, in place, by an unvisited member.
+
+### Optional vertices
+
+A vertex can be optional: `Vertex(id, group; isOptional = true)`. An optional vertex does not count for the
+`numVisits` of its group, which is about the regular vertices only, and the solution may visit it or not.
+`optionalVertex(id)` makes an optional customer alone in its own group, which needs no visit
+(`numVisits = 0`); `numVisits` is `0` for any group with no regular vertex. If the group has to stay in one
+route (`sameRoute`), its optional vertices go along with the rest.
+
+Whether visiting an optional vertex is worth it is up to the problem: make the resource reward it, for instance
+a profit as a negative cost for entering the vertex (`isCostResource() = true`, the returned cost being the
+accumulated `-profit`). The construction visits an optional vertex only if that lowers the objective, and
+`AddOptional` and `RemoveOptional` do the same during the search. This models prize-collecting and
+orienteering problems; limits such as a maximum route length are ordinary resource constraints.
+
+```julia
+customers = vcat([Vertex(i, Group(i, 1, false)) for i in 1:m],      # mandatory
+                 [optionalVertex(i) for i in m+1:n])                # visited only if they pay
+neighborhoods = (TwoOptStar(), IntraShift(), InterShift{1}(), InterSwap{1,1}(), AddOptional(), RemoveOptional())
+```
 
 `res`, `algorithm` and `neighborhoods` fix type parameters of the `Solver`
 — that's why they're passed at construction time. Everything else (seed,

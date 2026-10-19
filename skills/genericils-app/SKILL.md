@@ -55,8 +55,8 @@ reason**, in a few lines, before writing any code:
   extension along arcs. Go on.
 - **Fit with a modeling trick** — e.g. heterogeneous fleet, multi-depot, load-dependent cost,
   incompatibilities. Name the trick and the existing app that uses it.
-- **Partial fit** — core works but something needs changes inside the package (optional
-  customers, cross-route objectives, new neighborhoods). Say exactly what, and offer a
+- **Partial fit** — core works but something needs changes inside the package (cross-route
+  objectives, new neighborhoods). Say exactly what, and offer a
   reduced version (relax/fix that piece) that does fit.
 - **Does not fit** — say so plainly and suggest what would fit better. A clear "no" saves the
   user days; do not force it.

@@ -1,6 +1,6 @@
 """
 Light perturbation of the inner loop: with probability 1/2 apply `innerShift` random shifts, otherwise
-`innerSwap` random swaps.
+`innerSwap` random swaps; then flip the visit of a random optional vertex, if there are any.
 """
 function innerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
@@ -13,11 +13,12 @@ function innerPerturb!(solver::Solver, solution::Solution)
             perturbed = randomInterSwap11!(solver, solution)
         end
     end
+    randomToggleOptional!(solver, solution)
 end
 
 """
 Perturbation of the outer loop: with probability 1/2 apply `outerShift` random shifts, otherwise
-`outerSwap` random swaps.
+`outerSwap` random swaps; then flip the visit of a random optional vertex, if there are any.
 """
 function outerPerturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
@@ -30,6 +31,7 @@ function outerPerturb!(solver::Solver, solution::Solution)
             perturbed = randomInterSwap11!(solver, solution)
         end
     end
+    randomToggleOptional!(solver, solution)
 end
 
 """

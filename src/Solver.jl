@@ -74,11 +74,23 @@ end
 """
 A customer identified by `id` that belongs to `group` (the depot, id `0`, is not part of
 `ProblemData.vertices`). A plain customer is `Vertex(id, Group(groupId, 1, false))`.
+
+An optional vertex (`isOptional = true`) does not count for the visits its group needs, and the solution may
+visit it or not: what makes it worth visiting, for instance a profit, is up to the problem's resource.
 """
 mutable struct Vertex
     id::Int
     group::Group
+    isOptional::Bool
 end
+Vertex(id::Int, group::Group; isOptional::Bool = false) = Vertex(id, group, isOptional)
+
+"""
+An optional customer alone in its group `groupId` (the id of the vertex by default), which needs no visit.
+Its visit is up to the solution, so it is only worth visiting if the resource rewards it.
+"""
+optionalVertex(id::Int, groupId::Int = id; sameRoute::Bool = false) =
+    Vertex(id, Group(groupId, 0, sameRoute); isOptional = true)
 
 Base.:(==)(a::Vertex, b::Vertex) = a.id == b.id
 Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
@@ -87,10 +99,15 @@ Base.hash(v::Vertex, h::UInt) = hash(v.id, h)
 Problem data: customers, distance cost matrix (index = id + 1) and maximum number of routes.
 
 The groups come from the vertices: `groups[g]` is the group with `groupId == g`, `members[g]` the ids of its
-vertices and `groupOf[id]` the `groupId` of vertex `id`. Vertex ids must be positive and unique, group ids
-must be `1:G`, every vertex of a group must carry the same `Group`, and `1 ≤ numVisits ≤ length(members[g])`.
-`hasLockedGroups` tells whether some group has to stay in one route (`mustStayInRoute`); when none does, the
-moves skip the checks that keep such groups together.
+vertices (`regularMembers[g]` the ones that are not optional, `nOptional[g]` how many are) and `groupOf[id]` the
+`groupId` of vertex `id`; `isOptional[id]` and `optionalIds` tell which vertices are optional. Vertex ids must be
+positive and unique, group ids must be `1:G`, every vertex of a group must carry the same `Group`, and
+`numVisits` is `0` for a group without regular members and `1 ≤ numVisits ≤ length(regularMembers[g])` otherwise.
+
+Derived flags let the moves skip checks that do not apply: `locked[g]` tells whether group `g` has to stay in
+one route (`mustStayInRoute`) and `hasLockedGroups` whether some does, `hasOptional` whether some vertex is
+optional, and `hasExchangeableGroups` whether some group has regular members to choose from (`numVisits` below
+its number of regular members).
 """
 struct ProblemData
     vertices::Vector{Vertex}
@@ -98,15 +115,26 @@ struct ProblemData
     maxNbRoutes::Int
     groups::Vector{Group}
     members::Vector{Vector{Int}}
+    regularMembers::Vector{Vector{Int}}
+    nOptional::Vector{Int}
     groupOf::Vector{Int}
+    isOptional::Vector{Bool}
+    optionalIds::Vector{Int}
+    locked::Vector{Bool}
     hasLockedGroups::Bool
+    hasOptional::Bool
+    hasExchangeableGroups::Bool
 
     function ProblemData(vertices, costMatrix, maxNbRoutes)
         maxId   = isempty(vertices) ? 0 : maximum(v -> v.id, vertices)
         nGroups = isempty(vertices) ? 0 : maximum(v -> v.group.groupId, vertices)
         groupOf = zeros(Int, maxId)
+        isOptional = fill(false, maxId)
         groups  = Vector{Union{Nothing, Group}}(nothing, nGroups)
         members = [Int[] for _ in 1:nGroups]
+        regularMembers = [Int[] for _ in 1:nGroups]
+        nOptional = zeros(Int, nGroups)
+        optionalIds = Int[]
         for v in vertices
             v.id >= 1 || throw(ArgumentError("vertex ids must be positive, got $(v.id)"))
             groupOf[v.id] == 0 || throw(ArgumentError("vertex id $(v.id) appears more than once"))
@@ -119,14 +147,30 @@ struct ProblemData
             end
             groupOf[v.id] = g.groupId
             push!(members[g.groupId], v.id)
+            if v.isOptional
+                isOptional[v.id] = true
+                nOptional[g.groupId] += 1
+                push!(optionalIds, v.id)
+            else
+                push!(regularMembers[g.groupId], v.id)
+            end
         end
         for g in 1:nGroups
             isnothing(groups[g]) && throw(ArgumentError("group ids must be 1:$nGroups, group $g has no vertices"))
-            1 <= groups[g].numVisits <= length(members[g]) || throw(ArgumentError(
-                "group $g needs $(groups[g].numVisits) visits but has $(length(members[g])) vertices"))
+            nRegular = length(regularMembers[g])
+            if nRegular == 0
+                groups[g].numVisits == 0 || throw(ArgumentError(
+                    "group $g has only optional vertices, so it needs 0 visits, not $(groups[g].numVisits)"))
+            else
+                1 <= groups[g].numVisits <= nRegular || throw(ArgumentError(
+                    "group $g needs $(groups[g].numVisits) visits but has $nRegular vertices that are not optional"))
+            end
         end
         groups = convert(Vector{Group}, groups)
-        new(vertices, costMatrix, maxNbRoutes, groups, members, groupOf, any(mustStayInRoute, groups))
+        locked = [mustStayInRoute(groups[g], nOptional[g]) for g in 1:nGroups]
+        exchangeable = any(g -> groups[g].numVisits < length(regularMembers[g]), 1:nGroups)
+        new(vertices, costMatrix, maxNbRoutes, groups, members, regularMembers, nOptional, groupOf, isOptional,
+            optionalIds, locked, any(locked), !isempty(optionalIds), exchangeable)
     end
 end
 """Empty `ProblemData`, a placeholder until `setData!` is called."""
