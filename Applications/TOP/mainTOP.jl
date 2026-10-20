@@ -35,9 +35,9 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
     )
 
     algorithm = NILSAlgorithm(res;
-        acceptCriteria = NILS.MetropolisTimed(100.0, 100.0, 120.0, 2),
+        acceptCriteria = NILS.MetropolisTimed(100.0, 100.0, 30.0, 2),
         stopCriteria = NILS.ByTemperature(0.001),
-        diversification = NILS.Diversification(outerShift = 2, outerSwap = 2, innerShift = 1, innerSwap = 1),
+        diversification = NILS.Diversification(outerShift = 3, outerSwap = 0, innerShift = 1, innerSwap = 1),
         innerIterMax = innerIterMax
     )
 

@@ -128,7 +128,7 @@ src/                    the package
 test/                   test suite (see "Running the tests")
 docs/                   tutorial and reference pages
 Applications/<Problem>/ example applications (CVRP, VRPTW and variants, VRPSPD, CCVRP, HFVRP, MDVRP,
-                        RiskVRP, GVRP, FCVRP, TOP): main<Problem>.jl, resources<Problem>.jl, data/
+                        RiskVRP, GVRP, FCVRP, TOP, PCVRP): main<Problem>.jl, resources<Problem>.jl, data/
 skills/                 guide for AI assistants (see below)
 ```
 
