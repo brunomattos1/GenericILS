@@ -28,13 +28,23 @@ exported by `using GenericILS`; to *add methods* you must `import GenericILS: ex
 struct MyResource <: AbstractResource ... end           # data of your rules
 GenericILS.isSymmetric() = false                        # global to the process
 GenericILS.isCostResource() = false                     # true if it contributes route cost
+# or, per resource type (needed to mix problem types in one process): GenericILS.isCostResource(::MyResource) = false
 struct ForwardState ... end ; struct BackwardState ... end   # immutable
 initStateForward(res::MyResource)  = (ForwardState(...),  0.0)   # (state, cost)
 initStateBackward(res::MyResource) = (BackwardState(...), 0.0)
 extendAlongArc(res::MyResource, label::ForwardLabel,  a::Tuple{Int,Int}) -> (state, cost)
 extendAlongArc(res::MyResource, label::BackwardLabel, a::Tuple{Int,Int}) -> (state, cost)
 concatenationCost(res::MyResource, v::Int, fwd::ForwardLabel, bwd::BackwardLabel) -> (state, cost)
+# optional: for data of the vertex (demand, service, profit); the default leaves the label unchanged
+extendToVertex(res::MyResource, label::ForwardLabel,  v::Int) -> (state, cost)
+extendToVertex(res::MyResource, label::BackwardLabel, v::Int) -> (state, cost)
 ```
+
+- `extendToVertex` runs right after `extendAlongArc` on the label it returned (state and cost include the arc).
+  `v` is the vertex that enters the label, as a **matrix index**: `a[2]` forward, `a[1]` backward. It
+  returns the accumulated cost like `extendAlongArc`. Every vertex but the first of a route is entered
+  once (by the forward labels up to the join, by the backward ones after it), so `concatenationCost` need not
+  add anything for vertices. It is the vertex step of the MetaSolver resources of VRPSolver.
 
 - `cost == Inf` means "violates"; for a non-cost resource otherwise return `0.0`.
 - For a cost resource, `cost` is the **accumulated** custom cost of the partial route (MDVRP and

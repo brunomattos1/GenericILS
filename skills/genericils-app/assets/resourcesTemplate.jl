@@ -45,6 +45,12 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
 
+# OPTIONAL: data that belongs to a vertex (a service time, a profit, a demand) can be applied in
+# `extendToVertex` instead (import it from GenericILS). It runs right after extendAlongArc, on the label it
+# returned, with v = the matrix index of the vertex that enters the label (a[2] forward, a[1] backward):
+#   extendToVertex(res::CustomResource, label::ForwardLabel, v::Int)  = (label.state, label.cost)
+#   extendToVertex(res::CustomResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
+
 # Join a forward prefix with a backward suffix. Must agree with extending the whole route.
 function concatenationCost(res::CustomResource, v::Int, fwd::ForwardLabel, bwd::BackwardLabel)
     q = fwd.state.q + bwd.state.q

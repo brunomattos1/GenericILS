@@ -10,7 +10,7 @@ import ..GenericILS
 using ..GenericILS:
     Solver, Solution, AbstractResources, Algorithm,
     newSolution, newRoute,
-    objectiveValue, computeLabels, computeRouteLabelCost,
+    objectiveValue, computeLabels, computeRouteLabelCost, refreshLabelCosts!,
     isSymmetric, isCostResource,
     apply!, InterShift, InterSwap, interShiftCost, interSwapCost,
     computeViolInterShiftK, computeViolInterSwapK,

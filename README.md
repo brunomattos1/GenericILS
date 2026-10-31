@@ -125,6 +125,7 @@ src/                    the package
   neighborhoods/          TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange, AddOptional,
                           RemoveOptional
   Algorithms/NILS, Algorithms/ILS   the two algorithms (each is a self-contained submodule)
+  cpp/                    custom resources written in C++ (MetaSolver format): CppResources.jl, shim.cpp
 test/                   test suite (see "Running the tests")
 docs/                   tutorial and reference pages
 Applications/<Problem>/ example applications (CVRP, VRPTW and variants, VRPSPD, CCVRP, HFVRP, MDVRP,
@@ -154,6 +155,8 @@ skills/                 guide for AI assistants (see below)
 - **[Algorithms](docs/algorithms.md)** — the metaheuristics available
   out of the box (`NILSAlgorithm`, `ILSAlgorithm`) and how to choose
   between them.
+- **[C++ resources](docs/cpp-resources.md)** — use a MetaSolver
+  `rcsp_custom_res_impl.hpp/.cpp` pair as the custom resource (`loadCppResource`).
 
 ## Example applications
 
