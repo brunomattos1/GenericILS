@@ -49,7 +49,7 @@ function main(data::DataHVRP, outerIterMax::Int, innerIterMax::Int, seed::Int, t
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i))
+        push!(customers, Vertex(i, Group(i, 1, false)))   # alone in its group, which needs one visit: a classic VRP
     end
     d_   = buildDemandMatrix(data)
     Qmax = maximum(Q)

@@ -16,7 +16,10 @@ result back to the outer loop. At the end of the outer loop, a **Set
 Partitioning** step runs — exactly solving, via MIP, the best combination of
 routes visited and stored in the algorithm's `routeStorage`, which
 typically improves the final solution beyond what local search alone
-reaches.
+reaches. With visit groups, the MIP asks for each group to be visited
+exactly `numVisits` times (each vertex at most once); a group that must
+stay in one route is guaranteed to, because the pooled routes already
+hold all its visits.
 
 ```julia
 algorithm = NILSAlgorithm(res;

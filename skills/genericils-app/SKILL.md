@@ -33,7 +33,8 @@ If the user has a paper, instance files or code, read those first and only ask a
 1. **The story.** In their own words: what is being routed, who/what is visited, what is one
    "route", what must be decided, what is the objective?
 2. **Structure.** One depot or several? Homogeneous fleet or vehicle types? Fleet size fixed or free?
-   Must every customer be visited exactly once? Any optional customers or profits?
+   Must every customer be visited exactly once, or are customers grouped (visit k of a group, a
+   whole group by the same vehicle)? Any optional customers or profits?
 3. **Per-route constraints.** Capacity (one or several dimensions, pickups and deliveries?),
    time windows, max duration/distance, precedence (pickup before delivery), incompatible
    customers, release dates, risk/exposure limits, ordering rules (backhauls last), anything else.
@@ -69,7 +70,7 @@ Write a short plan and confirm it with the user:
 | Piece | Decision |
 |---|---|
 | Vertices & indices | customers 1..n, depot 0; matrices are (n+1)x(n+1), index = id+1 |
-| `ProblemData` | cost matrix (distance cost), max number of routes |
+| `ProblemData` | vertices with their visit `Group`s (one group per customer for a classic VRP), cost matrix (distance cost), max number of routes |
 | `StandardResource{1}` / `{2}` | which constraints use the two built-in bounded accumulators (e.g. time windows, capacity) — see `references/api.md` |
 | `CustomResource` | the remaining rules; state fields for forward and backward; `isCostResource`, `isSymmetric` |
 | Algorithm | `NILSAlgorithm` (default) or `ILSAlgorithm`; accept/stop criteria |

@@ -32,6 +32,18 @@ function outerPerturb!(solver::Solver, solution::Solution)
     end
 end
 
+"""
+Position of a random customer of `visits` that can leave its route without splitting a group, or `0` if a few
+draws find none.
+"""
+function randomMovable(solver::Solver, visits::Vector{Int})
+    for _ = 1:20
+        i = rand(solver.seed, 2:length(visits) - 1)
+        canLeaveRoute(solver.data, visits, i, 1) && return i
+    end
+    return 0
+end
+
 """Move one random customer to a random position of another route. Returns `false` if no valid pair is found."""
 function randomInterShift10!(solver::Solver, solution::Solution)
     routes = solution.routes
@@ -46,7 +58,8 @@ function randomInterShift10!(solver::Solver, solution::Solution)
         end
         counter += 1
     end
-    i = rand(solver.seed, 2:length(routes[r1].visits)-1)
+    i = randomMovable(solver, routes[r1].visits)
+    i == 0 && return false
     j = rand(solver.seed, 2:length(routes[r2].visits))
     k = 1
     dist = interShiftCost(solution.dist, solver.data.costMatrix, routes[r1].visits, routes[r2].visits, i, j, k)
@@ -74,8 +87,9 @@ function randomInterSwap11!(solver::Solver, solution::Solution)
         end
         counter += 1
     end
-    i = rand(solver.seed, 2:length(routes[r1].visits) - 1)
-    j = rand(solver.seed, 2:length(routes[r2].visits) - 1)
+    i = randomMovable(solver, routes[r1].visits)
+    j = randomMovable(solver, routes[r2].visits)
+    (i == 0 || j == 0) && return false
     k1 = 1
     k2 = 1
     dist = interSwapCost(solution.dist, solver.data.costMatrix, routes[r1].visits, routes[r2].visits, i, j, k1, k2)

@@ -212,12 +212,34 @@ solver = Solver(
 
 - `data` is a `ProblemData(vertices, costMatrix, maxNbRoutes)` — the
   customers (excluding the depot), the distance matrix, and a route count
-  cap.
+  cap. Every customer is a `Vertex(id, group)` (see below).
 - `neighborhoods` is the tuple of local search neighborhoods that the
   algorithm's `RVND!` will consider, in whatever order/composition you
   want. Neighborhoods available today: `TwoOptStar`, `IntraShift`,
   `InterShift{k}` (moves a block of `k` customers between routes),
-  `InterSwap{k1,k2}` (swaps blocks of size `k1`/`k2` between routes).
+  `InterSwap{k1,k2}` (swaps blocks of size `k1`/`k2` between routes),
+  `IntraGroupExchange` (replaces a visited vertex by an unvisited member of its group; only useful when
+  some group has `numVisits` below its size).
+
+### Visit groups
+
+Each `Vertex` belongs to a `Group(groupId, numVisits, sameRoute)`: the solution must visit exactly
+`numVisits` of the vertices of the group (each at most once), all in the same route when `sameRoute`
+is `true`. A classic VRP puts every customer alone in its own group with `numVisits = 1`:
+
+```julia
+customers = [Vertex(i, Group(i, 1, false)) for i in 1:n]
+```
+
+Other shapes: one vertex per cluster (generalized VRP) is `numVisits = 1` over the cluster's vertices;
+a whole cluster served by one vehicle is `numVisits = length(cluster)` with `sameRoute = true`.
+Group ids must be `1:G`, and every vertex of a group must carry the same `Group`.
+`groupViolations(solver.data, sol)` lists the group constraints a solution breaks.
+
+The construction, the neighborhoods and the perturbation never split a group that has `sameRoute` and
+needs several visits: a visit of such a group cannot move to another route alone, only together with the
+rest of the group (as a block of `InterShift`/`InterSwap` that holds all its visits, or in a tail of
+`TwoOptStar`). With `IntraGroupExchange` it can still be replaced, in place, by an unvisited member.
 
 `res`, `algorithm` and `neighborhoods` fix type parameters of the `Solver`
 — that's why they're passed at construction time. Everything else (seed,
@@ -300,7 +322,8 @@ end
 Random.seed!(0)
 cvrp = CVRPLIB.readCVRP("A-n37-k5.vrp")
 dist = Float64.(cvrp.weights)
-customers = [Vertex(i) for i in 1:size(dist, 1) - 1]
+# one group per customer that needs one visit: a classic VRP (see "Visit groups" in Step 4)
+customers = [Vertex(i, Group(i, 1, false)) for i in 1:size(dist, 1) - 1]
 maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
 
 demands = push!(Float64.(cvrp.demand), 0.0)

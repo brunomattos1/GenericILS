@@ -44,7 +44,7 @@ end
 function main(outerIterMax::Int, innerIterMax::Int, seed::Int)
     dist, demand, Q = demoInstance()                 # CHANGE: read your instance
     n = length(demand) - 1
-    customers = [Vertex(i) for i in 1:n]
+    customers = [Vertex(i, Group(i, 1, false)) for i in 1:n]   # one group per customer, one visit
     d = arcDemands(demand)
 
     customRes = CustomResource(d, Q)                 # CHANGE

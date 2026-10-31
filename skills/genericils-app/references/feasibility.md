@@ -37,7 +37,10 @@ which works for any problem where the route-set structure holds.
 | Backhauls / ordering rules | Direct | State with a "phase" flag |
 | Open routes | Likely direct | Zero the return-to-depot arc costs; verify with the checker |
 | Fixed number of vehicles | Direct | `maxNbRoutes` in `ProblemData`; check behavior when it is tight |
-| Optional customers / prize collecting | **Partial** | Every vertex in `ProblemData.customers` must be visited; needs package changes or a reformulation |
+| Visit one of several alternatives (generalized VRP) | Direct | `Group` with `numVisits = 1` over the alternatives; add `IntraGroupExchange()` so the search can change the chosen vertex (GVRP) |
+| Visit k of the n customers of a family, in any routes (family capacitated VRP) | Direct | `Group(f, k, false)` and `IntraGroupExchange()`; each visited vertex carries the family demand (FCVRP) |
+| A cluster served by a single vehicle | Direct | `Group(g, length(cluster), true)`; the moves never split it (no contiguity inside the route) |
+| Optional customers / prize collecting | **Partial** | Only through groups: the number of visits per group is fixed (`numVisits`) and there are no per-vertex prizes; needs package changes or a reformulation |
 | Objective coupling routes (min-max, balance, makespan) | **No** (or reformulate) | Not decomposable per route |
 | Shared resources across routes, synchronization, multi-trip with one vehicle | **No** | Routes are evaluated independently |
 | Time-dependent travel times | **Unlikely** | Backward labels can't evaluate arrival-time-dependent travel without extra machinery; ask first |
@@ -51,7 +54,8 @@ verdict is expected, not proven, and plan the prototype validation (SKILL.md, St
 
 - "…across all vehicles…" / "…the longest route…" / "…balanced…" → cross-route objective.
 - "…the same driver/vehicle can do several routes…" → multi-trip.
-- "…not all customers need to be served…" → optional customers.
+- "…not all customers need to be served…" → optional customers (or "visit k of these n": a group).
+- "…customers of a cluster/family…" → visit groups; ask how many visits and whether they share a route.
 - "…travel time depends on the time of day…" → time-dependent.
 - "…decide where to open facilities…" → location decisions.
 - "…resource consumed that is shared between routes…" → coupling.
@@ -63,7 +67,8 @@ State the verdict, the one-sentence reason, and the concrete consequence. Exampl
 - "Fits directly: capacity + time windows are the VRPTW setup; only a reader and a checker are new."
 - "Fits with a trick: heterogeneous fleet is handled like HFVRP — the custom resource carries the
   vehicle-type choice in its cost."
-- "Partial: optional customers aren't supported (every customer must be visited). I can model the
-  mandatory-customer version now; the prize-collecting version needs a change in the package."
+- "Partial: optional customers aren't supported on their own (the number of visits per group is fixed).
+  I can model 'visit k of these n' with groups, or the mandatory-customer version now; the
+  prize-collecting version needs a change in the package."
 - "Doesn't fit: minimizing the longest route couples routes, and the labels evaluate one route at a
   time. Minimizing total distance would fit — is that acceptable as a first step?"

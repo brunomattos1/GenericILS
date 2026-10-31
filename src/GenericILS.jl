@@ -3,7 +3,9 @@ GenericILS: Iterated Local Search for vehicle routing and other resource-constra
 
 The user defines a custom resource (`extendAlongArc`, `concatenationCost`, ...); the package provides
 labels, local-search neighborhoods, greedy construction, penalty management, a Set Partitioning step and
-pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). See the README and `docs/` for a tutorial.
+pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). Customers belong to visit groups (`Group`): a classic VRP
+is one group per customer, and groups also express the generalized and family capacitated VRPs. See the README
+and `docs/` for a tutorial.
 """
 module GenericILS
 
@@ -13,9 +15,11 @@ import Base: split
 include("LabelsFunctions.jl")
 include("Resources.jl")
 include("Solution.jl")
+include("Groups.jl")
 include("PenaltyManager.jl")
 include("Solver.jl")
 include("Construct.jl")
+include("SetPartitioning.jl")
 
 include("Labels.jl")
 include("Infeasibility.jl")
@@ -25,6 +29,7 @@ include("neighborhoods/IntraShift.jl")
 include("neighborhoods/TwoOptStar.jl")
 include("neighborhoods/InterShift.jl")
 include("neighborhoods/InterSwap.jl")
+include("neighborhoods/IntraGroupExchange.jl")
 include("Neighborhoods.jl")
 
 export
@@ -38,12 +43,12 @@ export
     extendAlongArc, concatenationCost,
 
     # problem / solver setup
-    Vertex, ProblemData,
+    Group, Vertex, ProblemData, groupViolations,
     StandardPenaltyManager, TargetRatePenaltyManager,
     Solver,
 
     # neighborhoods
-    TwoOptStar, IntraShift, InterShift, InterSwap,
+    TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange,
 
     # algorithms (abstract contract; each Algorithm submodule -- NILS, ILS, ... --
     # provides its own concrete Algorithm type + criteria vocabulary + run! method)

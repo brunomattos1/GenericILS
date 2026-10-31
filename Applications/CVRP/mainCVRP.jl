@@ -57,7 +57,7 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     customers = Vector{Vertex}()
     nbCustomer = size(dist)[1] - 1
     for i = 1:nbCustomer
-        push!(customers, Vertex(i))
+        push!(customers, Vertex(i, Group(i, 1, false)))   # alone in its group, which needs one visit: a classic CVRP
     end
     maxNbRoute = ceil(Int, sum(cvrp.demand) / cvrp.capacity) + 3
     demands = push!(Float64.(cvrp.demand), 0.0)
@@ -107,9 +107,9 @@ function main(instance::String, restarts::Int, outerIterMax::Int, innerIterMax::
     return sol.cost
 end
 
-set = "A"
-n = 37
-k = 5
+set = "M"
+n = 151
+k = 12
 instance = "$set-n$n-k$k.vrp"
 seed = 2
 restarts = 1

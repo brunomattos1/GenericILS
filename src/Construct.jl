@@ -9,22 +9,50 @@ end
 constructSol!(solver::Solver; r::Int = 0) = bestParallelInsertion(solver; r = r)
 
 """
-Parallel greedy insertion: seed `maxNbRoutes + r` routes with random customers, then repeatedly insert the
-remaining customer/position with the lowest penalized cost. Also initializes the `lastEval` table.
+Routes where a vertex of group `g` may still be inserted: the one its group is bound to when the group must
+stay in a single route and already has a visit there, any of the first `nbRoutes` otherwise.
+"""
+allowedRoutes(data::ProblemData, groupRoute::Vector{Int}, g::Int, nbRoutes::Int) =
+    data.groups[g].sameRoute && groupRoute[g] != 0 ? (groupRoute[g]:groupRoute[g]) : (1:nbRoutes)
+
+"""Account for the visit of vertex `id` in route `r`: one visit less is needed from its group, which is bound to `r` if it must stay in one route."""
+function registerVisit!(data::ProblemData, need::Vector{Int}, groupRoute::Vector{Int}, id::Int, r::Int)
+    g = data.groupOf[id]
+    need[g] -= 1
+    data.groups[g].sameRoute && (groupRoute[g] = r)
+    return nothing
+end
+
+"""
+Parallel greedy insertion: seed `nbRoutes` routes (at most `maxNbRoutes + r`) with random vertices, then
+repeatedly insert the vertex/position with the lowest penalized cost, until every group has its `numVisits`
+visits. Vertices of a group already satisfied are never inserted, and the visits of a `sameRoute` group all
+go to the route of its first visit. Also initializes the `lastEval` table.
 """
 function bestParallelInsertion(solver::Solver; r::Int = 0)
-    vertices = deepcopy(solver.data.vertices)
-    nbRoutes = min(length(vertices), solver.data.maxNbRoutes + r)
+    data = solver.data
+    vertices = deepcopy(data.vertices)
+    need = [g.numVisits for g in data.groups]
+    groupRoute = zeros(Int, length(data.groups))
+    remaining = sum(need; init = 0)
+    # a route can be seeded by one visit of a sameRoute group, or by each of the visits of any other group
+    maxSeeds = sum(g.sameRoute ? 1 : g.numVisits for g in data.groups; init = 0)
+    nbRoutes = min(maxSeeds, data.maxNbRoutes + r)
     costMatrix = getCostMatrix(solver)
     sol = newSolution(solver)
     for r = 1:nbRoutes
-        selectedIdx = rand(solver.seed, r:length(vertices))
+        seeds = [i for i = r:length(vertices)
+                 if need[data.groupOf[vertices[i].id]] > 0 &&
+                    r in allowedRoutes(data, groupRoute, data.groupOf[vertices[i].id], nbRoutes)]
+        selectedIdx = seeds[rand(solver.seed, 1:length(seeds))]
         selected = vertices[selectedIdx]
         push!(sol.routes, newRoute(solver, Int[0, selected.id, 0]))
         sol.dist += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         sol.cost += costMatrix[1, selected.id+1] + costMatrix[selected.id+1, 1]
         vertices[selectedIdx], vertices[r] = vertices[r], vertices[selectedIdx]
+        registerVisit!(data, need, groupRoute, selected.id, r)
     end
+    remaining -= nbRoutes
     computeLabels(solver, sol)
     for r = 1:length(sol.routes)
         rt = sol.routes[r]
@@ -32,11 +60,14 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
     end
     sol.totalLabelCost = sum(rt.labelCost for rt in sol.routes)
     sol.cost = objectiveValue(solver, sol)
-    for k = nbRoutes+1:length(vertices)
+    k = nbRoutes + 1
+    while remaining > 0
         bestI = 0
         bestInsertion = BestInsertion()
         for i = k:length(vertices)
-            for r = 1:nbRoutes
+            g = data.groupOf[vertices[i].id]
+            need[g] > 0 || continue
+            for r in allowedRoutes(data, groupRoute, g, nbRoutes)
                 for j = 2:length(sol.routes[r].visits)
                     dist, cost, infeas, warpStd1, warpStd2 = evalBestInsertion(solver, sol, Insertion(r, vertices[i].id, j))
                     if cost < bestInsertion.cost - 1e-6
@@ -46,10 +77,12 @@ function bestParallelInsertion(solver::Solver; r::Int = 0)
                 end
             end
         end
-        if bestInsertion.pos > 0
-            applyMoveInsertion(solver, sol, bestInsertion)
-            vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
-        end
+        bestInsertion.pos > 0 || error("constructSol!: no insertion with finite cost for the $remaining remaining visits")
+        applyMoveInsertion(solver, sol, bestInsertion)
+        vertices[bestI], vertices[k] = vertices[k], vertices[bestI]
+        registerVisit!(data, need, groupRoute, bestInsertion.customer, bestInsertion.route)
+        k += 1
+        remaining -= 1
     end
     R = length(sol.routes)
     nNeighborhoods = length(solver.neighborhoods)

@@ -35,7 +35,7 @@ function runInstance(data::DataVRPSPD, alpha::Float64, innerIterMax::Int, seed::
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i))
+        push!(customers, Vertex(i, Group(i, 1, false)))   # alone in its group, which needs one visit: a classic VRP
     end
     dataHeuristic = ProblemData(customers, buildDistMatrix(data), ceil(Int, length(customers) / 2))
 

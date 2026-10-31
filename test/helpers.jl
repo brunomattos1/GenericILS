@@ -47,6 +47,9 @@ end
 
 struct DummyAlgorithm <: Algorithm end
 
+"Customers `1:n`, each alone in its own group that needs one visit (a classic VRP)."
+plainVertices(n) = [Vertex(i, Group(i, 1, false)) for i in 1:n]
+
 const NEIGHBORHOODS = (TwoOptStar(), IntraShift(), InterShift{1}(), InterShift{2}(),
     InterSwap{1,1}(), InterSwap{2,1}(), InterSwap{2,2}())
 
@@ -64,7 +67,7 @@ end
 Returns `(solver, demands, Q)`. `algorithmFor(res)` builds the algorithm.
 """
 function buildCVRP(algorithmFor; nCust = 12, Q = 30.0, instanceSeed = 1,
-                   neighborhoods = NEIGHBORHOODS, penaltyManager = nothing)
+                   neighborhoods = NEIGHBORHOODS, penaltyManager = nothing, vertices = plainVertices(nCust))
     dist, demands, Q = randomInstance(nCust; seed = instanceSeed, Q = Q)
     d = arcDemands(demands)
     n = nCust + 1
@@ -76,7 +79,7 @@ function buildCVRP(algorithmFor; nCust = 12, Q = 30.0, instanceSeed = 1,
     extra = penaltyManager === nothing ? (;) : (; penaltyManager = penaltyManager)
     solver = Solver(;
         res = res,
-        data = ProblemData([Vertex(i) for i in 1:nCust], dist, ceil(Int, sum(demands) / Q) + 3),
+        data = ProblemData(vertices, dist, ceil(Int, sum(demands) / Q) + 3),
         neighborhoods = neighborhoods,
         algorithm = algorithmFor(res),
         extra...
@@ -91,7 +94,8 @@ end
 Variant with time windows in `StandardResource{1}` (travel time = distance / 10) and capacity in
 `StandardResource{2}`. Returns `(solver, demands, Q, t, lb, ub)`.
 """
-function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSeed = 3)
+function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSeed = 3,
+                 vertices = plainVertices(nCust), neighborhoods = NEIGHBORHOODS)
     dist, demands, Q = randomInstance(nCust; seed = instanceSeed, Q = Q)
     t = dist ./ 10
     n = nCust + 1
@@ -106,8 +110,8 @@ function buildTW(algorithmFor; nCust = 10, Q = 30.0, horizon = 60.0, instanceSee
     )
     solver = Solver(
         res = res,
-        data = ProblemData([Vertex(i) for i in 1:nCust], dist, ceil(Int, sum(demands) / Q) + 3),
-        neighborhoods = NEIGHBORHOODS,
+        data = ProblemData(vertices, dist, ceil(Int, sum(demands) / Q) + 3),
+        neighborhoods = neighborhoods,
         algorithm = algorithmFor(res),
     )
     setSeed!(solver, MersenneTwister(2))
@@ -185,7 +189,7 @@ function solverFromDist(dist; demands = nothing, Q = 1000.0, algorithmFor = nils
         StandardResource{1}(d, zeros(n + 1), fill(Q, n + 1)),
         StandardResource{2}(zeros(n + 1, n + 1), zeros(n + 1), fill(Inf, n + 1)),
     )
-    solver = Solver(res = res, data = ProblemData([Vertex(i) for i in 1:n], dist, n),
+    solver = Solver(res = res, data = ProblemData(plainVertices(n), dist, n),
         neighborhoods = NEIGHBORHOODS, algorithm = algorithmFor(res))
     setSeed!(solver, MersenneTwister(2))
     return solver

@@ -27,7 +27,7 @@ function readSolomon(filename::String)
         i = 19
         while i <= length(tokens) - 6
             push!(id, idIdx)
-            push!(customers, Vertex(idIdx))
+            push!(customers, Vertex(idIdx, Group(idIdx, 1, false)))   # alone in its group, which needs one visit: a classic VRP
             push!(x, parse(Int, tokens[i+1]))
             push!(y, parse(Int, tokens[i+2]))
             push!(demands, parse(Int, tokens[i+3]))

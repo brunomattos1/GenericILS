@@ -57,7 +57,7 @@ algorithm = NILSAlgorithm(res;
     innerIterMax = 3)
 solver = Solver(
     res = res,
-    data = ProblemData([Vertex(i) for i in 1:n], zeros(n + 1, n + 1), ceil(Int, sum(demands) / Q) + 3),
+    data = ProblemData([Vertex(i, Group(i, 1, false)) for i in 1:n], zeros(n + 1, n + 1), ceil(Int, sum(demands) / Q) + 3),
     neighborhoods = (TwoOptStar(), IntraShift(), InterShift{1}(), InterShift{2}(),
         InterSwap{1,1}(), InterSwap{2,1}(), InterSwap{2,2}()),
     algorithm = algorithm)

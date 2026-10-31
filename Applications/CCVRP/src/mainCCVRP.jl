@@ -24,7 +24,7 @@ function main(data::DataCCVRP, outerIterMax::Int, innerIterMax::Int, seed::Int)
 
     customers = Vector{Vertex}()
     for i = 1:n
-        push!(customers, Vertex(i))
+        push!(customers, Vertex(i, Group(i, 1, false)))   # alone in its group, which needs one visit: a classic VRP
     end
     maxNbRoute    = ceil(Int, sum(data.demand) / data.capacity)
     dataHeuristic = ProblemData(customers, zeros(Float64, n+1, n+1), maxNbRoute)

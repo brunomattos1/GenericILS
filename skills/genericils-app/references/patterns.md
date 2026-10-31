@@ -15,6 +15,8 @@ browse them at https://github.com/brunomattos1/GenericILS/tree/main/Applications
 | Cumulative / load-dependent cost | `CCVRP` | `isCostResource() = true`; returned cost is the accumulated `S` |
 | Heterogeneous fleet | `HFVRP` | Cost resource; `ProblemData` cost matrix is zero, cost lives in the custom resource |
 | Multi-depot | `MDVRP` | Dummy single depot; first/last vertex in the state, depot arc costs in a cost resource |
+| One vertex per cluster (generalized VRP) | `GVRP` | `Group(g, 1, false)` per cluster, capacity resource as in `CVRP`, `IntraGroupExchange()`; reader for the `.vrp` GVRP format |
+| Several visits per family (family capacitated VRP) | `FCVRP` | `Group(f, visits, false)` per family, each visited vertex carries the family demand, `IntraGroupExchange()`; batch runner with independent checker |
 
 ## Recurring ideas
 
