@@ -85,7 +85,7 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    instance = "M-n121-k7-C61-V4.vrp "
+    instance = "M-n121-k7-C61-V4.vrp"
     seed = 2
     outerIterMax = 200
     innerIterMax = 5

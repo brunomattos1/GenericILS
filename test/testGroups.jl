@@ -121,8 +121,11 @@ visitedBy(sol) = customersOf(sol)
     end
 
     @testset "solving keeps groups together, also those that need several visits in one route" begin
+        # The capacity is large on purpose: with the default one, a cluster of four customers can have more demand
+        # than a vehicle holds (it depends on the random instance, which differs between Julia versions), and then
+        # there is no valid solution to find.
         for make in (nilsAlgorithm(), ilsAlgorithm()), spec in (CLUSTER_SPEC, MIXED_SPEC)
-            solver, = buildCVRP(make; vertices = groupedVertices(spec))
+            solver, = buildCVRP(make; vertices = groupedVertices(spec), Q = 100.0)
             quiet(() -> solve!(solver))
             best = solver.bestFeasSol
             @test best.cost < Inf
