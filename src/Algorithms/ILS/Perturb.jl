@@ -1,4 +1,7 @@
-"""Perturbation: with probability 1/2 apply `shift` random shifts, otherwise `swap` random swaps."""
+"""
+Perturbation: with probability 1/2 apply `shift` random shifts, otherwise `swap` random swaps; then flip the visit
+of a random optional vertex, if there are any.
+"""
 function perturb!(solver::Solver, solution::Solution)
     rnd = rand(solver.seed)
     if rnd <= 0.5
@@ -10,6 +13,7 @@ function perturb!(solver::Solver, solution::Solution)
             perturbed = randomInterSwap11!(solver, solution)
         end
     end
+    randomToggleOptional!(solver, solution)
 end
 
 """

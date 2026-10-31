@@ -15,7 +15,7 @@ end
 function bruteForceOptimum(solver, pool)
     best = Inf
     cost = [GenericILS.NILS.routeCost(solver, r) for r in pool]
-    for mask in 1:(2^length(pool) - 1)
+    for mask in 0:(2^length(pool) - 1)               # the empty set is a solution when nothing is required
         chosen = [r for r in eachindex(pool) if (mask >> (r - 1)) & 1 == 1]
         length(chosen) <= solver.data.maxNbRoutes || continue
         isempty(groupViolations(solver.data, pool[chosen])) || continue

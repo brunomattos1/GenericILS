@@ -1,8 +1,10 @@
 """
-A group of vertices. Exactly `numVisits` of its members must be visited by the solution (each visited
-member once); when `sameRoute` is `true` all the visited members must be in the same route.
+A group of vertices. Exactly `numVisits` of its regular (non optional) members must be visited by the solution,
+each visited member once; the optional members do not count and may be visited or not. When `sameRoute` is
+`true` all the visited members, optional or not, must be in the same route.
 
-A plain customer is a group of one vertex with `numVisits = 1`.
+A plain customer is a group of one vertex with `numVisits = 1`; an optional customer is a group of one optional
+vertex with `numVisits = 0`.
 """
 struct Group
     groupId::Int
@@ -11,10 +13,21 @@ struct Group
 end
 
 """
-Whether the visits of `group` have to stay in a single route: it needs several of them and `sameRoute`. With a
-single visit there is nothing to keep together.
+Whether the visits of `group` have to stay in a single route: it is `sameRoute` and can have several visits, that
+is, it needs more than one or has optional members (`nOptional` of them) that may add to those it needs.
+With at most one visit there is nothing to keep together.
 """
-mustStayInRoute(group::Group) = group.sameRoute && group.numVisits > 1
+mustStayInRoute(group::Group, nOptional::Int = 0) = group.sameRoute && group.numVisits + nOptional > 1
+
+"""Number of visits that group `g`, which must stay in one route, has in `route` (all of its visits are there)."""
+function visitsInRoute(data, route::Vector{Int}, g::Int)
+    data.nOptional[g] == 0 && return data.groups[g].numVisits     # nothing varies
+    visits = 0
+    for v in route
+        v != 0 && data.groupOf[v] == g && (visits += 1)
+    end
+    return visits
+end
 
 """
 Whether the block of `k` entries of `route` starting at `i` can go to another route without splitting a group:
@@ -26,13 +39,12 @@ function canLeaveRoute(data, route::Vector{Int}, i::Int, k::Int)
     data.hasLockedGroups || return true
     for p in i:i+k-1
         g = data.groupOf[route[p]]
-        group = data.groups[g]
-        mustStayInRoute(group) || continue
+        data.locked[g] || continue
         inBlock = 0
         for q in i:i+k-1
             data.groupOf[route[q]] == g && (inBlock += 1)
         end
-        inBlock == group.numVisits || return false
+        inBlock == visitsInRoute(data, route, g) || return false
     end
     return true
 end
@@ -49,32 +61,37 @@ function safeCuts!(safe::Vector{Bool}, seen::Vector{Int}, data, visits::Vector{I
         fill!(safe, true)
         return safe
     end
+    for p in 2:n-1                                   # visits of each such group in this route
+        g = data.groupOf[visits[p]]
+        data.locked[g] && (seen[g] += 1)
+    end
     open = 0
     safe[1] = true
     for p in 2:n-1
         g = data.groupOf[visits[p]]
-        group = data.groups[g]
-        if mustStayInRoute(group)
-            seen[g] += 1
-            seen[g] == 1 && (open += 1)
-            seen[g] == group.numVisits && (open -= 1)
+        if data.locked[g]
+            left = seen[g]               # still positive before the first visit of the group, then -(visits left)
+            if left > 0
+                open += 1
+                left = -left
+            end
+            left += 1
+            seen[g] = left
+            left == 0 && (open -= 1)
         end
         safe[p] = open == 0
     end
     safe[n] = true
-    for p in 2:n-1
-        seen[data.groupOf[visits[p]]] = 0
-    end
     return safe
 end
 
 """
 Group constraints broken by `routes` (vectors of visits, depot id `0` at both ends), as human-readable
 messages; empty when the routes satisfy them. A solution satisfies them when every vertex is visited at most
-once, every group has exactly `numVisits` visited members and the visited members of a `sameRoute`
-group are in a single route.
+once, every group has exactly `numVisits` visited regular members (the optional ones do not count) and the
+visited members of a `sameRoute` group, optional or not, are in a single route.
 """
-function groupViolations(data, routes::AbstractVector{<:AbstractVector{Int}})
+function groupViolations(data, routes::AbstractVector)
     msgs = String[]
     nGroups = length(data.groups)
     count = zeros(Int, nGroups)
@@ -90,7 +107,7 @@ function groupViolations(data, routes::AbstractVector{<:AbstractVector{Int}})
             v in seen && push!(msgs, "vertex $v is visited more than once")
             push!(seen, v)
             g = data.groupOf[v]
-            count[g] += 1
+            data.isOptional[v] || (count[g] += 1)
             if data.groups[g].sameRoute
                 firstRoute[g] == 0 && (firstRoute[g] = r)
                 firstRoute[g] != r && push!(msgs, "group $g is split between routes $(firstRoute[g]) and $r")

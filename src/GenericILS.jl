@@ -4,8 +4,9 @@ GenericILS: Iterated Local Search for vehicle routing and other resource-constra
 The user defines a custom resource (`extendAlongArc`, `concatenationCost`, ...); the package provides
 labels, local-search neighborhoods, greedy construction, penalty management, a Set Partitioning step and
 pluggable algorithms (`NILSAlgorithm`, `ILSAlgorithm`). Customers belong to visit groups (`Group`): a classic VRP
-is one group per customer, and groups also express the generalized and family capacitated VRPs. See the README
-and `docs/` for a tutorial.
+is one group per customer, and groups also express the generalized and family capacitated VRPs. Vertices can be
+optional (visited only if the resource rewards it), as in prize-collecting problems. See the README and `docs/`
+for a tutorial.
 """
 module GenericILS
 
@@ -30,6 +31,8 @@ include("neighborhoods/TwoOptStar.jl")
 include("neighborhoods/InterShift.jl")
 include("neighborhoods/InterSwap.jl")
 include("neighborhoods/IntraGroupExchange.jl")
+include("neighborhoods/AddOptional.jl")
+include("neighborhoods/RemoveOptional.jl")
 include("Neighborhoods.jl")
 
 export
@@ -43,12 +46,12 @@ export
     extendAlongArc, concatenationCost,
 
     # problem / solver setup
-    Group, Vertex, ProblemData, groupViolations,
+    Group, Vertex, optionalVertex, ProblemData, groupViolations,
     StandardPenaltyManager, TargetRatePenaltyManager,
     Solver,
 
     # neighborhoods
-    TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange,
+    TwoOptStar, IntraShift, InterShift, InterSwap, IntraGroupExchange, AddOptional, RemoveOptional,
 
     # algorithms (abstract contract; each Algorithm submodule -- NILS, ILS, ... --
     # provides its own concrete Algorithm type + criteria vocabulary + run! method)

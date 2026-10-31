@@ -48,9 +48,9 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
     res = Resources(customRes, stdRes1, stdRes2)
 
     algorithm = NILSAlgorithm(res;
-        acceptCriteria = NILS.AcceptBest(),
-        stopCriteria = NILS.ByIterMax(outerIterMax),
-        diversification = NILS.Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0),
+        acceptCriteria = NILS.MetropolisTimed(100.0, 100.0, 30.0, 2.0),
+        stopCriteria = NILS.ByTemperature(0.0001),
+        diversification = NILS.Diversification(outerShift = 3, outerSwap = 3, innerShift = 1, innerSwap = 1),
         innerIterMax = innerIterMax
     )
 
@@ -85,7 +85,7 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int;
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    instance = "M-n101-k10-C34-V4.vrp"
+    instance = "M-n121-k7-C61-V4.vrp"
     seed = 2
     outerIterMax = 200
     innerIterMax = 5

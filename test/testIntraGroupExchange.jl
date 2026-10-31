@@ -20,7 +20,7 @@ function randomExchange(rng, solver, sol)
              for u in data.members[data.groupOf[sol.routes[r].visits[i]]] if !visited[u]]
     isempty(cands) && return nothing
     r1, i, u = rand(rng, cands)
-    r2 = GenericILS.mustStayInRoute(data.groups[data.groupOf[u]]) ? r1 : rand(rng, eachindex(sol.routes))
+    r2 = data.locked[data.groupOf[u]] ? r1 : rand(rng, eachindex(sol.routes))
     v1, v2 = sol.routes[r1].visits, sol.routes[r2].visits
     if r1 == r2
         j = i

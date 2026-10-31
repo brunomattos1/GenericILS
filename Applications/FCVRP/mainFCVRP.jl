@@ -48,9 +48,9 @@ function main(instance::String, outerIterMax::Int, innerIterMax::Int, seed::Int)
     res = Resources(customRes, stdRes1, stdRes2)
 
     algorithm = NILSAlgorithm(res;
-        acceptCriteria = NILS.AcceptBest(),
-        stopCriteria = NILS.ByIterMax(outerIterMax),
-        diversification = NILS.Diversification(outerShift = 1, outerSwap = 0, innerShift = 2, innerSwap = 0),
+        acceptCriteria = NILS.MetropolisTimed(100.0, 100.0, 30.0, 2.0),
+        stopCriteria = NILS.ByTemperature(0.0001),
+        diversification = NILS.Diversification(outerShift = 2, outerSwap = 2, innerShift = 1, innerSwap = 1),
         innerIterMax = innerIterMax
     )
 

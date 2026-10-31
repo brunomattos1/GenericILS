@@ -90,6 +90,13 @@ exact constructors before using one you haven't seen.
   `numVisits > 1`.
 - `IntraGroupExchange()` replaces a visited vertex by an unvisited member of its group; add it to
   `neighborhoods` when some group has `numVisits` below its size (GVRP, FCVRP). It does nothing otherwise.
+- Optional vertices: `Vertex(id, group; isOptional = true)`, or `optionalVertex(id)` for an optional customer
+  alone in its group (`numVisits = 0`). They do not count for the `numVisits` of their group and may be left
+  out. The profit that makes them worth visiting goes in the resource as a negative cost for entering the
+  vertex (`isCostResource() = true`; returned cost = accumulated `-profit`). Add `AddOptional()` and
+  `RemoveOptional()` to `neighborhoods`; they do nothing without optional vertices. A cost resource turns off
+  the pruning by distance, so a profit that is just a discount on the arc entering the vertex can instead be
+  put in the `ProblemData` cost matrix (`cost[i, j] - profit[j]`), which keeps the pruning.
 - `maxNbRoutes`: upper bound on routes (e.g. `ceil(sum(demand)/Q) + 3`, or `n`).
 - After `solve!`: `solver.algorithm.outerBestSol` holds the final solution too.
 - Set Partitioning time limit: `timeLimitSP`; the cutoff hint is CPLEX-only and silently skipped

@@ -47,6 +47,7 @@ function run!(algo::NILSAlgorithm, solver::Solver)
         updatePenalty(solver.penaltyManager, algo.outerCandidateSol)
         registerRoutePool!(solver, algo.outerCandidateSol)
         accept!(algo.acceptCriteria, solver, algo.outerBestSol, algo.outerCurrSol, algo.outerCandidateSol)
+        printInfo(algo, solver)
         if totalTime(algo) >= algo.timeLimitILS
             @goto SP
         end

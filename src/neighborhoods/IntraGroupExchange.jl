@@ -1,7 +1,9 @@
 """
 Neighborhood that replaces a visited member of a group by another member of the same group that is not
-visited. The new member goes to any position of any route, unless the group must stay in one route
-(`sameRoute` with `numVisits > 1`): then it takes the place of the member it replaces.
+visited. Only regular members are exchanged: the optional ones are not in the quota of the group and have their
+own neighborhoods (`AddOptional`, `RemoveOptional`). The new member goes to any position of any route, unless
+the group must stay in one route (`sameRoute` with several visits): then it takes the place of the member it
+replaces.
 """
 struct IntraGroupExchange end
 
@@ -107,13 +109,13 @@ function visitedVertices(data::ProblemData, sol::Solution)
 end
 
 """
-Evaluate every exchange of a visited vertex with an unvisited member of its group and apply, per route, the
+Evaluate every exchange of a visited regular vertex with an unvisited regular member of its group and apply, per route, the
 best one if it improves the solution. Returns `true` when `sol` improved.
 """
 function search!(neigh::IntraGroupExchange, solver::Solver, sol::Solution)
     data = solver.data
+    data.hasExchangeableGroups || return false          # every regular vertex is visited: nothing to exchange
     visited = visitedVertices(data, sol)
-    count(visited) == length(data.vertices) && return false     # every vertex is visited: nothing to exchange
     flag = false
     copySolution!(solver.bufferSol, sol)
     oldSol = solver.bufferSol
@@ -140,9 +142,10 @@ function search!(neigh::IntraGroupExchange, solver::Solver, sol::Solution)
             canPrune = canPruneByDist(solver)
             fixedPenalty = canPrune ? (r1 == r2 ? pruningFixedPenalty(solver, sol, r1) : pruningFixedPenalty(solver, sol, r1, r2)) : 0.0
             for i = 2:(len1 - 1)
+                data.isOptional[route1[i]] && continue          # optional vertices are not in the quota
                 g = data.groupOf[route1[i]]
-                r1 != r2 && mustStayInRoute(data.groups[g]) && continue
-                for u in data.members[g]
+                r1 != r2 && data.locked[g] && continue
+                for u in data.regularMembers[g]
                     visited[u] && continue
                     if r1 == r2
                         dist = intraGroupReplaceCost(sol.dist, data.costMatrix, route1, i, u)
