@@ -9,6 +9,12 @@ include("helpers.jl")
     include("testExtendToVertex.jl")
     include("testResourceFlags.jl")
     include("testCppResource.jl")
+    # needs VrpSolver.jl, which is not a dependency of the package, and a C++ compiler
+    if Base.find_package("VrpSolver") === nothing
+        @info "VrpSolver.jl is not installed: the adapter tests are skipped"
+    elseif GenericILS.CppResources.cppCompiler() !== nothing
+        include("testVrpSolverAdapter.jl")
+    end
     include("testSolutionConstruct.jl")
     include("testGroups.jl")
     include("testInfeasibility.jl")

@@ -97,6 +97,10 @@ export NILSAlgorithm, ILSAlgorithm, NILS, ILS
 using .CppResources: CppResource, loadCppResource, freeCppResource!
 export CppResource, loadCppResource, freeCppResource!
 
+# adapter from a VRPSolver model (implemented in ext/ when VrpSolver.jl is loaded)
+include("VrpSolverAdapter.jl")
+export heuristicModelFromVRPSolver
+
 solve!(solver::Solver) = run!(solver.algorithm, solver)
 
 end # module GenericILS

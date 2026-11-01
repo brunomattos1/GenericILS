@@ -156,7 +156,8 @@ skills/                 guide for AI assistants (see below)
   out of the box (`NILSAlgorithm`, `ILSAlgorithm`) and how to choose
   between them.
 - **[C++ resources](docs/cpp-resources.md)** — use a MetaSolver
-  `rcsp_custom_res_impl.hpp/.cpp` pair as the custom resource (`loadCppResource`).
+  `rcsp_custom_res_impl.hpp/.cpp` pair as the custom resource (`loadCppResource`), and build the whole heuristic
+  from a VRPSolver model (`heuristicModelFromVRPSolver`, needs VrpSolver.jl).
 
 ## Example applications
 

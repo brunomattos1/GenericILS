@@ -10,6 +10,12 @@ Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[weakdeps]
+VrpSolver = "74f9703e-84bc-48c1-adfc-4da7b8ffac08"
+
+[extensions]
+GenericILSVrpSolverExt = "VrpSolver"
+
 [compat]
 HiGHS = "1"
 JuMP = "1"

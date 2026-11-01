@@ -2,8 +2,9 @@
 
 A custom resource can be written in C++, in the format of the **MetaSolver** of VRPSolver (the
 `rcsp_custom_res_impl.hpp` / `rcsp_custom_res_impl.cpp` pair), instead of in Julia. The same files that define the
-resource of a VRPSolver model then define the resource of the heuristic. This is the first step towards solving a
-VRPSolver model with GenericILS.
+resource of a VRPSolver model then define the resource of the heuristic. With the
+[adapter](#from-a-vrpsolver-model) the whole heuristic is derived from the VRPSolver model (see the
+[complete example](#complete-example-ccvrp)).
 
 ```julia
 using GenericILS
@@ -98,8 +99,71 @@ in long searches.
 - The resource owns a C++ object that is released when the resource is garbage collected, or at once by
   `freeCppResource!(res)` (a freed resource cannot be used again). The states of the labels are separate objects
   with their own release. The shared library stays loaded until the process ends.
-- The data of the arcs and vertices come from Julia callbacks. They are not read from a VRPSolver model yet.
+- The data of the arcs and vertices come from Julia callbacks, or from a VRPSolver model with the adapter below.
 
 The examples used by the tests are in [`test/cpp`](../test/cpp): the CVRP capacity written in the arc step and in
 the vertex step, a resource with cost, and two resources with a set of colors in the state (a `std::bitset` and a
 `std::vector`).
+
+## From a VRPSolver model
+
+`heuristicModelFromVRPSolver` builds the data of the heuristic from the `VrpGraph` of a VRPSolver model, so the arcs,
+costs and resources do not have to be written twice. It needs VrpSolver.jl (loaded next to GenericILS, it is not a
+dependency of the package):
+
+```julia
+using GenericILS, VrpSolver
+
+h = heuristicModelFromVRPSolver(model; cppDir = "src/meta_solver")   # the folder with rcsp_custom_res_impl.{hpp,cpp}
+solver = Solver(res = h.res, data = h.data, neighborhoods = (TwoOptStar(), IntraShift()),
+    algorithm = NILSAlgorithm(h.res))
+```
+
+It returns `data` (`ProblemData`), `res` (`Resources`), `maxNbRoutes` and `userIds` (`userIds[i + 1]` is the id in the
+model of vertex `i`; the depot is vertex 0 and the customers follow in the order of the graph). The model does not store
+the path of the C++ files, so `cppDir` says where they are.
+
+| In the VRPSolver model | In the heuristic |
+|---|---|
+| the custom resource | `loadCppResource` with the parameters stored in the model: the arc, vertex and constant structs are passed with their layout, which is the order of the fields of the C++ struct, whatever names the model used to build them |
+| standard resources (up to two) | `StandardResource`: arc consumption, and the interval of the arcs that enter each vertex |
+| a cost variable on the custom resource | the cost is the cost of the label (zero cost matrix); `isCostResource()` of the C++ must agree |
+| no cost variable | the cost of the arc is the sum, over its mapped variables, of the coefficient in the objective |
+| packing sets | groups that need one visit: a customer alone in its set is an ordinary customer, a set with several customers means one of them |
+| multiplicity `(L, U)` | `maxNbRoutes = U`; `L` is not used |
+
+What has no equivalent is an `ArgumentError`: more than one graph, a source different from the sink, a graph that is
+not complete or has parallel arcs, binary or non-disposable resources, more than two standard resources or other than one
+custom resource, bounds that depend on the arc, a vertex outside the packing sets, and an objective that is neither the
+cost variable of the custom resource nor made of variables mapped to arcs (a mix of both is not supported yet). Master
+constraints, cuts and branching are not read: every packing set is assumed to need exactly one visit.
+
+## Complete example: CCVRP
+
+[`Applications/CCVRP/src/mainCCVRP_cpp_full.jl`](../Applications/CCVRP/src/mainCCVRP_cpp_full.jl) is the example from
+end to end. It writes the VRPSolver model of the CCVRP (the one of VRPSolverDemos: the edge variables `x`, the cost
+variable `z` of the custom resource, the capacity resource, the packing sets and the cuts of the BCP) and solves it
+with the heuristic. The model is the only description of the problem; the heuristic is built with
+`heuristicModelFromVRPSolver(model; cppDir)` from the graph and the C++ files of `Applications/CCVRP/src/meta_solver`.
+The BaPCod library is not needed: the model is only read, never optimized.
+
+After the search the example checks the solution against the model: the values of `x` that the routes define give
+degree 2 to every customer, and the cost of the heuristic is the cost of the routes by definition (the sum, over the
+customers, of the demand times the time of service).
+
+The application environment has `VrpSolver` (from its GitHub repository, through `[sources]`) and `JuMP`. From
+`Applications/CCVRP/src`:
+
+```
+julia --project=.. mainCCVRP_cpp_full.jl
+```
+
+This is not the same problem as `mainCCVRP.jl` and `mainCCVRP_cpp.jl`, which give weight 1 to every customer: the
+model of the demo gives the weight of the demand, so their costs are not comparable.
+
+## Tests of the adapter
+
+`test/testVrpSolverAdapter.jl` builds small VRPSolver models and compares the data and the solution of the heuristic
+with the same problem built by hand, and checks every error of the adapter. It needs VrpSolver.jl in the test
+environment and a C++ compiler; `test/runtests.jl` skips it when either is missing, since VrpSolver.jl is not a
+dependency of the package.
