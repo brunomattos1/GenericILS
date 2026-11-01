@@ -51,10 +51,21 @@ initStateForward(res::AbstractResource) = error("not implemented")
 """Initial backward state and cost of a custom resource, as `(state, cost)`. Implemented by the user."""
 initStateBackward(res::AbstractResource) = error("not implemented")
 
-"""Whether the problem is symmetric (see the tutorial). Defined by the user; global to the process."""
+"""
+Whether the problem is symmetric (see the tutorial). Defined by the user for its resource type,
+`isSymmetric(res::MyResource) = ...`, or for the whole process, `isSymmetric() = ...`, which is what a resource
+without its own method uses. Only one problem type per process can use the global form.
+"""
 isSymmetric() = error("not implemented")
-"""Whether the custom resource contributes cost to the objective. Defined by the user; global to the process."""
+isSymmetric(res::AbstractResource) = isSymmetric()
+"""
+Whether the custom resource contributes cost to the objective. Defined by the user like `isSymmetric`: for its
+resource type, `isCostResource(res::MyResource) = ...`, or globally, `isCostResource() = ...`, which a resource
+without its own method uses. The resource type form lets problems with and without a custom cost share a process,
+and lets a resource that is only known at run time (one read from C++) decide.
+"""
 isCostResource() = error("not implemented")
+isCostResource(res::AbstractResource) = isCostResource()
 
 @inline function getState(label::ForwardLabel, ::Val{1})
     return label.std1State
@@ -125,15 +136,43 @@ function myInitStateBackward(res::AbstractResource)
     return BackwardLabel(state, cost, StandardState(Inf, 0.0), StandardState(Inf, 0.0), 0)
 end
 
+"""
+Vertex step of a custom resource, applied right after `extendAlongArc` on the label it produced. `label` is that
+extended label (its `state` and `cost` already include the arc) and `v` the vertex that enters the label, as a
+matrix index like the arc `a`: the head `a[2]` of a forward extension and `a[1]` of a backward one, which is the
+vertex that the label includes after the step. Returns `(state, cost)` with the accumulated cost, as `extendAlongArc`
+does, and `Inf` when the vertex violates a rule.
+
+Users add methods for the resource data that belongs to a vertex (a service time, a profit, a demand). The default
+leaves the label unchanged, so a resource that does not define it is not affected. The source vertex of a route is
+never entered, so it has no vertex step; every other vertex is entered exactly once, either by the forward labels
+(up to the vertex where they are joined) or by the backward ones (after it), so `concatenationCost` has nothing to add
+for the vertices.
+"""
+extendToVertex(res::AbstractResource, label::ForwardLabel, v::Int) = (label.state, label.cost)
+extendToVertex(res::AbstractResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
+
+"""Custom part of a forward extension: the arc and then the vertex it enters."""
+@inline function customExtension(res::AbstractResource, label::ForwardLabel, a::Tuple{Int, Int})
+    state, cost = extendAlongArc(res, label, a)
+    return extendToVertex(res, ForwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1), a[2])
+end
+
+"""Custom part of a backward extension: the arc `(next, cur)` and then the vertex `next` that joins the suffix."""
+@inline function customExtension(res::AbstractResource, label::BackwardLabel, a::Tuple{Int, Int})
+    state, cost = extendAlongArc(res, label, a)
+    return extendToVertex(res, BackwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1), a[1])
+end
+
 """Extend only the custom part of a forward label (standard states are kept)."""
 function myExtendAlongArc(res::AbstractResource, label::ForwardLabel, a::Tuple{Int, Int})
-    state, cost = extendAlongArc(res, label, a)
+    state, cost = customExtension(res, label, a)
     return ForwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1)
 end
 
 """Extend only the custom part of a backward label (standard states are kept)."""
 function myExtendAlongArc(res::AbstractResource, label::BackwardLabel, a::Tuple{Int, Int})
-    state, cost = extendAlongArc(res, label, a)
+    state, cost = customExtension(res, label, a)
     return BackwardLabel(state, cost, label.std1State, label.std2State, a[2] - 1)
 end
 
@@ -145,7 +184,7 @@ end
 
 """Extend a forward label with the custom resource and both standard resources."""
 function myExtendAlongArc(res::AbstractResources, label::ForwardLabel, a::Tuple{Int, Int})
-    state, cost = extendAlongArc(res.customResource, label, a)
+    state, cost = customExtension(res.customResource, label, a)
     std1 = extendAlongArc(res.stdResource1, label, a)
     std2 = extendAlongArc(res.stdResource2, label, a)
     return ForwardLabel(state, cost, std1, std2, a[2] - 1)
@@ -153,7 +192,7 @@ end
 
 """Extend a backward label with the custom resource and both standard resources."""
 function myExtendAlongArc(res::AbstractResources, label::BackwardLabel, a::Tuple{Int, Int})
-    state, cost = extendAlongArc(res.customResource, label, a)
+    state, cost = customExtension(res.customResource, label, a)
     std1 = extendAlongArc(res.stdResource1, label, a)
     std2 = extendAlongArc(res.stdResource2, label, a)
     return BackwardLabel(state, cost, std1, std2, a[2] - 1)

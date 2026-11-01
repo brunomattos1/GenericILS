@@ -63,9 +63,13 @@ GenericILS.isSymmetric() = false
 GenericILS.isCostResource() = false
 ```
 
-> These two functions take no arguments — they're global to the process. If
-> you plan to run more than one problem type in the same Julia process, each
-> one needs its own process/environment.
+> This form takes no arguments, so it is global to the process: it works for
+> one problem type per Julia process. To run problems with different answers in
+> the same process, define the flags for your resource type instead —
+> `GenericILS.isCostResource(::CustomResource) = false` and
+> `GenericILS.isSymmetric(::CustomResource) = false`. A resource without its
+> own methods uses the global form. A resource that learns the answer when it
+> is created (one read from C++, for instance) must use the per-type form.
 
 ### The label's state
 
@@ -134,6 +138,38 @@ end
 
 That's everything the package needs to know about your problem. From here
 on, it's all configuration — no other domain code is needed.
+
+#### Optional: a step for the vertex
+
+Data that belongs to a vertex rather than to an arc (a demand, a service time, a profit) can go in a fourth
+function, `extendToVertex(res, label, v)`. The package calls it right after `extendAlongArc`, on the label that
+`extendAlongArc` produced, so `label.state` and `label.cost` already include the arc. It is the same logic as the
+vertex step of the MetaSolver resources of VRPSolver. `v` is the vertex that enters the label, as a matrix index
+like the arc: `a[2]` after a forward extension and `a[1]` after a backward one. It returns `(state, cost)` with the
+accumulated cost, as `extendAlongArc` does, and `Inf` when the vertex violates a rule. The default does nothing,
+so a resource that does not define it is not affected.
+
+The capacity above can be written this way, with the arc doing nothing:
+
+```julia
+import GenericILS: extendToVertex
+
+extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int}) = (label.state, label.cost)
+extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int}) = (label.state, label.cost)
+
+function extendToVertex(res::CustomResource, label::ForwardLabel, v::Int)
+    q = label.state.q + res.demand[v]              # a vector of demands, by matrix index
+    q > res.Q + 1e-5 ? (ForwardState(q), Inf) : (ForwardState(q), 0.0)
+end
+
+function extendToVertex(res::CustomResource, label::BackwardLabel, v::Int)
+    q = label.state.q + res.demand[v]
+    q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
+end
+```
+
+Every vertex of a route but its first is entered exactly once, by the forward labels up to the vertex where the
+two halves are joined and by the backward ones after it, so `concatenationCost` has nothing to add for the vertices.
 
 ## Step 2 — Building the `Resources`
 

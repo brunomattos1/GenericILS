@@ -112,12 +112,12 @@ function pruningFixedPenalty(solver::Solver, sol::Solution, r::Int)
 end
 
 """Pruning moves by distance is only valid when the custom resource adds no cost."""
-canPruneByDist(solver::Solver) = !isCostResource()
+canPruneByDist(solver::Solver) = !isCostResource(solver.res.customResource)
 
 """Penalized objective of `sol`: distance (+ custom cost) plus the penalty of each lane times its violation."""
 function objectiveValue(solver::Solver, sol::Solution)
     objVal = sol.dist
-    if isCostResource()
+    if isCostResource(solver.res.customResource)
         objVal += sol.totalLabelCost
     end
     objVal += solver.penaltyManager.penaltyCustom * (sol.totalInfeas)
@@ -134,7 +134,7 @@ and warps.
 function objectiveValue(solver::Solver, sol::Solution, r::Int, dist::Float64, infeas::Int, labelCost::Float64, warpStd1::Float64, warpStd2::Float64)
     rt = sol.routes[r]
     objVal = dist
-    if isCostResource()
+    if isCostResource(solver.res.customResource)
         objVal += sol.totalLabelCost - rt.labelCost + labelCost
     end
     objVal += solver.penaltyManager.penaltyCustom    * (sol.totalInfeas   - rt.infeas   + infeas)
@@ -149,7 +149,7 @@ function objectiveValue(solver::Solver, sol::Solution, costing::Cost)
     rt1 = sol.routes[costing.route1]
     rt2 = sol.routes[costing.route2]
     objVal = costing.dist
-    if isCostResource()
+    if isCostResource(solver.res.customResource)
         objVal += sol.totalLabelCost - rt1.labelCost + costing.violInfo.firstRouteLabelCost - rt2.labelCost + costing.violInfo.secondRouteLabelCost
     end
     objVal += solver.penaltyManager.penaltyCustom    * (sol.totalInfeas   - rt1.infeas   + costing.violInfo.firstRouteInfeas  - rt2.infeas   + costing.violInfo.secondRouteInfeas)

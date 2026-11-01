@@ -30,7 +30,7 @@ function routeCost(solver::Solver, r::Vector{Int})
     for i = 1:length(r)-1
         cost += solver.data.costMatrix[r[i]+1, r[i+1]+1]
     end
-    if isCostResource()
+    if isCostResource(solver.res.customResource)
         cost += computeRouteLabelCost(solver, r)
     end
     return cost
@@ -78,6 +78,8 @@ function setPartitioning(solver::Solver, cutOff::Float64)
             solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
 
             computeLabels(solver, solver.bestFeasSol)
+
+            refreshLabelCosts!(solver.bestFeasSol)
             registerBestFeasible!(solver, solver.bestFeasSol)
         end
     end
@@ -91,6 +93,7 @@ function setPartitioning(solver::Solver, cutOff::Float64)
                 solver.bestFeasSol.cost = objective_value(sp)
                 solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
                 computeLabels(solver, solver.bestFeasSol)
+                refreshLabelCosts!(solver.bestFeasSol)
                 registerBestFeasible!(solver, solver.bestFeasSol)
             end
         end

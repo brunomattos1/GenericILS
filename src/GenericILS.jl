@@ -43,7 +43,7 @@ export
     Resources,
     isSymmetric, isCostResource,
     initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost,
+    extendAlongArc, extendToVertex, concatenationCost,
 
     # problem / solver setup
     Group, Vertex, optionalVertex, ProblemData, groupViolations,
@@ -82,6 +82,7 @@ export
 
 include("Algorithms/NILS/NILS.jl")
 include("Algorithms/ILS/ILS.jl")
+include("cpp/CppResources.jl")
 
 # Only the concrete Algorithm types (unique names) and the run!/solve! entry
 # points are re-exported without qualification. Each submodule's criteria
@@ -91,6 +92,14 @@ include("Algorithms/ILS/ILS.jl")
 using .NILS: NILSAlgorithm
 using .ILS: ILSAlgorithm
 export NILSAlgorithm, ILSAlgorithm, NILS, ILS
+
+# custom resources written in C++ (MetaSolver format); the rest of the module is in GenericILS.CppResources
+using .CppResources: CppResource, loadCppResource, freeCppResource!
+export CppResource, loadCppResource, freeCppResource!
+
+# adapter from a VRPSolver model (implemented in ext/ when VrpSolver.jl is loaded)
+include("VrpSolverAdapter.jl")
+export heuristicModelFromVRPSolver
 
 solve!(solver::Solver) = run!(solver.algorithm, solver)
 
