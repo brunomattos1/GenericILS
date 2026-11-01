@@ -8,10 +8,6 @@ import GenericILS
 import VrpSolver
 using GenericILS: ProblemData, Vertex, Group, Resources, StandardResource, loadCppResource
 
-# the interval that VRPSolver gives to a resource without bounds
-const NO_LB = -1e12
-const NO_UB = 1e12
-
 unsupported(msg::AbstractString) = throw(ArgumentError("heuristicModelFromVRPSolver: " * msg))
 
 "A value of type `T` (isbits) with all its bytes zero, for the pairs of vertices that have no arc."

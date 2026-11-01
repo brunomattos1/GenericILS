@@ -45,3 +45,28 @@ jobs:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  # The adapter of VRPSolver models (heuristicModelFromVRPSolver) lives in a package extension that needs VrpSolver.jl,
+  # which is not registered: its tests run in their own environment (test/vrpsolver), and the coverage joins the one of
+  # the job above (Codecov merges the reports of a commit).
+  adapter:
+    name: Adapter tests (VrpSolver.jl)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Install the environment of the adapter tests
+        run: julia --project=test/vrpsolver -e 'using Pkg; Pkg.instantiate()'
+      - name: Run the adapter tests
+        run: julia --project=test/vrpsolver --code-coverage=user test/vrpsolver/runtests.jl
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          flags: adapter
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
