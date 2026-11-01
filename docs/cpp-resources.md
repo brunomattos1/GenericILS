@@ -59,7 +59,8 @@ Conventions to write the C++ side:
   `(i, j)` has the id `(i - 1) * nv + (j - 1)`, which is the `a` the functions receive; its parameters are what
   `arcParams(i, j)` returned. The backward extension is also called with the arc in the direction of travel.
 - **Costs.** Every function returns the cost of its step, and the label cost is the sum of the steps. `Inf` means
-  that the extension or the concatenation is infeasible. A resource that adds no cost returns `0.0`.
+  that the extension or the concatenation is infeasible, and so does any amount from `1e12` on, which is how the files
+  of the MetaSolver forbid an extension. A resource that adds no cost returns `0.0`.
 - **Forward and backward.** The forward state includes the vertex where it ends and the backward state does not
   include the vertex where it starts. `extendToVertex` is called with the vertex that enters the state: the head of
   the arc going forward, the vertex `next` going backward. The first vertex of a route is never entered. Because of this,

@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 
 #include "rcsp_custom_res_impl.hpp"
@@ -24,6 +25,13 @@ using namespace rcsp_custom_res;
 #else
 #define EXPORT extern "C" __attribute__((visibility("default")))
 #endif
+
+// The files of the MetaSolver forbid an extension by returning 1e12 (an amount that BaPCod never accepts in a column),
+// while GenericILS uses infinity. Every amount from 1e12 on becomes infinity, so both conventions work.
+static double amount(double cost)
+{
+    return cost >= 1e12 ? std::numeric_limits<double>::infinity() : cost;
+}
 
 static CustomResParameters &params(void *p)
 {
@@ -150,49 +158,49 @@ EXPORT void rcc_initBwd(void *p, void *state) { initState(params(p), *static_cas
 // with the functions below.
 EXPORT double rcc_extendFwd(void *p, void *state, int a)
 {
-    return extendAlongArc(params(p), *static_cast<ForwardState *>(state), a);
+    return amount(extendAlongArc(params(p), *static_cast<ForwardState *>(state), a));
 }
 
 EXPORT double rcc_extendBwd(void *p, void *state, int a)
 {
-    return extendAlongArc(params(p), *static_cast<BackwardState *>(state), a);
+    return amount(extendAlongArc(params(p), *static_cast<BackwardState *>(state), a));
 }
 
 EXPORT double rcc_vertexFwd(void *p, void *state, int v)
 {
-    return extendToVertex(params(p), *static_cast<ForwardState *>(state), v);
+    return amount(extendToVertex(params(p), *static_cast<ForwardState *>(state), v));
 }
 
 EXPORT double rcc_vertexBwd(void *p, void *state, int v)
 {
-    return extendToVertex(params(p), *static_cast<BackwardState *>(state), v);
+    return amount(extendToVertex(params(p), *static_cast<BackwardState *>(state), v));
 }
 
 // The arc and then the vertex that enters the label, in one call (what GenericILS does at every extension).
 EXPORT double rcc_stepFwd(void *p, void *state, int a, int v)
 {
     ForwardState &s = *static_cast<ForwardState *>(state);
-    double cost = extendAlongArc(params(p), s, a);
-    return cost + extendToVertex(params(p), s, v);
+    double cost = amount(extendAlongArc(params(p), s, a));
+    return cost + amount(extendToVertex(params(p), s, v));
 }
 
 EXPORT double rcc_stepBwd(void *p, void *state, int a, int v)
 {
     BackwardState &s = *static_cast<BackwardState *>(state);
-    double cost = extendAlongArc(params(p), s, a);
-    return cost + extendToVertex(params(p), s, v);
+    double cost = amount(extendAlongArc(params(p), s, a));
+    return cost + amount(extendToVertex(params(p), s, v));
 }
 
 EXPORT double rcc_concatFB(void *p, int v, const void *fwd, const void *bwd)
 {
-    return concatenationCost(params(p), v, *static_cast<const ForwardState *>(fwd),
-                             *static_cast<const BackwardState *>(bwd));
+    return amount(concatenationCost(params(p), v, *static_cast<const ForwardState *>(fwd),
+                                    *static_cast<const BackwardState *>(bwd)));
 }
 
 EXPORT double rcc_concatFF(void *p, int v, const void *fwd, const void *bwd)
 {
-    return concatenationCost(params(p), v, *static_cast<const ForwardState *>(fwd),
-                             *static_cast<const ForwardState *>(bwd));
+    return amount(concatenationCost(params(p), v, *static_cast<const ForwardState *>(fwd),
+                                    *static_cast<const ForwardState *>(bwd)));
 }
 
 EXPORT double rcc_dominationFwd(void *p, int v, const void *dominating, const void *dominated)

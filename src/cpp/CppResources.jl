@@ -15,7 +15,8 @@ is done by the C++ functions:
      as in the MetaSolver, `extendToVertex` runs right after `extendAlongArc`.
 
 The cost that the C++ functions return is a per-step amount: the label cost is the sum of the amounts (`Inf` means
-infeasible and stays `Inf`). The flags `isCostResource` and `isSymmetric` come from the C++ implementation and belong
+infeasible and stays `Inf`; the shim also turns every amount from `1e12` on into `Inf`, which is how the files of the
+MetaSolver forbid an extension). The flags `isCostResource` and `isSymmetric` come from the C++ implementation and belong
 to the resource, so they need no global definition. See `loadCppResource`.
 """
 module CppResources

@@ -59,6 +59,17 @@ else
         checkConsistency(b, b.bestFeasSol)
     end
 
+    @testset "1e12 is infeasible, as in the files of the MetaSolver" begin
+        dist, demands, Q = randomInstance(12; seed = 4, Q = 20.0)
+        d = arcDemands(demands)
+        bigM = loadCppResource(cppExample("cvrpBigM")...; nv = size(d, 1), arcParams = (i, j) -> (d = d[i, j],), constParams = (Q = Q,))
+        compared = checkSameLabels(CustomResource(d, Q), bigM, MersenneTwister(1), 12)    # the costs are Inf, not 1e12
+        @test compared > 1000
+        bigMBuilder(demands, Q) = (dm = arcDemands(demands); loadCppResource(cppExample("cvrpBigM")...; nv = size(dm, 1),
+            arcParams = (i, j) -> (d = dm[i, j],), constParams = (Q = Q,)))
+        checkSameSolutions((demands, Q) -> CustomResource(arcDemands(demands), Q), bigMBuilder)
+    end
+
     @testset "the capacity in the vertex step: vertex parameters and extendToVertex in C++" begin
         dist, demands, Q = randomInstance(12; seed = 4, Q = 20.0)
         native = CustomResource(arcDemands(demands), Q)
