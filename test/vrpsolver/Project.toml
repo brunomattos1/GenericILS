@@ -1,5 +1,7 @@
 # Environment of the tests of the adapter (heuristicModelFromVRPSolver): VrpSolver.jl is not registered, so it comes
 # from its repository. [sources] needs Julia 1.11 or newer.
+# The main branch of VrpSolver.jl gives the name of the BaPCod library to ccall as an expression (ENV), which Julia 1.13
+# rejects when it precompiles the package: these tests need Julia 1.11 or 1.12 (the CI job uses 1.12).
 [deps]
 GenericILS = "264616b9-4ba5-42b2-a769-b189edc0be0a"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"

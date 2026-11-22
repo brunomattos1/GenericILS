@@ -140,10 +140,12 @@ end
 
 "Julia `isbits` struct `name` with the given fields (reused when it already exists)."
 function defineStruct!(name::Symbol, fields::Vector{Pair{Symbol, DataType}})
-    isdefined(CppResources, name) && return getfield(CppResources, name)
+    # the binding of a type created at run time belongs to a newer world than the caller: it is read with invokelatest
+    # (Julia 1.12 warns about the access in the old world, and later versions will make it an error)
+    Base.invokelatest(isdefined, CppResources, name) && return Base.invokelatest(getfield, CppResources, name)
     block = Expr(:block, [:($f::$t) for (f, t) in fields]...)
     Core.eval(CppResources, Expr(:struct, false, name, block))
-    return getfield(CppResources, name)
+    return Base.invokelatest(getfield, CppResources, name)
 end
 
 """
