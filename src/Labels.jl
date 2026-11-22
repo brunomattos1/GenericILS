@@ -55,6 +55,20 @@ function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, B
     end
 end
 
+"""
+Set the label cost of every route of `sol`, and its total, from the labels that `computeLabels` just computed. Needed
+after routes are replaced wholesale (as the Set Partitioning does), because the moves keep these values up to date
+themselves.
+"""
+function refreshLabelCosts!(sol::Solution)
+    sol.totalLabelCost = 0.0
+    for rt in sol.routes
+        rt.labelCost = min(rt.forwardLabels[end].cost, rt.backwardLabels[end].cost)
+        sol.totalLabelCost += rt.labelCost
+    end
+    return sol
+end
+
 """Same as above, restricted to the routes whose indices are listed (used after a move)."""
 function computeLabels(solver::Solver{N, R, PM, FL, BL, AL}, sol::Solution{FL, BL}, routes::Int...) where {N, R <: AbstractResources, PM, FL, BL, AL}
     for r in routes

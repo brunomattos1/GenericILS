@@ -8,7 +8,7 @@ using Random
 using GenericILS
 using HiGHS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost
+    extendAlongArc, extendToVertex, concatenationCost
 
 struct ProfitCost <: AbstractResource
     profit::Vector{Float64}          # indexed by matrix index (id + 1); the depot has none
@@ -30,6 +30,8 @@ extendAlongArc(res::ProfitCost, l::ForwardLabel, a::Tuple{Int,Int}) =
     (FProfit(l.state.c - res.profit[a[2]]), l.state.c - res.profit[a[2]])
 extendAlongArc(res::ProfitCost, l::BackwardLabel, a::Tuple{Int,Int}) =
     (BProfit(l.state.c - res.profit[a[1]]), l.state.c - res.profit[a[1]])
+extendToVertex(::ProfitCost, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::ProfitCost, l::BackwardLabel, ::Int) = (l.state, l.cost)
 concatenationCost(res::ProfitCost, v::Int, f::ForwardLabel, b::BackwardLabel) =
     (FProfit(f.state.c + b.state.c), f.state.c + b.state.c)
 

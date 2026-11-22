@@ -10,14 +10,14 @@ import ..GenericILS
 using ..GenericILS:
     Solver, Solution, AbstractResources, Algorithm,
     newSolution, newRoute,
-    objectiveValue, computeLabels, computeRouteLabelCost,
+    objectiveValue, computeLabels, computeRouteLabelCost, refreshLabelCosts!,
     isSymmetric, isCostResource,
     apply!, InterShift, InterSwap, interShiftCost, interSwapCost,
     computeViolInterShiftK, computeViolInterSwapK,
     updateBestFeasSol!, updatePenalty, registerBestFeasibleBefSP!,
     Cost, BestMove,
     myInitStateForward, myInitStateBackward,
-    constructSol!, search!, copySolution!, canLeaveRoute, addPartitioningConstraints!, manualCost, randomToggleOptional!
+    constructSol!, search!, copySolution!, canLeaveRoute, addPartitioningConstraints!, solvePartitioning!, manualCost, randomToggleOptional!
 import ..GenericILS: run!, totalTime, printInfo
 
 export ILSAlgorithm, run!, RVND!,

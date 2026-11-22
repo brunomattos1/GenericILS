@@ -5,7 +5,7 @@ using Random
 using GenericILS
 using HiGHS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost
+    extendAlongArc, extendToVertex, concatenationCost
 
 struct CustomResource <: AbstractResource
     d::Matrix{Float64}
@@ -31,6 +31,8 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     q = label.state.q + res.d[(1, a[1])...]
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
+extendToVertex(::CustomResource, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::CustomResource, l::BackwardLabel, ::Int) = (l.state, l.cost)
 function concatenationCost(res::CustomResource, v::Int, f::ForwardLabel, b::BackwardLabel)
     q = f.state.q + b.state.q
     q > res.Q + 1e-5 ? (ForwardState(q), Inf) : (ForwardState(q), 0.0)
@@ -268,3 +270,28 @@ function checkConsistency(solver, sol)
 end
 
 customersOf(sol) = sort!(reduce(vcat, [r.visits[2:end-1] for r in sol.routes]; init = Int[]))
+
+"Forward labels of `visits` (ids) with the custom resource `res`."
+function labelsForward(res, visits)
+    labels = [GenericILS.myInitStateForward(res)]
+    for i in 2:length(visits)
+        push!(labels, GenericILS.myExtendAlongArc(res, labels[end], (visits[i-1] + 1, visits[i] + 1)))
+    end
+    return labels
+end
+
+"Backward labels: the label `k` is the suffix after `visits[end-k+1]`."
+function labelsBackward(res, visits)
+    n = length(visits)
+    labels = [GenericILS.myInitStateBackward(res)]
+    for k in 2:n
+        pos = n - k + 1
+        push!(labels, GenericILS.myExtendAlongArc(res, labels[end], (visits[pos+1] + 1, visits[pos] + 1)))
+    end
+    return labels
+end
+
+"Random routes (ids, depot at both ends) over `nCust` customers."
+function routesOfCustomers(rng, nCust, count)
+    return [vcat(0, shuffle(rng, 1:nCust)[1:rand(rng, 1:nCust)], 0) for _ in 1:count]
+end

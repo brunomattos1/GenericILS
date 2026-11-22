@@ -120,7 +120,8 @@ Do not commit or push unless asked.
 
 ## Gotchas worth remembering
 
-- `isSymmetric()`/`isCostResource()` are global per Julia process: one problem type per process.
+- `isSymmetric()`/`isCostResource()` are global per Julia process (one problem type per process); define
+  `isSymmetric(::MyResource)`/`isCostResource(::MyResource)` instead to mix problem types in one process.
 - Two built-in standard resources + one custom resource is the whole budget; plan for it.
 - `Inf` returned by `extendAlongArc` means "violates"; the penalty manager prices violations, so
   the search crosses infeasible space on purpose. Don't return a big finite number instead.

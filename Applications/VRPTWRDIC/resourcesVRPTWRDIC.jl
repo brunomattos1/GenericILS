@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 """Bit set of customer ids stored in 32-bit blocks (fast union/intersection tests)."""
 mutable struct FastBitSet32
@@ -194,3 +194,7 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
         return (ForwardState(0.0, 0.0, 0.0, 0.0, FastBitSet32(1), FastBitSet32(1)), Inf)
     end
 end
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::CustomResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::CustomResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

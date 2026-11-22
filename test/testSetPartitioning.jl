@@ -121,3 +121,42 @@ const SMALL_EXCHANGE_SPEC = [(1:4, 2, false), (5:8, 2, true), (9:10, 1, false), 
         end
     end
 end
+
+@testset "solvePartitioning!" begin
+    function twoWays(objective)
+        sp = Model(HiGHS.Optimizer)
+        set_silent(sp)
+        @variable(sp, λ[1:3], Bin)
+        @constraint(sp, λ[1] + λ[2] == 1)             # route 1 or route 2; route 3 is never needed
+        @objective(sp, Min, sum(objective[r] * λ[r] for r in 1:3))
+        return sp, λ
+    end
+
+    @testset "the routes and the cost come from the selected routes" begin
+        sp, λ = twoWays([2.0, 5.0, 1.0])
+        set_start_value(λ[2], 1.0)                    # a start with the worse alternative
+        chosen, cost = GenericILS.solvePartitioning!(sp, λ, [2.0, 5.0, 1.0], [2])
+        @test chosen == [1]
+        @test cost == 2.0
+    end
+
+    @testset "a start with an objective that does not match the routes is discarded" begin
+        # the costs of the routes disagree with the objective of the model, as the objective that HiGHS reports for a
+        # solution found from a MIP start may; the start is dropped and the cost still is the one of the routes
+        sp, λ = twoWays([2.0, 5.0, 1.0])
+        set_start_value(λ[2], 1.0)
+        starts = [2]
+        chosen, cost = GenericILS.solvePartitioning!(sp, λ, [10.0, 5.0, 1.0], starts)
+        @test chosen == [1]
+        @test cost == 10.0
+        @test isempty(starts) && start_value(λ[2]) === nothing
+    end
+
+    @testset "no solution" begin
+        sp = Model(HiGHS.Optimizer)
+        set_silent(sp)
+        @variable(sp, λ[1:2], Bin)
+        @constraint(sp, λ[1] + λ[2] == 3)
+        @test GenericILS.solvePartitioning!(sp, λ, [1.0, 1.0], Int[]) === nothing
+    end
+end

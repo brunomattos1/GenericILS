@@ -3,7 +3,7 @@
 # Search for "CHANGE" to find the parts you must adapt to your problem.
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 # CHANGE: the data your route-feasibility/cost rules need (matrices are (n+1)x(n+1),
 # row/column 1 is the depot, matrix index = vertex id + 1).
@@ -44,6 +44,12 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     q = label.state.q + res.d[1, a[1]]          # backward adds the previous start of the suffix (a[1])
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
+
+# Data that belongs to a vertex (a service time, a profit, a demand) is applied here, instead of in extendAlongArc.
+# It runs right after extendAlongArc, on the label it returned, with v = the matrix index of the vertex that
+# enters the label (a[2] forward, a[1] backward). This problem has nothing to do at a vertex: the label is unchanged.
+extendToVertex(res::CustomResource, label::ForwardLabel, v::Int)  = (label.state, label.cost)
+extendToVertex(res::CustomResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
 
 # Join a forward prefix with a backward suffix. Must agree with extending the whole route.
 function concatenationCost(res::CustomResource, v::Int, fwd::ForwardLabel, bwd::BackwardLabel)
