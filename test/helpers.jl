@@ -5,7 +5,7 @@ using Random
 using GenericILS
 using HiGHS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost
+    extendAlongArc, extendToVertex, concatenationCost
 
 struct CustomResource <: AbstractResource
     d::Matrix{Float64}
@@ -31,6 +31,8 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     q = label.state.q + res.d[(1, a[1])...]
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
+extendToVertex(::CustomResource, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::CustomResource, l::BackwardLabel, ::Int) = (l.state, l.cost)
 function concatenationCost(res::CustomResource, v::Int, f::ForwardLabel, b::BackwardLabel)
     q = f.state.q + b.state.q
     q > res.Q + 1e-5 ? (ForwardState(q), Inf) : (ForwardState(q), 0.0)

@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 """
 Multi-depot cost resource over a single dummy depot: `C₀[i, j]` is the cheapest depot round trip that serves
@@ -83,3 +83,7 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
     newState = (ForwardState(0,0.0), conc)
     return newState
 end
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::CustomResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::CustomResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

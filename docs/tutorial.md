@@ -89,13 +89,12 @@ end
 
 ### Initializing and extending the label
 
-Finally, you implement 3 functions the package calls internally during the
-search (construction, labeling, local search — everything reuses these 3
-functions):
+Finally, you implement the functions the package calls internally during the
+search (construction, labeling, local search — everything reuses them):
 
 ```julia
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 # initial state (at the depot) and its cost
 function initStateForward(res::CustomResource)
@@ -125,6 +124,10 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     end
 end
 
+# nothing to do at the vertex that the label enters (a demand, a service time or a profit would go here)
+extendToVertex(res::CustomResource, label::ForwardLabel, v::Int) = (label.state, label.cost)
+extendToVertex(res::CustomResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
+
 # how to concatenate a forward label with a backward one (used by local
 # search to evaluate moves without recomputing the whole route)
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
@@ -139,21 +142,19 @@ end
 That's everything the package needs to know about your problem. From here
 on, it's all configuration — no other domain code is needed.
 
-#### Optional: a step for the vertex
+#### The step for the vertex
 
-Data that belongs to a vertex rather than to an arc (a demand, a service time, a profit) can go in a fourth
-function, `extendToVertex(res, label, v)`. The package calls it right after `extendAlongArc`, on the label that
+Data that belongs to a vertex rather than to an arc (a demand, a service time, a profit) can go in
+`extendToVertex(res, label, v)`, instead of in `extendAlongArc`. The package calls it right after `extendAlongArc`, on the label that
 `extendAlongArc` produced, so `label.state` and `label.cost` already include the arc. It is the same logic as the
 vertex step of the MetaSolver resources of VRPSolver. `v` is the vertex that enters the label, as a matrix index
 like the arc: `a[2]` after a forward extension and `a[1]` after a backward one. It returns `(state, cost)` with the
-accumulated cost, as `extendAlongArc` does, and `Inf` when the vertex violates a rule. The default does nothing,
-so a resource that does not define it is not affected.
+accumulated cost, as `extendAlongArc` does, and `Inf` when the vertex violates a rule. A resource with nothing to
+do at a vertex returns the label unchanged, as in the example above.
 
 The capacity above can be written this way, with the arc doing nothing:
 
 ```julia
-import GenericILS: extendToVertex
-
 extendAlongArc(res::CustomResource, label::ForwardLabel, a::Tuple{Int, Int}) = (label.state, label.cost)
 extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int, Int}) = (label.state, label.cost)
 
@@ -355,7 +356,7 @@ struct BackwardState
 end
 
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 initStateForward(res::CustomResource) = (ForwardState(0.0), 0.0)
 initStateBackward(res::CustomResource) = (BackwardState(0.0), 0.0)
@@ -369,6 +370,9 @@ function extendAlongArc(res::CustomResource, label::BackwardLabel, a::Tuple{Int,
     q = label.state.q + res.d[(1, a[1])...]
     q > res.Q + 1e-5 ? (BackwardState(q), Inf) : (BackwardState(q), 0.0)
 end
+
+extendToVertex(res::CustomResource, label::ForwardLabel, v::Int) = (label.state, label.cost)
+extendToVertex(res::CustomResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
 
 function concatenationCost(res::CustomResource, v::Int, fwd::ForwardLabel, bwd::BackwardLabel)
     q = fwd.state.q + bwd.state.q

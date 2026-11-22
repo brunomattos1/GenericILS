@@ -38,6 +38,9 @@ extendAlongArc(res::ProfitInArc, l::ForwardLabel, a::Tuple{Int,Int}) =
 extendAlongArc(res::ProfitInArc, l::BackwardLabel, a::Tuple{Int,Int}) =
     (BProfit(l.state.c - res.profit[a[1]]), l.state.c - res.profit[a[1]])
 
+extendToVertex(::ProfitInArc, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::ProfitInArc, l::BackwardLabel, ::Int) = (l.state, l.cost)
+
 # vertex form: the arc is free and the vertex that enters the label pays its profit
 extendAlongArc(::ProfitInVertex, l::ForwardLabel, ::Tuple{Int,Int}) = (l.state, l.cost)
 extendAlongArc(::ProfitInVertex, l::BackwardLabel, ::Tuple{Int,Int}) = (l.state, l.cost)

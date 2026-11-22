@@ -10,6 +10,13 @@ using GenericILS: ProblemData, Vertex, Group, Resources, StandardResource, loadC
 
 unsupported(msg::AbstractString) = throw(ArgumentError("heuristicModelFromVRPSolver: " * msg))
 
+"""
+Packing sets of a vertex of the graph. VrpSolver.jl keeps one id per vertex (-1 for none) or, in the versions that allow
+overlapping sets, the vector of ids.
+"""
+packingSetsOf(v::VrpSolver.VrpVertex) =
+    hasfield(VrpSolver.VrpVertex, :packing_sets) ? v.packing_sets : (v.packing_set == -1 ? Int[] : [v.packing_set])
+
 "A value of type `T` (isbits) with all its bytes zero, for the pairs of vertices that have no arc."
 zeroOf(::Type{T}) where T = sizeof(T) == 0 ? T() : reinterpret(T, zeros(UInt8, sizeof(T)))[1]
 
@@ -24,7 +31,7 @@ function commonType(values, what::AbstractString)
     return T
 end
 
-function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDir::AbstractString)
+function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDir::Union{Nothing,AbstractString} = nothing)
     # ---- one graph, one depot ----
     length(model.graphs) == 1 || unsupported("the model has $(length(model.graphs)) graphs, only one is supported")
     G = model.graphs[1]
@@ -32,10 +39,10 @@ function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDi
     model.packing_sets_type == VrpSolver.VertexSet ||
         unsupported("the customers must be defined with set_vertex_packing_sets! (packing sets on vertices)")
 
-    # ---- resources: the custom one and up to two standard ones ----
+    # ---- resources: the custom one (if any) and up to two standard ones ----
     custom = [r for r in G.resources if r.is_custom]
-    length(custom) == 1 || unsupported("the graph needs exactly one custom resource, it has $(length(custom))")
-    customRes = custom[1]
+    length(custom) <= 1 || unsupported("the graph has $(length(custom)) custom resources, at most one is supported")
+    customRes = isempty(custom) ? nothing : custom[1]
     any(r -> r.is_binary, G.resources) && unsupported("binary resources are not supported")
     standard = [r for r in G.resources if !r.is_custom && !r.is_automatic]
     length(standard) <= 2 || unsupported("at most two standard resources are supported, the graph has $(length(standard))")
@@ -53,10 +60,13 @@ function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDi
     end
     internalOf = vcat(G.source_id, customers)               # matrix index -> vertex of the graph
     userIds = [G.vertices[v].user_id for v in internalOf]
-    G.vertices[G.source_id].packing_set == -1 || unsupported("the depot cannot belong to a packing set")
+    isempty(packingSetsOf(G.vertices[G.source_id])) || unsupported("the depot cannot belong to a packing set")
     for v in customers
-        G.vertices[v].packing_set >= 1 ||
+        sets = packingSetsOf(G.vertices[v])
+        isempty(sets) &&
             unsupported("customer $(G.vertices[v].user_id) is in no packing set: every vertex but the depot must be in one")
+        length(sets) == 1 ||
+            unsupported("customer $(G.vertices[v].user_id) is in $(length(sets)) packing sets: only one is supported")
     end
 
     # ---- arcs: exactly one per ordered pair of different vertices ----
@@ -95,7 +105,7 @@ function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDi
     # ---- objective: the cost variable of the custom resource, or the variables of the arcs ----
     terms = Dict(var => coeff for (var, coeff) in VrpSolver.get_obj_terms(model.formulation) if !iszero(coeff))
     costMatrix = zeros(nv, nv)
-    if customRes.cost_var !== nothing
+    if customRes !== nothing && customRes.cost_var !== nothing
         (length(terms) == 1 && get(terms, customRes.cost_var, 0.0) == 1.0) ||
             unsupported("the objective must be exactly the cost variable of the custom resource (an objective that mixes it with other terms is not supported yet)")
     else
@@ -108,28 +118,34 @@ function GenericILS.heuristicModelFromVRPSolver(model::VrpSolver.VrpModel; cppDi
         end
     end
 
-    # ---- the custom resource: its parameters are what the model stored, with the layout of the C++ structs ----
-    arcData = Dict((i, j) => get(arc.custom_data, customRes.id, nothing) for ((i, j), arc) in arcOf)
-    vertexData = [get(G.vertices[internalOf[k]].custom_data, customRes.id, nothing) for k in 1:nv]
-    arcType = commonType(collect(values(arcData)), "arcs")
-    vertexType = commonType(vertexData, "vertices")
-    arcParams = (arcType === nothing || sizeof(arcType) == 0) ? nothing :
-        (i, j) -> (v = get(arcData, (i, j), nothing); v === nothing ? zeroOf(arcType) : v)
-    vertexParams = (vertexType === nothing || sizeof(vertexType) == 0) ? nothing : (k -> vertexData[k])
-    constParams = customRes.custom_data === nothing ? (;) : customRes.custom_data
-    cpp, hpp = joinpath(cppDir, "rcsp_custom_res_impl.cpp"), joinpath(cppDir, "rcsp_custom_res_impl.hpp")
-    isfile(cpp) && isfile(hpp) || unsupported("rcsp_custom_res_impl.cpp and rcsp_custom_res_impl.hpp not found in $cppDir")
-    resource = loadCppResource(cpp, hpp; nv = nv, constParams = constParams, arcParams = arcParams, vertexParams = vertexParams)
-    if (customRes.cost_var !== nothing) != resource.isCost
-        unsupported(customRes.cost_var !== nothing ?
-            "the custom resource has a cost variable but isCostResource() of the C++ is false" :
-            "isCostResource() of the C++ is true but the custom resource has no cost variable")
+    # ---- the custom resource: its parameters are what the model stored, with the layout of the C++ structs; a model
+    # with only standard resources gets the placeholder that adds nothing ----
+    if customRes === nothing
+        resource = GenericILS.NoResource()
+    else
+        cppDir === nothing && unsupported("the model has a custom resource: cppDir, the folder of its C++ files, is needed")
+        arcData = Dict((i, j) => get(arc.custom_data, customRes.id, nothing) for ((i, j), arc) in arcOf)
+        vertexData = [get(G.vertices[internalOf[k]].custom_data, customRes.id, nothing) for k in 1:nv]
+        arcType = commonType(collect(values(arcData)), "arcs")
+        vertexType = commonType(vertexData, "vertices")
+        arcParams = (arcType === nothing || sizeof(arcType) == 0) ? nothing :
+            (i, j) -> (v = get(arcData, (i, j), nothing); v === nothing ? zeroOf(arcType) : v)
+        vertexParams = (vertexType === nothing || sizeof(vertexType) == 0) ? nothing : (k -> vertexData[k])
+        constParams = customRes.custom_data === nothing ? (;) : customRes.custom_data
+        cpp, hpp = joinpath(cppDir, "rcsp_custom_res_impl.cpp"), joinpath(cppDir, "rcsp_custom_res_impl.hpp")
+        isfile(cpp) && isfile(hpp) || unsupported("rcsp_custom_res_impl.cpp and rcsp_custom_res_impl.hpp not found in $cppDir")
+        resource = loadCppResource(cpp, hpp; nv = nv, constParams = constParams, arcParams = arcParams, vertexParams = vertexParams)
+        if (customRes.cost_var !== nothing) != resource.isCost
+            unsupported(customRes.cost_var !== nothing ?
+                "the custom resource has a cost variable but isCostResource() of the C++ is false" :
+                "isCostResource() of the C++ is true but the custom resource has no cost variable")
+        end
     end
 
     # ---- packing sets are the groups: one visit to one vertex of each ----
-    packingSets = sort!(unique(G.vertices[v].packing_set for v in customers))
+    packingSets = sort!(unique(only(packingSetsOf(G.vertices[v])) for v in customers))
     groupOf = Dict(ps => g for (g, ps) in enumerate(packingSets))
-    vertices = [Vertex(k, Group(groupOf[G.vertices[customers[k]].packing_set], 1, false)) for k in 1:n]
+    vertices = [Vertex(k, Group(groupOf[only(packingSetsOf(G.vertices[customers[k]]))], 1, false)) for k in 1:n]
 
     maxNbRoutes = G.multiplicity[2]                           # the lower bound L of the multiplicity is not used
     resources = Resources(resource, StandardResource{1}(slots[1]...), StandardResource{2}(slots[2]...))

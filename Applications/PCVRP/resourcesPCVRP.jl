@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 """
 Nothing to track: the only constraint of a route, the capacity, is a standard resource, and the prizes are part of
@@ -22,3 +22,7 @@ initStateBackward(::NoResource) = (NoState(), 0.0)
 extendAlongArc(::NoResource, ::ForwardLabel, ::Tuple{Int, Int}) = (NoState(), 0.0)
 extendAlongArc(::NoResource, ::BackwardLabel, ::Tuple{Int, Int}) = (NoState(), 0.0)
 concatenationCost(::NoResource, ::Int, ::ForwardLabel, ::BackwardLabel) = (NoState(), 0.0)
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::NoResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::NoResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

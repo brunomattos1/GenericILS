@@ -75,7 +75,7 @@ struct CustomResource <: AbstractResource
 end
 GenericILS.isSymmetric() = false
 GenericILS.isCostResource() = false
-# ... initStateForward, initStateBackward, extendAlongArc, concatenationCost
+# ... initStateForward, initStateBackward, extendAlongArc, extendToVertex, concatenationCost
 
 # 2. Build the resources and pick an algorithm
 res = Resources(CustomResource(d, Q), stdRes1, stdRes2)

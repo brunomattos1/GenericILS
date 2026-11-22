@@ -3,6 +3,7 @@
 #   :resource  the cost lives in the custom resource (cost variable z); the capacity is a standard resource
 #   :arcs      the cost lives in the variables of the arcs; the capacity is the custom resource and the time windows
 #              are a standard resource
+#   :standard  as :arcs, but with no custom resource: the capacity and the time windows are standard resources
 # VrpSolver.jl is not a dependency of the package, and the custom resources are compiled from C++, so runtests.jl includes
 # this file only when both are available.
 
@@ -67,6 +68,14 @@ function adapterModel(kind::Symbol; nCust = 8, Q = 25.0, seed = 5, depotPos = 1,
             VS.set_resource_bounds!(G, userOf[h], capacity, 0.0, Q)
             VS.set_vertex_custom_res_params!(G, userOf[h], custom, AdapterDistVertex(vertexCost[h]))
         end
+    elseif kind == :standard
+        capacity = VS.add_resource!(G, main = true)
+        timeRes = VS.add_resource!(G)
+        custom = nothing
+        for h in 1:nv
+            VS.set_resource_bounds!(G, userOf[h], capacity, 0.0, Q)
+            VS.set_resource_bounds!(G, userOf[h], timeRes, lb[h], ub[h])
+        end
     else
         timeRes = VS.add_resource!(G, main = true)
         custom = VS.add_resource!(G, custom = true)
@@ -83,6 +92,9 @@ function adapterModel(kind::Symbol; nCust = 8, Q = 25.0, seed = 5, depotPos = 1,
             if kind == :resource
                 VS.set_arc_consumption!(G, arc, capacity, demands[q])
                 VS.set_arc_custom_res_params!(G, arc, custom, AdapterDistArc(dist[p, q]))
+            elseif kind == :standard
+                VS.set_arc_consumption!(G, arc, capacity, demands[q])
+                VS.set_arc_consumption!(G, arc, timeRes, t[p, q])
             else
                 VS.set_arc_consumption!(G, arc, timeRes, t[p, q])
                 VS.set_arc_custom_res_params!(G, arc, custom, AdapterCvrpArc(demands[q]))
@@ -97,7 +109,7 @@ function adapterModel(kind::Symbol; nCust = 8, Q = 25.0, seed = 5, depotPos = 1,
     return model, G, parts, inst
 end
 
-const CPP_DIR_ADAPTER = Dict(:resource => joinpath(@__DIR__, "cpp", "distance"), :arcs => joinpath(@__DIR__, "cpp", "cvrp"))
+const CPP_DIR_ADAPTER = Dict(:resource => joinpath(@__DIR__, "cpp", "distance"), :arcs => joinpath(@__DIR__, "cpp", "cvrp"), :standard => nothing)
 
 "The same problem built by hand with the pieces that the adapter should produce."
 function handBuilt(kind::Symbol, inst)
@@ -107,11 +119,16 @@ function handBuilt(kind::Symbol, inst)
         groupOf[c] = g
     end
     vertices = [Vertex(c, Group(groupOf[c], 1, false)) for c in 1:nCust]
-    neutral = (zeros(nv, nv), zeros(nv), fill(Inf, nv))
+    std2 = (zeros(nv, nv), zeros(nv), fill(Inf, nv))           # unused, no consumption and no limit
     if kind == :resource
         custom = cppDistance(dist, vertexCost)
         std1 = (arcDemands(demands), zeros(nv), fill(Q, nv))
         costMatrix = zeros(nv, nv)
+    elseif kind == :standard
+        custom = GenericILS.NoResource()
+        std1 = (arcDemands(demands), zeros(nv), fill(Q, nv))
+        std2 = (t, lb, ub)                                     # the time windows
+        costMatrix = dist
     else
         d = arcDemands(demands)
         custom = loadCppResource(cppExample("cvrp")...; nv = nv, arcParams = (i, j) -> (d = d[i, j],), constParams = (Q = Q,))
@@ -119,10 +136,10 @@ function handBuilt(kind::Symbol, inst)
         costMatrix = dist
     end
     # the model has no arc from a vertex to itself: those entries of the matrices are zero
-    for m in (std1[1], costMatrix), i in 1:nv
+    for m in (std1[1], std2[1], costMatrix), i in 1:nv
         m[i, i] = 0.0
     end
-    res = Resources(custom, StandardResource{1}(std1...), StandardResource{2}(neutral...))
+    res = Resources(custom, StandardResource{1}(std1...), StandardResource{2}(std2...))
     return ProblemData(vertices, costMatrix, U), res
 end
 
@@ -160,6 +177,11 @@ function checkAdapter(kind::Symbol; kwargs...)
     return h
 end
 
+# VrpSolver.jl keeps the packing set of a vertex as one id (-1 for none) or, in the versions that allow overlapping sets,
+# as a vector of ids
+setPackingSets!(v, ids) = hasfield(typeof(v), :packing_sets) ? (v.packing_sets = collect(ids)) :
+    (v.packing_set = isempty(ids) ? -1 : first(ids))
+
 @testset "heuristicModelFromVRPSolver" begin
     @testset "cost in the custom resource (cost variable)" begin
         h = checkAdapter(:resource)
@@ -170,6 +192,19 @@ end
     @testset "cost in the variables of the arcs" begin
         h = checkAdapter(:arcs)
         @test !all(iszero, h.data.costMatrix)
+    end
+
+    @testset "no custom resource: a placeholder, the capacity and the time windows are standard resources" begin
+        h = checkAdapter(:standard)
+        @test h.res.customResource isa GenericILS.NoResource
+        @test !all(iszero, h.data.costMatrix)
+        @test !all(isinf, h.res.stdResource2.ub)
+        # cppDir is not needed, and giving it changes nothing
+        model, = adapterModel(:standard)
+        @test heuristicModelFromVRPSolver(model; cppDir = mktempdir()).res.customResource isa GenericILS.NoResource
+        # without a cost variable the objective has to be made of the variables of the arcs
+        fails_model, = adapterModel(:standard; mutate = (m, G, p) -> @objective(m.formulation, Min, p.z))
+        @test_throws ArgumentError heuristicModelFromVRPSolver(fails_model)
     end
 
     @testset "cost of every arc: one variable for each directed arc" begin
@@ -206,11 +241,14 @@ end
         fails(:arcs, (m, G, p) -> VS.add_arc!(G, p.ids[2], p.ids[2]), "itself")
         fails(:arcs, (m, G, p) -> (resourceOf(G, r -> r.is_main).is_disposable = false), "not disposable")
         fails(:arcs, (m, G, p) -> (resourceOf(G, r -> r.is_main).is_binary = true), "binary")
-        fails(:arcs, (m, G, p) -> (resourceOf(G, r -> r.is_custom).is_custom = false), "exactly one custom resource")
+        fails(:arcs, (m, G, p) -> (resourceOf(G, r -> r.is_main).is_custom = true), "2 custom resources")
         fails(:arcs, (m, G, p) -> (VS.add_resource!(G); VS.add_resource!(G)), "at most two standard")
         fails(:arcs, (m, G, p) -> (G.arcs[3].res_bounds[p.capacity] = (1.0, 2.0)), "different bounds")
-        fails(:arcs, (m, G, p) -> (G.vertices[3].packing_set = -1), "no packing set")
-        fails(:arcs, (m, G, p) -> (G.vertices[1].packing_set = 1), "depot cannot belong")
+        fails(:arcs, (m, G, p) -> setPackingSets!(G.vertices[3], Int[]), "no packing set")
+        fails(:arcs, (m, G, p) -> setPackingSets!(G.vertices[1], [1]), "depot cannot belong")
+        # the versions of VrpSolver.jl that allow overlapping sets keep a vector of ids for each vertex
+        hasfield(VS.VrpVertex, :packing_sets) &&
+            fails(:arcs, (m, G, p) -> push!(G.vertices[3].packing_sets, 1), "2 packing sets")
         fails(:arcs, (m, G, p) -> (m.packing_sets_type = VS.ArcSet), "packing sets on vertices")
         fails(:resource, (m, G, p) -> delete!(G.vertices[3].custom_data, p.custom), "some have parameters")
         fails(:resource, (m, G, p) -> @objective(m.formulation, Min, 2.0 * p.z), "exactly the cost variable")
@@ -225,6 +263,7 @@ end
 
         model, = adapterModel(:arcs)
         @test_throws ArgumentError heuristicModelFromVRPSolver(model; cppDir = mktempdir())      # no C++ files there
+        @test_throws ArgumentError heuristicModelFromVRPSolver(model)                            # a custom resource needs cppDir
         @test_throws ArgumentError heuristicModelFromVRPSolver(42; cppDir = ".")                  # not a VrpModel
     end
 end

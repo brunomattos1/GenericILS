@@ -143,14 +143,14 @@ matrix index like the arc `a`: the head `a[2]` of a forward extension and `a[1]`
 vertex that the label includes after the step. Returns `(state, cost)` with the accumulated cost, as `extendAlongArc`
 does, and `Inf` when the vertex violates a rule.
 
-Users add methods for the resource data that belongs to a vertex (a service time, a profit, a demand). The default
-leaves the label unchanged, so a resource that does not define it is not affected. The source vertex of a route is
-never entered, so it has no vertex step; every other vertex is entered exactly once, either by the forward labels
-(up to the vertex where they are joined) or by the backward ones (after it), so `concatenationCost` has nothing to add
-for the vertices.
+Implemented by the user for each resource, like `extendAlongArc`: a resource with nothing to do at a vertex returns
+`(label.state, label.cost)`; one with data that belongs to a vertex (a service time, a profit, a demand) uses `v`. The
+source vertex of a route is never entered, so it has no vertex step; every other vertex is entered exactly once, either
+by the forward labels (up to the vertex where they are joined) or by the backward ones (after it), so
+`concatenationCost` has nothing to add for the vertices.
 """
-extendToVertex(res::AbstractResource, label::ForwardLabel, v::Int) = (label.state, label.cost)
-extendToVertex(res::AbstractResource, label::BackwardLabel, v::Int) = (label.state, label.cost)
+extendToVertex(res::AbstractResource, label::ForwardLabel, v::Int) = error("not implemented")
+extendToVertex(res::AbstractResource, label::BackwardLabel, v::Int) = error("not implemented")
 
 """Custom part of a forward extension: the arc and then the vertex it enters."""
 @inline function customExtension(res::AbstractResource, label::ForwardLabel, a::Tuple{Int, Int})

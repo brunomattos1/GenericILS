@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 """Cumulative-cost VRP: node weights `w` and travel times `t`; the route cost is the weighted sum of arrival times."""
 struct CustomResource <: AbstractResource
@@ -55,3 +55,7 @@ end
 function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLabel, backwardLabel::BackwardLabel)
     return (ForwardState(0.0, 0.0), forwardLabel.state.S + backwardLabel.state.S + forwardLabel.state.T * backwardLabel.state.W)
 end
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::CustomResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::CustomResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

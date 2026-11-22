@@ -51,53 +51,40 @@ function setPartitioning(solver::Solver, cutOff::Float64)
         e isa JuMP.MOI.UnsupportedAttribute || rethrow()
     end
     # set_optimizer_attribute(sp, "CPXPARAM_Threads", 1)
-
     set_time_limit_sec(sp, solver.algorithm.timeLimitSP)
     routes = solver.algorithm.routeStorage
+    costs = [routeCost(solver, route) for route in routes]
 
     @variable(sp, λ[r = 1:length(routes)], Bin)
 
-    @objective(sp, Min, sum(routeCost(solver, routes[r])*λ[r] for r = 1:length(routes)))
+    @objective(sp, Min, sum(costs[r]*λ[r] for r = 1:length(routes)))
 
     # a group that no route of the pool can serve makes the problem infeasible
     addPartitioningConstraints!(sp, solver, routes, λ) || return solver.bestFeasSol
 
     nonEmptyRoutes = filter(rt -> length(rt.visits) > 2, solver.bestFeasSol.routes)
     warmStartIds = [get(solver.algorithm.routeLookup, rt.visits, 0) for rt in nonEmptyRoutes]
+    starts = Int[]
     if !isempty(warmStartIds) && all(id -> id > 0, warmStartIds)
         for id in warmStartIds
             set_start_value(λ[id], 1.0)
+            push!(starts, id)
         end
     end
 
-    optimize!(sp)
+    result = solvePartitioning!(sp, λ, costs, starts)
+    result === nothing && return solver.bestFeasSol
+    chosen, cost = result
 
-    if termination_status(sp) == OPTIMAL
-        if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
-            solver.bestFeasSol.routes = [newRoute(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
-            solver.bestFeasSol.cost = objective_value(sp)
-            solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
+    if cost < solver.bestFeasSol.cost - 1e-6
+        solver.bestFeasSol.routes = [newRoute(solver, routes[r]) for r in chosen]
+        solver.bestFeasSol.cost = cost
+        solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
 
-            computeLabels(solver, solver.bestFeasSol)
+        computeLabels(solver, solver.bestFeasSol)
 
-            refreshLabelCosts!(solver.bestFeasSol)
-            registerBestFeasible!(solver, solver.bestFeasSol)
-        end
+        refreshLabelCosts!(solver.bestFeasSol)
+        registerBestFeasible!(solver, solver.bestFeasSol)
     end
-    if termination_status(sp) == INFEASIBLE
-        return solver.bestFeasSol
-    end
-    if termination_status(sp) == TIME_LIMIT
-        if result_count(sp) >= 1
-            if objective_value(sp) < solver.bestFeasSol.cost - 1e-6
-                solver.bestFeasSol.routes = [newRoute(solver, routes[r]) for r = 1:length(routes) if value(λ[r]) >= 0.9]
-                solver.bestFeasSol.cost = objective_value(sp)
-                solver.bestFeasSol.dist = manualCost(solver.bestFeasSol, solver.data.costMatrix)
-                computeLabels(solver, solver.bestFeasSol)
-                refreshLabelCosts!(solver.bestFeasSol)
-                registerBestFeasible!(solver, solver.bestFeasSol)
-            end
-        end
-        return solver.bestFeasSol
-    end
+    return solver.bestFeasSol
 end

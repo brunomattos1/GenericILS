@@ -64,3 +64,27 @@ function addPartitioningConstraints!(sp, solver::Solver, routes::Vector{Vector{I
     @constraint(sp, sum(λ[r] for r in eachindex(routes)) <= data.maxNbRoutes)
     return true
 end
+
+"""
+Optimize the Set Partitioning model `sp` (binary `λ`, `costs[r]` the cost of the route `r`) and return the indices of the
+selected routes and their total cost, or `nothing` if the solver has no solution. `starts` are the routes that were given
+as a MIP start. The cost is added up from the selected routes instead of read from the solver: HiGHS reports an
+objective that does not belong to its solution when it is given a MIP start. When the two differ the start is discarded
+and the model is solved again without it.
+"""
+function solvePartitioning!(sp, λ, costs::Vector{Float64}, starts::Vector{Int})
+    optimize!(sp)
+    while true
+        status = termination_status(sp)
+        (status == OPTIMAL || (status == TIME_LIMIT && result_count(sp) >= 1)) || return nothing
+        chosen = [r for r in eachindex(costs) if value(λ[r]) >= 0.9]
+        cost = sum(costs[r] for r in chosen; init = 0.0)
+        consistent = abs(objective_value(sp) - cost) <= 1e-4 * max(1.0, abs(cost))
+        (consistent || isempty(starts)) && return chosen, cost
+        for r in starts
+            set_start_value(λ[r], nothing)
+        end
+        empty!(starts)
+        optimize!(sp)
+    end
+end

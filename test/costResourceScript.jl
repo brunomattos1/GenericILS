@@ -7,7 +7,7 @@ using Random
 using GenericILS
 using HiGHS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost
+    extendAlongArc, extendToVertex, concatenationCost
 
 struct DistanceCost <: AbstractResource
     dist::Matrix{Float64}
@@ -31,6 +31,8 @@ extendAlongArc(res::DistanceCost, l::ForwardLabel, a::Tuple{Int,Int}) =
 extendAlongArc(res::DistanceCost, l::BackwardLabel, a::Tuple{Int,Int}) =
     (BState(l.state.D + res.dist[a[2], a[1]]), l.state.D + res.dist[a[2], a[1]])
 # forward label at x (route up to x) + backward label at x (route after x)
+extendToVertex(::DistanceCost, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::DistanceCost, l::BackwardLabel, ::Int) = (l.state, l.cost)
 concatenationCost(res::DistanceCost, v::Int, f::ForwardLabel, b::BackwardLabel) =
     (FState(f.state.D + b.state.D), f.state.D + b.state.D)
 

@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 const TOL = 0.0001
 
@@ -101,3 +101,7 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
         return (ForwardState(k_, concCost, concLoad, concDist), concCost)
     end
 end
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::CustomResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::CustomResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

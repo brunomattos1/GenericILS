@@ -110,7 +110,8 @@ the vertex step, a resource with cost, and two resources with a set of colors in
 
 `heuristicModelFromVRPSolver` builds the data of the heuristic from the `VrpGraph` of a VRPSolver model, so the arcs,
 costs and resources do not have to be written twice. It needs VrpSolver.jl (loaded next to GenericILS, it is not a
-dependency of the package):
+dependency of the package; both the versions with one packing set per vertex and the ones that allow overlapping sets, such as
+the branch `update_rcsp_interface` that the VRPSolverDemos use, are read):
 
 ```julia
 using GenericILS, VrpSolver
@@ -122,11 +123,12 @@ solver = Solver(res = h.res, data = h.data, neighborhoods = (TwoOptStar(), Intra
 
 It returns `data` (`ProblemData`), `res` (`Resources`), `maxNbRoutes` and `userIds` (`userIds[i + 1]` is the id in the
 model of vertex `i`; the depot is vertex 0 and the customers follow in the order of the graph). The model does not store
-the path of the C++ files, so `cppDir` says where they are.
+the path of the C++ files, so `cppDir` says where they are; a model with no custom resource does not need it.
 
 | In the VRPSolver model | In the heuristic |
 |---|---|
 | the custom resource | `loadCppResource` with the parameters stored in the model: the arc, vertex and constant structs are passed with their layout, which is the order of the fields of the C++ struct, whatever names the model used to build them |
+| no custom resource | `GenericILS.NoResource()`, a placeholder with no state that adds nothing; the constraints are the standard resources and the cost is in the arcs |
 | standard resources (up to two) | `StandardResource`: arc consumption, and the interval of the arcs that enter each vertex |
 | a cost variable on the custom resource | the cost is the cost of the label (zero cost matrix); `isCostResource()` of the C++ must agree |
 | no cost variable | the cost of the arc is the sum, over its mapped variables, of the coefficient in the objective |
@@ -134,8 +136,8 @@ the path of the C++ files, so `cppDir` says where they are.
 | multiplicity `(L, U)` | `maxNbRoutes = U`; `L` is not used |
 
 What has no equivalent is an `ArgumentError`: more than one graph, a source different from the sink, a graph that is
-not complete or has parallel arcs, binary or non-disposable resources, more than two standard resources or other than one
-custom resource, bounds that depend on the arc, a vertex outside the packing sets, and an objective that is neither the
+not complete or has parallel arcs, binary or non-disposable resources, more than two standard resources or more than one
+custom resource, bounds that depend on the arc, a vertex outside the packing sets or in more than one of them, and an objective that is neither the
 cost variable of the custom resource nor made of variables mapped to arcs (a mix of both is not supported yet). Master
 constraints, cuts and branching are not read: every packing set is assumed to need exactly one visit.
 

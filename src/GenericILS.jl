@@ -14,6 +14,7 @@ using Random, JuMP, HiGHS, Printf
 import Base: split
 
 include("LabelsFunctions.jl")
+include("NoResource.jl")
 include("Resources.jl")
 include("Solution.jl")
 include("Groups.jl")

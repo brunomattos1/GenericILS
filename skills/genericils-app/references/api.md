@@ -35,7 +35,7 @@ initStateBackward(res::MyResource) = (BackwardState(...), 0.0)
 extendAlongArc(res::MyResource, label::ForwardLabel,  a::Tuple{Int,Int}) -> (state, cost)
 extendAlongArc(res::MyResource, label::BackwardLabel, a::Tuple{Int,Int}) -> (state, cost)
 concatenationCost(res::MyResource, v::Int, fwd::ForwardLabel, bwd::BackwardLabel) -> (state, cost)
-# optional: for data of the vertex (demand, service, profit); the default leaves the label unchanged
+# for data of the vertex (demand, service, profit); a resource with nothing to do there returns (label.state, label.cost)
 extendToVertex(res::MyResource, label::ForwardLabel,  v::Int) -> (state, cost)
 extendToVertex(res::MyResource, label::BackwardLabel, v::Int) -> (state, cost)
 ```

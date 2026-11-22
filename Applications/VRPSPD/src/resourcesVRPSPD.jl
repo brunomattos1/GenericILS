@@ -1,7 +1,7 @@
 ################ user-defined (GenericILS as a package) ################
 using GenericILS
 import GenericILS: isSymmetric, isCostResource, initStateForward, initStateBackward,
-    extendAlongArc, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
+    extendAlongArc, extendToVertex, concatenationCost, AbstractResource, ForwardLabel, BackwardLabel
 
 """Simultaneous pickup and delivery: pickup `p` and delivery `d` demands of the arc head and capacity `Q`."""
 struct CustomResource <: AbstractResource
@@ -74,3 +74,7 @@ function concatenationCost(res::CustomResource, v::Int, forwardLabel::ForwardLab
         return (ForwardState(0.0, 0.0), 0.0)
     end
 end
+
+"""Nothing to do at a vertex: the label is unchanged."""
+extendToVertex(::CustomResource, label::ForwardLabel, ::Int) = (label.state, label.cost)
+extendToVertex(::CustomResource, label::BackwardLabel, ::Int) = (label.state, label.cost)

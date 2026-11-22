@@ -19,6 +19,8 @@ extendAlongArc(res::PerTypeCost, l::ForwardLabel, a::Tuple{Int,Int}) =
     (PTFwd(l.state.D + res.dist[a[1], a[2]]), l.state.D + res.dist[a[1], a[2]])
 extendAlongArc(res::PerTypeCost, l::BackwardLabel, a::Tuple{Int,Int}) =
     (PTBwd(l.state.D + res.dist[a[2], a[1]]), l.state.D + res.dist[a[2], a[1]])
+extendToVertex(::PerTypeCost, l::ForwardLabel, ::Int) = (l.state, l.cost)
+extendToVertex(::PerTypeCost, l::BackwardLabel, ::Int) = (l.state, l.cost)
 concatenationCost(res::PerTypeCost, v::Int, f::ForwardLabel, b::BackwardLabel) =
     (PTFwd(f.state.D + b.state.D), f.state.D + b.state.D)
 

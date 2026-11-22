@@ -32,6 +32,7 @@ end
 
 # Checks what the vertex step receives: the state after the arc and the vertex that enters the label.
 struct VertexRecorder <: AbstractResource end
+struct WithoutVertexStep <: AbstractResource end         # defines nothing: there is no default
 struct RecFwd
     steps::Int          # vertex steps applied so far
     head::Int           # vertex entered by the last arc
@@ -84,11 +85,18 @@ function capacitySolver(custom; nCust = 14, Q = 30.0, instanceSeed = 3)
 end
 
 @testset "extendToVertex" begin
-    @testset "a resource that does not define it is not affected" begin
+    @testset "a resource that has nothing to do at a vertex returns the label unchanged" begin
         label = GenericILS.myInitStateForward(CustomResource(zeros(3, 3), 5.0))
         @test extendToVertex(CustomResource(zeros(3, 3), 5.0), label, 2) == (label.state, label.cost)
         back = GenericILS.myInitStateBackward(CustomResource(zeros(3, 3), 5.0))
         @test extendToVertex(CustomResource(zeros(3, 3), 5.0), back, 2) == (back.state, back.cost)
+    end
+
+    @testset "there is no default: every resource has to define it" begin
+        label = GenericILS.ForwardLabel(0, 0.0, StandardState(0.0, 0.0), StandardState(0.0, 0.0), 0)
+        back = GenericILS.BackwardLabel(0, 0.0, StandardState(0.0, 0.0), StandardState(0.0, 0.0), 0)
+        @test_throws ErrorException extendToVertex(WithoutVertexStep(), label, 2)
+        @test_throws ErrorException extendToVertex(WithoutVertexStep(), back, 2)
     end
 
     @testset "the vertex step sees the label after the arc and the vertex that enters it" begin
